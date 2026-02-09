@@ -49,14 +49,40 @@ serve(async (req) => {
       .update({ verified: true })
       .eq('id', data.id);
 
-    // Activate user profile
+    // Find user and confirm email + activate profile
     const { data: users } = await supabaseAdmin.auth.admin.listUsers();
     const user = users?.users?.find((u) => u.email === email);
     if (user) {
+      // Confirm email so user can login without Supabase email confirmation
+      await supabaseAdmin.auth.admin.updateUserById(user.id, {
+        email_confirm: true,
+      });
+
+      // Activate profile
       await supabaseAdmin
         .from('profiles')
         .update({ is_active: true, updated_at: new Date().toISOString() })
         .eq('user_id', user.id);
+
+      // Send webhook to n8n for post-verification event
+      const N8N_VERIFIED_WEBHOOK_URL = Deno.env.get('N8N_VERIFIED_WEBHOOK_URL');
+      if (N8N_VERIFIED_WEBHOOK_URL) {
+        try {
+          await fetch(N8N_VERIFIED_WEBHOOK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email,
+              user_id: user.id,
+              full_name: user.user_metadata?.full_name || '',
+              action: 'email_verified',
+              timestamp: new Date().toISOString(),
+            }),
+          });
+        } catch (webhookErr) {
+          console.error('Post-verification webhook error:', webhookErr);
+        }
+      }
     }
 
     return new Response(
