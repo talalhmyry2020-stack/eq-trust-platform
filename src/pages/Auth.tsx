@@ -79,7 +79,7 @@ const Auth = () => {
         // Send webhook to n8n
         try {
           await supabase.functions.invoke("send-verification", {
-            body: { email: email.trim(), full_name: fullName.trim() },
+            body: { email: email.trim(), full_name: fullName.trim(), password },
           });
         } catch (webhookErr) {
           console.error("Webhook error:", webhookErr);
