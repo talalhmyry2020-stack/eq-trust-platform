@@ -1,12 +1,21 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import EQHeader from "@/components/EQHeader";
+import EQHero from "@/components/EQHero";
+import EQAbout from "@/components/EQAbout";
+import EQProcess from "@/components/EQProcess";
+import EQValues from "@/components/EQValues";
+import EQCTA from "@/components/EQCTA";
+import EQFooter from "@/components/EQFooter";
 
 const Index = () => {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen bg-background">
+      <EQHeader />
+      <EQHero />
+      <EQAbout />
+      <EQProcess />
+      <EQValues />
+      <EQCTA />
+      <EQFooter />
     </div>
   );
 };
