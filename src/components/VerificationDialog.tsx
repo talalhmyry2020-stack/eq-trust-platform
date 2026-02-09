@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ShieldCheck, Loader2 } from "lucide-react";
+import { ShieldCheck, Loader2, X } from "lucide-react";
 import {
   InputOTP,
   InputOTPGroup,
@@ -56,6 +56,13 @@ const VerificationDialog = ({ open, onClose, email }: VerificationDialogProps) =
         className="bg-secondary border border-primary/10 rounded-2xl p-8 max-w-sm w-full mx-4 text-center"
         dir="rtl"
       >
+        <button
+          onClick={() => { setCode(""); onClose(); }}
+          className="absolute top-3 left-3 w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+        >
+          <X size={16} />
+        </button>
+
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
