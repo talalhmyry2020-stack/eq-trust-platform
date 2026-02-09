@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,12 +26,36 @@ serve(async (req) => {
       );
     }
 
+    // Generate 6-digit code
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+
+    // Store code in database
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    // Delete old codes for this email
+    await supabaseAdmin.from('verification_codes').delete().eq('email', email);
+
+    // Insert new code
+    const { error: insertError } = await supabaseAdmin.from('verification_codes').insert({
+      email,
+      code,
+    });
+
+    if (insertError) {
+      throw new Error(`Failed to store code: ${insertError.message}`);
+    }
+
+    // Send code to n8n webhook
     const response = await fetch(N8N_WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email,
         full_name,
+        code,
         action: 'email_verification',
         timestamp: new Date().toISOString(),
       }),
@@ -46,7 +71,7 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: unknown) {
-    console.error('Error sending verification webhook:', error);
+    console.error('Error sending verification:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
