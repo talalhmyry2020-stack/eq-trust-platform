@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Mail, Lock, ArrowRight, Loader2, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import VerificationDialog from "@/components/VerificationDialog";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -12,6 +13,8 @@ const Auth = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showVerification, setShowVerification] = useState(false);
+  const [verifiedEmail, setVerifiedEmail] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -72,6 +75,18 @@ const Auth = () => {
           title: "تم إنشاء الحساب بنجاح! 🎉",
           description: "تم إرسال رسالة تأكيد إلى بريدك الإلكتروني. يرجى التحقق منها لتفعيل حسابك.",
         });
+
+        // Send webhook to n8n
+        try {
+          await supabase.functions.invoke("send-verification", {
+            body: { email: email.trim(), full_name: fullName.trim() },
+          });
+        } catch (webhookErr) {
+          console.error("Webhook error:", webhookErr);
+        }
+
+        setVerifiedEmail(email.trim());
+        setShowVerification(true);
         setIsLogin(true);
         setPassword("");
         setConfirmPassword("");
@@ -249,6 +264,11 @@ const Auth = () => {
           </button>
         </div>
       </motion.div>
+      <VerificationDialog
+        open={showVerification}
+        onClose={() => setShowVerification(false)}
+        email={verifiedEmail}
+      />
     </div>
   );
 };
