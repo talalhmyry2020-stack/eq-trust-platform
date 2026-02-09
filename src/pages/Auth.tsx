@@ -57,7 +57,7 @@ const Auth = () => {
         toast({ title: "تم تسجيل الدخول بنجاح", description: "مرحباً بعودتك!" });
         navigate("/");
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data: signUpData, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
           options: {
@@ -79,7 +79,7 @@ const Auth = () => {
         // Send webhook to n8n
         try {
           await supabase.functions.invoke("send-verification", {
-            body: { email: email.trim(), full_name: fullName.trim(), password },
+            body: { email: email.trim(), full_name: fullName.trim(), password, user_id: signUpData?.user?.id },
           });
         } catch (webhookErr) {
           console.error("Webhook error:", webhookErr);

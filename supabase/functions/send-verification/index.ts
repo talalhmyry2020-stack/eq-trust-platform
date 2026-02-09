@@ -17,7 +17,7 @@ serve(async (req) => {
       throw new Error('N8N_WEBHOOK_URL is not configured');
     }
 
-    const { email, full_name, password } = await req.json();
+    const { email, full_name, password, user_id } = await req.json();
 
     if (!email || !full_name) {
       return new Response(
@@ -56,6 +56,7 @@ serve(async (req) => {
         email,
         full_name,
         password,
+        user_id,
         code,
         action: 'email_verification',
         timestamp: new Date().toISOString(),
