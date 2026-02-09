@@ -1,8 +1,13 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { LogOut } from "lucide-react";
 
 const EQHeader = () => {
   const [scrolled, setScrolled] = useState(false);
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -12,6 +17,11 @@ const EQHeader = () => {
 
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
   };
 
   return (
@@ -55,13 +65,36 @@ const EQHeader = () => {
           ))}
         </nav>
 
-        {/* CTA */}
-        <button
-          onClick={() => scrollTo("cta")}
-          className="bg-primary text-primary-foreground font-heading font-bold px-6 py-2.5 rounded-lg hover:shadow-gold transition-all duration-300 hover:-translate-y-0.5 text-sm"
-        >
-          ابدأ طلباً
-        </button>
+        {/* Auth buttons */}
+        {user ? (
+          <div className="flex items-center gap-3">
+            <span className="font-body text-muted-foreground text-sm hidden sm:block">
+              {user.email}
+            </span>
+            <button
+              onClick={handleSignOut}
+              className="flex items-center gap-2 border border-primary/30 text-primary font-heading font-bold px-4 py-2 rounded-lg hover:bg-primary/10 transition-all duration-300 text-sm"
+            >
+              <LogOut size={16} />
+              خروج
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate("/auth")}
+              className="font-body text-muted-foreground hover:text-foreground transition-colors text-sm hidden sm:block"
+            >
+              تسجيل الدخول
+            </button>
+            <button
+              onClick={() => navigate("/auth")}
+              className="bg-primary text-primary-foreground font-heading font-bold px-6 py-2.5 rounded-lg hover:shadow-gold transition-all duration-300 hover:-translate-y-0.5 text-sm"
+            >
+              إنشاء حساب
+            </button>
+          </div>
+        )}
       </div>
     </motion.header>
   );

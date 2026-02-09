@@ -1,6 +1,11 @@
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 const EQCTA = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
   return (
     <section
       id="cta"
@@ -39,12 +44,23 @@ const EQCTA = () => {
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.3 }}
         >
-          <button className="bg-primary text-primary-foreground font-heading font-bold text-lg md:text-xl px-12 py-5 rounded-xl hover:scale-105 hover:shadow-gold-lg transition-all duration-300">
-            ابدأ أول طلب مجاناً
-          </button>
-          <p className="font-body text-muted-foreground text-sm mt-5">
-            لا يحتاج بطاقة ائتمان • إعداد خلال 5 دقائق
-          </p>
+          {user ? (
+            <p className="font-heading font-bold text-primary text-xl">
+              أنت مسجّل بالفعل ✨
+            </p>
+          ) : (
+            <>
+              <button
+                onClick={() => navigate("/auth")}
+                className="bg-primary text-primary-foreground font-heading font-bold text-lg md:text-xl px-12 py-5 rounded-xl hover:scale-105 hover:shadow-gold-lg transition-all duration-300"
+              >
+                أنشئ حسابك مجاناً
+              </button>
+              <p className="font-body text-muted-foreground text-sm mt-5">
+                لا يحتاج بطاقة ائتمان • إعداد خلال 5 دقائق
+              </p>
+            </>
+          )}
         </motion.div>
       </div>
     </section>

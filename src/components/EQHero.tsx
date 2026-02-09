@@ -1,6 +1,8 @@
 import { motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 const Particles = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -58,6 +60,9 @@ const Particles = () => {
 };
 
 const EQHero = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
   return (
     <section
       id="hero"
@@ -95,18 +100,28 @@ const EQHero = () => {
           transition={{ duration: 0.8, delay: 0.6 }}
           className="flex flex-col sm:flex-row items-center justify-center gap-4"
         >
-          <button
-            onClick={() => document.getElementById("cta")?.scrollIntoView({ behavior: "smooth" })}
-            className="bg-primary text-primary-foreground font-heading font-bold text-lg px-10 py-4 rounded-lg hover:shadow-gold-lg hover:-translate-y-1 transition-all duration-300"
-          >
-            ابدأ طلباً الآن
-          </button>
-          <button
-            onClick={() => document.getElementById("process")?.scrollIntoView({ behavior: "smooth" })}
-            className="border-2 border-primary text-primary font-heading font-bold text-lg px-10 py-4 rounded-lg hover:bg-primary/10 transition-all duration-300"
-          >
-            اكتشف كيف تعمل
-          </button>
+          {user ? (
+            <button
+              className="bg-primary text-primary-foreground font-heading font-bold text-lg px-10 py-4 rounded-lg hover:shadow-gold-lg hover:-translate-y-1 transition-all duration-300"
+            >
+              مرحباً بك في EQ 🎉
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => navigate("/auth")}
+                className="bg-primary text-primary-foreground font-heading font-bold text-lg px-10 py-4 rounded-lg hover:shadow-gold-lg hover:-translate-y-1 transition-all duration-300"
+              >
+                إنشاء حساب جديد
+              </button>
+              <button
+                onClick={() => navigate("/auth")}
+                className="border-2 border-primary text-primary font-heading font-bold text-lg px-10 py-4 rounded-lg hover:bg-primary/10 transition-all duration-300"
+              >
+                تسجيل الدخول
+              </button>
+            </>
+          )}
         </motion.div>
       </div>
 
