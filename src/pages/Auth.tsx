@@ -44,7 +44,7 @@ const Auth = () => {
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        const { data: signInData, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (error) {
           if (error.message.includes("Invalid login credentials")) {
             throw new Error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
@@ -55,7 +55,19 @@ const Auth = () => {
           throw new Error(error.message);
         }
         toast({ title: "تم تسجيل الدخول بنجاح", description: "مرحباً بعودتك!" });
-        navigate("/");
+
+        // Check if user is admin and redirect accordingly
+        const { data: roles } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", signInData.user.id)
+          .eq("role", "admin");
+
+        if (roles && roles.length > 0) {
+          navigate("/admin");
+        } else {
+          navigate("/");
+        }
       } else {
         const { data: signUpData, error } = await supabase.auth.signUp({
           email: email.trim(),
