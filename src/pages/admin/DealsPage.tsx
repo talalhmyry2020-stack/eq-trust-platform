@@ -1,0 +1,238 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Search, Plus, Pause, Play, Trash2, Edit, Clock } from "lucide-react";
+import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+
+interface Deal {
+  id: string;
+  deal_number: number;
+  title: string;
+  deal_type: string;
+  status: string;
+  created_at: string;
+  client_id: string | null;
+  employee_id: string | null;
+  stage_id: string | null;
+  description: string | null;
+}
+
+interface Stage {
+  id: string;
+  name: string;
+  display_order: number;
+}
+
+const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  active: { label: "نشطة", variant: "default" },
+  delayed: { label: "متأخرة", variant: "secondary" },
+  paused: { label: "متوقفة", variant: "outline" },
+  completed: { label: "مكتملة", variant: "default" },
+  cancelled: { label: "ملغاة", variant: "destructive" },
+};
+
+const DealsPage = () => {
+  const { user } = useAuth();
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [stages, setStages] = useState<Stage[]>([]);
+  const [clients, setClients] = useState<{ user_id: string; full_name: string }[]>([]);
+  const [employees, setEmployees] = useState<{ user_id: string; full_name: string }[]>([]);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [newDeal, setNewDeal] = useState({ title: "", deal_type: "", client_id: "", employee_id: "", stage_id: "", description: "" });
+
+  const fetchData = async () => {
+    const [dealsRes, stagesRes, profilesRes, rolesRes] = await Promise.all([
+      supabase.from("deals").select("*").order("created_at", { ascending: false }),
+      supabase.from("deal_stages").select("*").order("display_order"),
+      supabase.from("profiles").select("user_id, full_name"),
+      supabase.from("user_roles").select("user_id, role"),
+    ]);
+
+    setDeals(dealsRes.data || []);
+    setStages(stagesRes.data || []);
+
+    const roles = rolesRes.data || [];
+    const profiles = profilesRes.data || [];
+    setClients(profiles.filter((p) => roles.some((r) => r.user_id === p.user_id && r.role === "client")));
+    setEmployees(profiles.filter((p) => roles.some((r) => r.user_id === p.user_id && r.role === "employee")));
+  };
+
+  useEffect(() => { fetchData(); }, []);
+
+  const createDeal = async () => {
+    if (!newDeal.title) { toast.error("عنوان الصفقة مطلوب"); return; }
+
+    const { error } = await supabase.from("deals").insert({
+      title: newDeal.title,
+      deal_type: newDeal.deal_type,
+      client_id: newDeal.client_id || null,
+      employee_id: newDeal.employee_id || null,
+      stage_id: newDeal.stage_id || null,
+      description: newDeal.description,
+      created_by: user?.id,
+      status: "active" as const,
+    });
+
+    if (error) { toast.error("خطأ في إنشاء الصفقة"); return; }
+    toast.success("تم إنشاء الصفقة");
+    setShowCreateDialog(false);
+    setNewDeal({ title: "", deal_type: "", client_id: "", employee_id: "", stage_id: "", description: "" });
+    fetchData();
+  };
+
+  const updateStatus = async (id: string, status: "active" | "delayed" | "paused" | "completed" | "cancelled") => {
+    await supabase.from("deals").update({ status }).eq("id", id);
+    toast.success("تم تحديث الحالة");
+    fetchData();
+  };
+
+  const deleteDeal = async (id: string) => {
+    await supabase.from("deals").delete().eq("id", id);
+    toast.success("تم حذف الصفقة");
+    fetchData();
+  };
+
+  const getStageName = (stageId: string | null) =>
+    stages.find((s) => s.id === stageId)?.name || "—";
+
+  const getClientName = (clientId: string | null) =>
+    clients.find((c) => c.user_id === clientId)?.full_name || "—";
+
+  const filtered = deals.filter((d) => {
+    const matchSearch = d.title.toLowerCase().includes(search.toLowerCase());
+    const matchStatus = statusFilter === "all" || d.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="font-heading text-2xl font-bold">إدارة الصفقات</h1>
+        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+          <DialogTrigger asChild>
+            <Button><Plus className="w-4 h-4 ml-2" />صفقة جديدة</Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-lg">
+            <DialogHeader><DialogTitle>إنشاء صفقة جديدة</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              <div><Label>عنوان الصفقة</Label><Input value={newDeal.title} onChange={(e) => setNewDeal({ ...newDeal, title: e.target.value })} /></div>
+              <div><Label>نوع الصفقة</Label><Input value={newDeal.deal_type} onChange={(e) => setNewDeal({ ...newDeal, deal_type: e.target.value })} /></div>
+              <div>
+                <Label>العميل</Label>
+                <Select value={newDeal.client_id} onValueChange={(v) => setNewDeal({ ...newDeal, client_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="اختر عميل" /></SelectTrigger>
+                  <SelectContent>
+                    {clients.map((c) => <SelectItem key={c.user_id} value={c.user_id}>{c.full_name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>الموظف المسؤول</Label>
+                <Select value={newDeal.employee_id} onValueChange={(v) => setNewDeal({ ...newDeal, employee_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="اختر موظف" /></SelectTrigger>
+                  <SelectContent>
+                    {employees.map((e) => <SelectItem key={e.user_id} value={e.user_id}>{e.full_name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>المرحلة</Label>
+                <Select value={newDeal.stage_id} onValueChange={(v) => setNewDeal({ ...newDeal, stage_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="اختر مرحلة" /></SelectTrigger>
+                  <SelectContent>
+                    {stages.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label>الوصف</Label><Textarea value={newDeal.description} onChange={(e) => setNewDeal({ ...newDeal, description: e.target.value })} /></div>
+              <Button onClick={createDeal} className="w-full">إنشاء الصفقة</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="flex gap-4 mb-4">
+        <div className="relative flex-1">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input placeholder="بحث..." className="pr-10" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">جميع الحالات</SelectItem>
+            <SelectItem value="active">نشطة</SelectItem>
+            <SelectItem value="delayed">متأخرة</SelectItem>
+            <SelectItem value="paused">متوقفة</SelectItem>
+            <SelectItem value="completed">مكتملة</SelectItem>
+            <SelectItem value="cancelled">ملغاة</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>#</TableHead>
+                <TableHead>العنوان</TableHead>
+                <TableHead>العميل</TableHead>
+                <TableHead>النوع</TableHead>
+                <TableHead>المرحلة</TableHead>
+                <TableHead>الحالة</TableHead>
+                <TableHead>التاريخ</TableHead>
+                <TableHead>إجراءات</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((deal) => {
+                const st = STATUS_MAP[deal.status] || { label: deal.status, variant: "secondary" as const };
+                return (
+                  <TableRow key={deal.id}>
+                    <TableCell className="font-mono">{deal.deal_number}</TableCell>
+                    <TableCell className="font-medium">{deal.title}</TableCell>
+                    <TableCell>{getClientName(deal.client_id)}</TableCell>
+                    <TableCell>{deal.deal_type || "—"}</TableCell>
+                    <TableCell>{getStageName(deal.stage_id)}</TableCell>
+                    <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
+                    <TableCell className="font-mono text-xs">{new Date(deal.created_at).toLocaleDateString("ar-SA")}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        {deal.status === "active" && (
+                          <>
+                            <Button size="icon" variant="ghost" onClick={() => updateStatus(deal.id, "paused")} title="إيقاف"><Pause className="w-4 h-4" /></Button>
+                            <Button size="icon" variant="ghost" onClick={() => updateStatus(deal.id, "delayed")} title="تأخير"><Clock className="w-4 h-4" /></Button>
+                          </>
+                        )}
+                        {(deal.status === "paused" || deal.status === "delayed") && (
+                          <Button size="icon" variant="ghost" onClick={() => updateStatus(deal.id, "active")} title="تفعيل"><Play className="w-4 h-4" /></Button>
+                        )}
+                        <Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteDeal(deal.id)} title="حذف"><Trash2 className="w-4 h-4" /></Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              {filtered.length === 0 && (
+                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">لا توجد صفقات</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default DealsPage;

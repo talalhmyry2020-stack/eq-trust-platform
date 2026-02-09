@@ -7,6 +7,14 @@ import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import AdminLayout from "./components/admin/AdminLayout";
+import Dashboard from "./pages/admin/Dashboard";
+import UsersPage from "./pages/admin/UsersPage";
+import DealsPage from "./pages/admin/DealsPage";
+import ArchivePage from "./pages/admin/ArchivePage";
+import LogsPage from "./pages/admin/LogsPage";
+import SensitivePage from "./pages/admin/SensitivePage";
+import SettingsPage from "./pages/admin/SettingsPage";
 
 const queryClient = new QueryClient();
 
@@ -20,6 +28,15 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="users" element={<UsersPage />} />
+              <Route path="deals" element={<DealsPage />} />
+              <Route path="archive" element={<ArchivePage />} />
+              <Route path="logs" element={<LogsPage />} />
+              <Route path="sensitive" element={<SensitivePage />} />
+              <Route path="settings" element={<SettingsPage />} />
+            </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
