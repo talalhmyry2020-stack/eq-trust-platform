@@ -14,12 +14,159 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      deal_stages: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      deals: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          created_by: string | null
+          deal_number: number
+          deal_type: string
+          description: string | null
+          employee_id: string | null
+          id: string
+          stage_id: string | null
+          status: Database["public"]["Enums"]["deal_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          deal_number?: number
+          deal_type?: string
+          description?: string | null
+          employee_id?: string | null
+          id?: string
+          stage_id?: string | null
+          status?: Database["public"]["Enums"]["deal_status"]
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          deal_number?: number
+          deal_type?: string
+          description?: string | null
+          employee_id?: string | null
+          id?: string
+          stage_id?: string | null
+          status?: Database["public"]["Enums"]["deal_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deals_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "deal_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_client_assignments: {
+        Row: {
+          client_id: string
+          created_at: string
+          employee_id: string
+          id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          employee_id: string
+          id?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          employee_id?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      employee_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          permission: Database["public"]["Enums"]["employee_permission"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          permission: Database["public"]["Enums"]["employee_permission"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          permission?: Database["public"]["Enums"]["employee_permission"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
           full_name: string
           id: string
           is_active: boolean
+          status: string
           updated_at: string
           user_id: string
         }
@@ -28,6 +175,7 @@ export type Database = {
           full_name?: string
           id?: string
           is_active?: boolean
+          status?: string
           updated_at?: string
           user_id: string
         }
@@ -36,7 +184,53 @@ export type Database = {
           full_name?: string
           id?: string
           is_active?: boolean
+          status?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      system_settings: {
+        Row: {
+          id: string
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          id?: string
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Update: {
+          id?: string
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
         Relationships: []
@@ -73,10 +267,30 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_permission: {
+        Args: {
+          _perm: Database["public"]["Enums"]["employee_permission"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "employee" | "client"
+      deal_status: "active" | "delayed" | "paused" | "completed" | "cancelled"
+      employee_permission:
+        | "view_deals"
+        | "manage_deals"
+        | "contact_clients"
+        | "view_clients"
+        | "manage_clients"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -203,6 +417,16 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "employee", "client"],
+      deal_status: ["active", "delayed", "paused", "completed", "cancelled"],
+      employee_permission: [
+        "view_deals",
+        "manage_deals",
+        "contact_clients",
+        "view_clients",
+        "manage_clients",
+      ],
+    },
   },
 } as const
