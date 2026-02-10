@@ -1,17 +1,14 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Plus } from "lucide-react";
 import CharterAgreement from "@/components/client/CharterAgreement";
+import DealForm from "@/components/client/DealForm";
 
 const statusMap: Record<string, string> = {
   active: "نشطة",
@@ -34,12 +31,7 @@ const ClientDeals = () => {
   const [stages, setStages] = useState<any[]>([]);
   const [showCharter, setShowCharter] = useState(false);
   const [charterAccepted, setCharterAccepted] = useState(false);
-  const [open, setOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [title, setTitle] = useState("");
-  const [dealType, setDealType] = useState("");
-  const [description, setDescription] = useState("");
-  const [stageId, setStageId] = useState("");
+  const [showForm, setShowForm] = useState(false);
 
   const fetchDeals = async () => {
     if (!user) return;
@@ -55,31 +47,6 @@ const ClientDeals = () => {
 
   const getStageName = (id: string | null) => stages.find((s) => s.id === id)?.name || "—";
 
-  const handleCreate = async () => {
-    if (!user || !title.trim() || !dealType.trim()) return;
-    setCreating(true);
-    const { error } = await supabase.from("deals").insert({
-      title: title.trim(),
-      deal_type: dealType.trim(),
-      description: description.trim(),
-      client_id: user.id,
-      created_by: user.id,
-      stage_id: stageId || null,
-    });
-    setCreating(false);
-    if (error) {
-      toast({ title: "خطأ", description: "فشل إنشاء الصفقة", variant: "destructive" });
-    } else {
-      toast({ title: "تم الإنشاء", description: "تم إنشاء الصفقة بنجاح" });
-      setTitle("");
-      setDealType("");
-      setDescription("");
-      setStageId("");
-      setOpen(false);
-      fetchDeals();
-    }
-  };
-
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -89,47 +56,32 @@ const ClientDeals = () => {
         </Button>
       </div>
 
-      {/* Charter Agreement - full screen overlay */}
+      {/* Charter Agreement */}
       {showCharter && !charterAccepted && (
         <CharterAgreement
           onAgree={() => {
             setCharterAccepted(true);
             setShowCharter(false);
-            setOpen(true);
+            setShowForm(true);
           }}
           onCancel={() => setShowCharter(false)}
         />
       )}
 
-      {/* Deal creation dialog - shown after charter acceptance */}
-      <Dialog open={open} onOpenChange={(v) => {
-        setOpen(v);
-        if (!v) setCharterAccepted(false);
-      }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-heading">صفقة جديدة</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 mt-2">
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="عنوان الصفقة" />
-            <Input value={dealType} onChange={(e) => setDealType(e.target.value)} placeholder="نوع الصفقة (مثال: بيع، شراء، وساطة)" />
-            {stages.length > 0 && (
-              <Select value={stageId} onValueChange={setStageId}>
-                <SelectTrigger><SelectValue placeholder="اختر المرحلة (اختياري)" /></SelectTrigger>
-                <SelectContent>
-                  {stages.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="وصف الصفقة (اختياري)" rows={3} />
-            <Button onClick={handleCreate} disabled={creating || !title.trim() || !dealType.trim()} className="w-full">
-              {creating ? "جاري الإنشاء..." : "إنشاء الصفقة"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Deal Form - shown after charter acceptance */}
+      {showForm && (
+        <DealForm
+          onSubmit={() => {
+            setShowForm(false);
+            setCharterAccepted(false);
+            fetchDeals();
+          }}
+          onCancel={() => {
+            setShowForm(false);
+            setCharterAccepted(false);
+          }}
+        />
+      )}
 
       <Card>
         <CardContent className="p-0">

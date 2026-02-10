@@ -67,42 +67,78 @@ export type Database = {
       }
       deals: {
         Row: {
+          city: string | null
+          client_full_name: string | null
           client_id: string | null
+          commercial_register_doc_url: string | null
+          commercial_register_number: string | null
+          country: string | null
           created_at: string
           created_by: string | null
           deal_number: number
           deal_type: string
           description: string | null
           employee_id: string | null
+          entity_type: string | null
           id: string
+          identity_doc_url: string | null
+          import_country: string | null
+          national_id: string | null
+          product_description: string | null
+          product_image_url: string | null
+          product_type: string | null
           stage_id: string | null
           status: Database["public"]["Enums"]["deal_status"]
           title: string
           updated_at: string
         }
         Insert: {
+          city?: string | null
+          client_full_name?: string | null
           client_id?: string | null
+          commercial_register_doc_url?: string | null
+          commercial_register_number?: string | null
+          country?: string | null
           created_at?: string
           created_by?: string | null
           deal_number?: number
           deal_type?: string
           description?: string | null
           employee_id?: string | null
+          entity_type?: string | null
           id?: string
+          identity_doc_url?: string | null
+          import_country?: string | null
+          national_id?: string | null
+          product_description?: string | null
+          product_image_url?: string | null
+          product_type?: string | null
           stage_id?: string | null
           status?: Database["public"]["Enums"]["deal_status"]
           title?: string
           updated_at?: string
         }
         Update: {
+          city?: string | null
+          client_full_name?: string | null
           client_id?: string | null
+          commercial_register_doc_url?: string | null
+          commercial_register_number?: string | null
+          country?: string | null
           created_at?: string
           created_by?: string | null
           deal_number?: number
           deal_type?: string
           description?: string | null
           employee_id?: string | null
+          entity_type?: string | null
           id?: string
+          identity_doc_url?: string | null
+          import_country?: string | null
+          national_id?: string | null
+          product_description?: string | null
+          product_image_url?: string | null
+          product_type?: string | null
           stage_id?: string | null
           status?: Database["public"]["Enums"]["deal_status"]
           title?: string
