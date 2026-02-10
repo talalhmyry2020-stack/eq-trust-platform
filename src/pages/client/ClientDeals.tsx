@@ -11,6 +11,7 @@ import CharterAgreement from "@/components/client/CharterAgreement";
 import DealForm from "@/components/client/DealForm";
 
 const statusMap: Record<string, string> = {
+  pending_review: "قيد المراجعة",
   active: "نشطة",
   delayed: "متأخرة",
   paused: "متوقفة",
@@ -19,6 +20,7 @@ const statusMap: Record<string, string> = {
 };
 
 const statusVariant = (s: string) => {
+  if (s === "pending_review") return "outline";
   if (s === "active") return "default";
   if (s === "delayed") return "destructive";
   return "secondary";
@@ -36,7 +38,7 @@ const ClientDeals = () => {
   const fetchDeals = async () => {
     if (!user) return;
     const [d, s] = await Promise.all([
-      supabase.from("deals").select("*").eq("client_id", user.id).not("status", "in", '("completed","cancelled")').order("updated_at", { ascending: false }),
+      supabase.from("deals").select("*").eq("client_id", user.id).not("status", "in", '("completed","cancelled")').order("created_at", { ascending: false }),
       supabase.from("deal_stages").select("*").order("display_order"),
     ]);
     setDeals(d.data || []);

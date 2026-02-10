@@ -418,7 +418,13 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "employee" | "client"
-      deal_status: "active" | "delayed" | "paused" | "completed" | "cancelled"
+      deal_status:
+        | "active"
+        | "delayed"
+        | "paused"
+        | "completed"
+        | "cancelled"
+        | "pending_review"
       employee_permission:
         | "view_deals"
         | "manage_deals"
@@ -553,7 +559,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "employee", "client"],
-      deal_status: ["active", "delayed", "paused", "completed", "cancelled"],
+      deal_status: [
+        "active",
+        "delayed",
+        "paused",
+        "completed",
+        "cancelled",
+        "pending_review",
+      ],
       employee_permission: [
         "view_deals",
         "manage_deals",
