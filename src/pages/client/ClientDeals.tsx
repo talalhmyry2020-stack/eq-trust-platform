@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Plus } from "lucide-react";
+import CharterAgreement from "@/components/client/CharterAgreement";
 
 const statusMap: Record<string, string> = {
   active: "نشطة",
@@ -31,6 +32,8 @@ const ClientDeals = () => {
   const { toast } = useToast();
   const [deals, setDeals] = useState<any[]>([]);
   const [stages, setStages] = useState<any[]>([]);
+  const [showCharter, setShowCharter] = useState(false);
+  const [charterAccepted, setCharterAccepted] = useState(false);
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState("");
@@ -81,35 +84,52 @@ const ClientDeals = () => {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-heading text-2xl font-bold">صفقاتي</h1>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button><Plus className="w-4 h-4 ml-2" /> إنشاء صفقة</Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="font-heading">صفقة جديدة</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 mt-2">
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="عنوان الصفقة" />
-              <Input value={dealType} onChange={(e) => setDealType(e.target.value)} placeholder="نوع الصفقة (مثال: بيع، شراء، وساطة)" />
-              {stages.length > 0 && (
-                <Select value={stageId} onValueChange={setStageId}>
-                  <SelectTrigger><SelectValue placeholder="اختر المرحلة (اختياري)" /></SelectTrigger>
-                  <SelectContent>
-                    {stages.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="وصف الصفقة (اختياري)" rows={3} />
-              <Button onClick={handleCreate} disabled={creating || !title.trim() || !dealType.trim()} className="w-full">
-                {creating ? "جاري الإنشاء..." : "إنشاء الصفقة"}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => setShowCharter(true)}>
+          <Plus className="w-4 h-4 ml-2" /> إنشاء صفقة
+        </Button>
       </div>
+
+      {/* Charter Agreement - full screen overlay */}
+      {showCharter && !charterAccepted && (
+        <CharterAgreement
+          onAgree={() => {
+            setCharterAccepted(true);
+            setShowCharter(false);
+            setOpen(true);
+          }}
+          onCancel={() => setShowCharter(false)}
+        />
+      )}
+
+      {/* Deal creation dialog - shown after charter acceptance */}
+      <Dialog open={open} onOpenChange={(v) => {
+        setOpen(v);
+        if (!v) setCharterAccepted(false);
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading">صفقة جديدة</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="عنوان الصفقة" />
+            <Input value={dealType} onChange={(e) => setDealType(e.target.value)} placeholder="نوع الصفقة (مثال: بيع، شراء، وساطة)" />
+            {stages.length > 0 && (
+              <Select value={stageId} onValueChange={setStageId}>
+                <SelectTrigger><SelectValue placeholder="اختر المرحلة (اختياري)" /></SelectTrigger>
+                <SelectContent>
+                  {stages.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="وصف الصفقة (اختياري)" rows={3} />
+            <Button onClick={handleCreate} disabled={creating || !title.trim() || !dealType.trim()} className="w-full">
+              {creating ? "جاري الإنشاء..." : "إنشاء الصفقة"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardContent className="p-0">
