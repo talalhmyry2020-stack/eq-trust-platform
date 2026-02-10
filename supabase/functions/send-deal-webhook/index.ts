@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 serve(async (req) => {
@@ -17,9 +17,11 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const webhookUrl = Deno.env.get("N8N_WEBHOOK_URL");
+    const phase1Url = Deno.env.get("N8N_WEBHOOK_URL");
+    const phase2Url = Deno.env.get("N8N_PHASE2_WEBHOOK_URL");
 
-    if (!webhookUrl) throw new Error("N8N_WEBHOOK_URL not configured");
+    if (!phase1Url) throw new Error("N8N_WEBHOOK_URL not configured");
+    if (!phase2Url) throw new Error("N8N_PHASE2_WEBHOOK_URL not configured");
 
     const supabase = createClient(supabaseUrl, serviceKey);
 
@@ -34,7 +36,6 @@ serve(async (req) => {
 
     // Generate signed URLs for documents (valid for 1 hour)
     const signedUrls: Record<string, string | null> = {};
-
     for (const field of ["identity_doc_url", "commercial_register_doc_url", "product_image_url"]) {
       const path = deal[field];
       if (path) {
@@ -47,40 +48,99 @@ serve(async (req) => {
       }
     }
 
-    // Send to n8n webhook
-    const payload = {
+    // ===== المرحلة الأولى: إرسال المستندات والبيانات القانونية =====
+    const phase1Payload = {
+      phase: 1,
       deal_id: deal.id,
       deal_number: deal.deal_number,
-      title: deal.title,
-      deal_type: deal.deal_type,
-      status: deal.status,
-      client_id: deal.client_id,
       client_full_name: deal.client_full_name,
-      country: deal.country,
-      city: deal.city,
       national_id: deal.national_id,
       commercial_register_number: deal.commercial_register_number,
       entity_type: deal.entity_type,
+      country: deal.country,
+      city: deal.city,
+      identity_doc_signed_url: signedUrls.identity_doc_url,
+      commercial_register_signed_url: signedUrls.commercial_register_doc_url,
+    };
+
+    console.log("Phase 1: Sending documents to webhook...");
+    const phase1Response = await fetch(phase1Url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(phase1Payload),
+    });
+
+    const phase1Result = await phase1Response.text();
+    console.log("Phase 1 response:", phase1Response.status, phase1Result);
+
+    let phase1Data: any = {};
+    try { phase1Data = JSON.parse(phase1Result); } catch { /* ignore */ }
+
+    // إذا رفض في المرحلة الأولى، نوقف ونحدث الحالة
+    if (phase1Data.status === "rejected" || phase1Data.status === "cancelled") {
+      await supabase.from("deals").update({ status: "cancelled" as any }).eq("id", deal_id);
+      return new Response(JSON.stringify({ 
+        success: true, 
+        phase: 1, 
+        result: "rejected",
+        final_status: "cancelled" 
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ===== المرحلة الثانية: إرسال بيانات المنتج مع المستندات =====
+    const phase2Payload = {
+      phase: 2,
+      deal_id: deal.id,
+      deal_number: deal.deal_number,
       product_type: deal.product_type,
       product_description: deal.product_description,
       import_country: deal.import_country,
-      created_at: deal.created_at,
-      // Signed URLs for downloading files
+      product_image_signed_url: signedUrls.product_image_url,
+      // إعادة إرسال المستندات للمرجع
+      national_id: deal.national_id,
+      commercial_register_number: deal.commercial_register_number,
       identity_doc_signed_url: signedUrls.identity_doc_url,
       commercial_register_signed_url: signedUrls.commercial_register_doc_url,
-      product_image_signed_url: signedUrls.product_image_url,
     };
 
-    const webhookResponse = await fetch(webhookUrl, {
+    console.log("Phase 2: Sending product data to webhook...");
+    const phase2Response = await fetch(phase2Url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(phase2Payload),
     });
 
-    const webhookResult = await webhookResponse.text();
-    console.log("n8n webhook response:", webhookResponse.status, webhookResult);
+    const phase2Result = await phase2Response.text();
+    console.log("Phase 2 response:", phase2Response.status, phase2Result);
 
-    return new Response(JSON.stringify({ success: true }), {
+    let phase2Data: any = {};
+    try { phase2Data = JSON.parse(phase2Result); } catch { /* ignore */ }
+
+    // تحديد الحالة النهائية بناءً على الرد
+    let finalStatus = "pending_review";
+    if (phase2Data.status === "approved" || phase2Data.status === "active") {
+      finalStatus = "active";
+    } else if (phase2Data.status === "rejected" || phase2Data.status === "cancelled") {
+      finalStatus = "cancelled";
+    } else if (phase2Data.status === "delayed") {
+      finalStatus = "delayed";
+    } else if (phase2Data.status === "paused") {
+      finalStatus = "paused";
+    }
+
+    // تحديث حالة الصفقة
+    if (finalStatus !== "pending_review") {
+      await supabase.from("deals").update({ status: finalStatus as any }).eq("id", deal_id);
+    }
+
+    return new Response(JSON.stringify({ 
+      success: true, 
+      phase1_status: phase1Data.status || "ok",
+      phase2_status: phase2Data.status || "ok",
+      final_status: finalStatus,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
