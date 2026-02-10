@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import DealSummaryCard from "./DealSummaryCard";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,6 +30,8 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
+  const [submittedDeal, setSubmittedDeal] = useState<any>(null);
+  const [verificationStatus, setVerificationStatus] = useState<"pending" | "phase1" | "phase2" | "done" | "error">("pending");
 
   const [clientFullName, setClientFullName] = useState("");
   const [country, setCountry] = useState("");
@@ -105,19 +108,52 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
         product_image_url: productPath || "",
         import_country: importCountry,
         status: "pending_review" as any,
-      }).select("id").single();
+      }).select("id, deal_number").single();
 
       if (error) throw error;
 
-      // Send deal data to webhook (non-blocking)
-      if (dealData?.id) {
-        supabase.functions.invoke("send-deal-webhook", {
-          body: { deal_id: dealData.id },
-        }).catch((e) => console.error("Webhook failed:", e));
-      }
+      // حفظ بيانات الصفقة لعرض الملخص
+      const dealSummary = {
+        deal_number: dealData?.deal_number,
+        client_full_name: clientFullName.trim(),
+        country,
+        city: city.trim(),
+        national_id: nationalId.trim(),
+        commercial_register_number: commercialRegNumber.trim(),
+        entity_type: entityType,
+        product_type: productType.trim(),
+        product_description: productDescription.trim(),
+        import_country: importCountry,
+        status: "pending_review",
+      };
+      setSubmittedDeal(dealSummary);
+      setVerificationStatus("phase1");
 
-      toast({ title: "تم الإرسال", description: "تم إنشاء الصفقة بنجاح وهي قيد المراجعة" });
-      onSubmit();
+      toast({ title: "تم الإرسال", description: "تم إنشاء الصفقة بنجاح وجاري التحقق..." });
+
+      // إرسال للـ webhook على مرحلتين (غير معطل)
+      if (dealData?.id) {
+        try {
+          setVerificationStatus("phase1");
+          const { data: webhookResult, error: webhookError } = await supabase.functions.invoke("send-deal-webhook", {
+            body: { deal_id: dealData.id },
+          });
+
+          if (webhookError) {
+            console.error("Webhook error:", webhookError);
+            setVerificationStatus("error");
+          } else {
+            setVerificationStatus("done");
+            // تحديث الحالة في الملخص بناءً على نتيجة الـ webhook
+            if (webhookResult?.final_status) {
+              setSubmittedDeal((prev: any) => ({ ...prev, status: webhookResult.final_status }));
+            }
+          }
+        } catch (e) {
+          console.error("Webhook failed:", e);
+          setVerificationStatus("error");
+        }
+      }
     } catch (err: any) {
       toast({ title: "خطأ", description: err.message || "فشل إنشاء الصفقة", variant: "destructive" });
     } finally {
@@ -167,6 +203,21 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
       </Button>
     </div>
   );
+
+  // إذا تم إرسال الصفقة، عرض الملخص فقط
+  if (submittedDeal) {
+    return (
+      <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm overflow-y-auto">
+        <div className="max-w-2xl mx-auto py-8 px-4">
+          <DealSummaryCard
+            deal={submittedDeal}
+            verificationStatus={verificationStatus}
+            onClose={onSubmit}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm overflow-y-auto">
