@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.search-products]
 verify_jwt = false
+
+[functions.get-pending-deals]
+verify_jwt = false
