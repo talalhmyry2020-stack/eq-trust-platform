@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Plus, Pause, Play, Trash2, Clock, Eye, CheckCircle, XCircle, Send } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -144,6 +145,90 @@ const DealsPage = () => {
     return matchSearch && matchStatus;
   });
 
+  const pendingDeals = filtered.filter(d => d.status === "pending_review");
+  const acceptedDeals = filtered.filter(d => d.status === "active" || d.status === "completed" || d.status === "delayed" || d.status === "paused");
+  const rejectedDeals = filtered.filter(d => d.status === "cancelled");
+
+  const renderDealsTable = (dealsList: Deal[]) => (
+    <Card>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>#</TableHead>
+              <TableHead>العنوان</TableHead>
+              <TableHead>العميل</TableHead>
+              <TableHead>النوع</TableHead>
+              <TableHead>المرحلة</TableHead>
+              <TableHead>الحالة</TableHead>
+              <TableHead>التاريخ</TableHead>
+              <TableHead>إجراءات</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {dealsList.map((deal) => {
+              const st = STATUS_MAP[deal.status] || { label: deal.status, variant: "secondary" as const };
+              return (
+                <TableRow key={deal.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedDeal(deal)}>
+                  <TableCell className="font-mono">{deal.deal_number}</TableCell>
+                  <TableCell className="font-medium">{deal.title}</TableCell>
+                  <TableCell>{deal.client_full_name || getClientName(deal.client_id)}</TableCell>
+                  <TableCell>{deal.deal_type || "—"}</TableCell>
+                  <TableCell>{getStageName(deal.stage_id)}</TableCell>
+                  <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
+                  <TableCell className="font-mono text-xs">{new Date(deal.created_at).toLocaleDateString("ar-SA")}</TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => setSelectedDeal(deal)} title="عرض التفاصيل">
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                      {deal.status === "pending_review" && (
+                        <>
+                          <Button size="icon" variant="ghost" className="text-green-600" onClick={() => updateStatus(deal.id, "active")} title="موافقة">
+                            <CheckCircle className="w-4 h-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="text-destructive" onClick={() => updateStatus(deal.id, "cancelled")} title="رفض">
+                            <XCircle className="w-4 h-4" />
+                          </Button>
+                        </>
+                      )}
+                      {deal.status === "active" && (
+                        <>
+                          <Button size="icon" variant="ghost" onClick={() => updateStatus(deal.id, "paused")} title="إيقاف">
+                            <Pause className="w-4 h-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => updateStatus(deal.id, "delayed")} title="تأخير">
+                            <Clock className="w-4 h-4" />
+                          </Button>
+                          {deal.current_phase === "product_search" && (
+                            <Button size="icon" variant="ghost" className="text-primary" onClick={() => triggerProductSearch(deal.id)} title="بحث عن منتجات">
+                              <Send className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </>
+                      )}
+                      {(deal.status === "paused" || deal.status === "delayed") && (
+                        <Button size="icon" variant="ghost" onClick={() => updateStatus(deal.id, "active")} title="تفعيل">
+                          <Play className="w-4 h-4" />
+                        </Button>
+                      )}
+                      <Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteDeal(deal.id)} title="حذف">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {dealsList.length === 0 && (
+              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">لا توجد صفقات</TableCell></TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -204,83 +289,18 @@ const DealsPage = () => {
         </Select>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>#</TableHead>
-                <TableHead>العنوان</TableHead>
-                <TableHead>العميل</TableHead>
-                <TableHead>النوع</TableHead>
-                <TableHead>المرحلة</TableHead>
-                <TableHead>الحالة</TableHead>
-                <TableHead>التاريخ</TableHead>
-                <TableHead>إجراءات</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((deal) => {
-                const st = STATUS_MAP[deal.status] || { label: deal.status, variant: "secondary" as const };
-                return (
-                  <TableRow key={deal.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedDeal(deal)}>
-                    <TableCell className="font-mono">{deal.deal_number}</TableCell>
-                    <TableCell className="font-medium">{deal.title}</TableCell>
-                    <TableCell>{deal.client_full_name || getClientName(deal.client_id)}</TableCell>
-                    <TableCell>{deal.deal_type || "—"}</TableCell>
-                    <TableCell>{getStageName(deal.stage_id)}</TableCell>
-                    <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
-                    <TableCell className="font-mono text-xs">{new Date(deal.created_at).toLocaleDateString("ar-SA")}</TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <div className="flex gap-1">
-                        <Button size="icon" variant="ghost" onClick={() => setSelectedDeal(deal)} title="عرض التفاصيل">
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        {deal.status === "pending_review" && (
-                          <>
-                            <Button size="icon" variant="ghost" className="text-green-600" onClick={() => updateStatus(deal.id, "active")} title="موافقة">
-                              <CheckCircle className="w-4 h-4" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="text-destructive" onClick={() => updateStatus(deal.id, "cancelled")} title="رفض">
-                              <XCircle className="w-4 h-4" />
-                            </Button>
-                          </>
-                        )}
-                        {deal.status === "active" && (
-                          <>
-                            <Button size="icon" variant="ghost" onClick={() => updateStatus(deal.id, "paused")} title="إيقاف">
-                              <Pause className="w-4 h-4" />
-                            </Button>
-                            <Button size="icon" variant="ghost" onClick={() => updateStatus(deal.id, "delayed")} title="تأخير">
-                              <Clock className="w-4 h-4" />
-                            </Button>
-                            {deal.current_phase === "product_search" && (
-                              <Button size="icon" variant="ghost" className="text-primary" onClick={() => triggerProductSearch(deal.id)} title="بحث عن منتجات">
-                                <Send className="w-4 h-4" />
-                              </Button>
-                            )}
-                          </>
-                        )}
-                        {(deal.status === "paused" || deal.status === "delayed") && (
-                          <Button size="icon" variant="ghost" onClick={() => updateStatus(deal.id, "active")} title="تفعيل">
-                            <Play className="w-4 h-4" />
-                          </Button>
-                        )}
-                        <Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteDeal(deal.id)} title="حذف">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-              {filtered.length === 0 && (
-                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">لا توجد صفقات</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="all" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="all">جميع الصفقات ({filtered.length})</TabsTrigger>
+          <TabsTrigger value="pending">قيد المراجعة ({pendingDeals.length})</TabsTrigger>
+          <TabsTrigger value="accepted">مقبولة ({acceptedDeals.length})</TabsTrigger>
+          <TabsTrigger value="rejected">مرفوضة ({rejectedDeals.length})</TabsTrigger>
+        </TabsList>
+        <TabsContent value="all">{renderDealsTable(filtered)}</TabsContent>
+        <TabsContent value="pending">{renderDealsTable(pendingDeals)}</TabsContent>
+        <TabsContent value="accepted">{renderDealsTable(acceptedDeals)}</TabsContent>
+        <TabsContent value="rejected">{renderDealsTable(rejectedDeals)}</TabsContent>
+      </Tabs>
 
       <DealDetailDialog
         deal={selectedDeal}
