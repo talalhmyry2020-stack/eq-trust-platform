@@ -56,17 +56,17 @@ const Auth = () => {
         }
         toast({ title: "تم تسجيل الدخول بنجاح", description: "مرحباً بعودتك!" });
 
-        // Check if user is admin and redirect accordingly
+        // Check role and redirect accordingly
         const { data: roles } = await supabase
           .from("user_roles")
           .select("role")
-          .eq("user_id", signInData.user.id)
-          .eq("role", "admin");
+          .eq("user_id", signInData.user.id);
 
-        if (roles && roles.length > 0) {
+        const userRoles = (roles || []).map((r) => r.role);
+        if (userRoles.includes("admin")) {
           navigate("/admin");
         } else {
-          navigate("/");
+          navigate("/client");
         }
       } else {
         const { data: signUpData, error } = await supabase.auth.signUp({
