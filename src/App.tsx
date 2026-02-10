@@ -15,6 +15,13 @@ import ArchivePage from "./pages/admin/ArchivePage";
 import LogsPage from "./pages/admin/LogsPage";
 import SensitivePage from "./pages/admin/SensitivePage";
 import SettingsPage from "./pages/admin/SettingsPage";
+import ClientLayout from "./components/client/ClientLayout";
+import ClientDashboard from "./pages/client/ClientDashboard";
+import ClientDeals from "./pages/client/ClientDeals";
+import ClientArchive from "./pages/client/ClientArchive";
+import ClientAccount from "./pages/client/ClientAccount";
+import ClientNotifications from "./pages/client/ClientNotifications";
+import ClientSupport from "./pages/client/ClientSupport";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +43,14 @@ const App = () => (
               <Route path="logs" element={<LogsPage />} />
               <Route path="sensitive" element={<SensitivePage />} />
               <Route path="settings" element={<SettingsPage />} />
+            </Route>
+            <Route path="/client" element={<ClientLayout />}>
+              <Route index element={<ClientDashboard />} />
+              <Route path="deals" element={<ClientDeals />} />
+              <Route path="archive" element={<ClientArchive />} />
+              <Route path="account" element={<ClientAccount />} />
+              <Route path="notifications" element={<ClientNotifications />} />
+              <Route path="support" element={<ClientSupport />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
