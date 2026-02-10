@@ -9,9 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Plus, Pause, Play, Trash2, Edit, Clock } from "lucide-react";
+import { Search, Plus, Pause, Play, Trash2, Clock, Eye, CheckCircle, XCircle, Send } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import DealDetailDialog from "@/components/admin/DealDetailDialog";
 
 interface Deal {
   id: string;
@@ -24,6 +25,19 @@ interface Deal {
   employee_id: string | null;
   stage_id: string | null;
   description: string | null;
+  client_full_name: string | null;
+  country: string | null;
+  city: string | null;
+  national_id: string | null;
+  commercial_register_number: string | null;
+  entity_type: string | null;
+  identity_doc_url: string | null;
+  commercial_register_doc_url: string | null;
+  product_type: string | null;
+  product_description: string | null;
+  product_image_url: string | null;
+  import_country: string | null;
+  current_phase: string | null;
 }
 
 interface Stage {
@@ -33,6 +47,7 @@ interface Stage {
 }
 
 const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  pending_review: { label: "قيد المراجعة", variant: "outline" },
   active: { label: "نشطة", variant: "default" },
   delayed: { label: "متأخرة", variant: "secondary" },
   paused: { label: "متوقفة", variant: "outline" },
@@ -49,6 +64,7 @@ const DealsPage = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [newDeal, setNewDeal] = useState({ title: "", deal_type: "", client_id: "", employee_id: "", stage_id: "", description: "" });
 
   const fetchData = async () => {
@@ -59,7 +75,7 @@ const DealsPage = () => {
       supabase.from("user_roles").select("user_id, role"),
     ]);
 
-    setDeals(dealsRes.data || []);
+    setDeals(dealsRes.data as Deal[] || []);
     setStages(stagesRes.data || []);
 
     const roles = rolesRes.data || [];
@@ -72,7 +88,6 @@ const DealsPage = () => {
 
   const createDeal = async () => {
     if (!newDeal.title) { toast.error("عنوان الصفقة مطلوب"); return; }
-
     const { error } = await supabase.from("deals").insert({
       title: newDeal.title,
       deal_type: newDeal.deal_type,
@@ -83,7 +98,6 @@ const DealsPage = () => {
       created_by: user?.id,
       status: "active" as const,
     });
-
     if (error) { toast.error("خطأ في إنشاء الصفقة"); return; }
     toast.success("تم إنشاء الصفقة");
     setShowCreateDialog(false);
@@ -91,10 +105,23 @@ const DealsPage = () => {
     fetchData();
   };
 
-  const updateStatus = async (id: string, status: "active" | "delayed" | "paused" | "completed" | "cancelled") => {
+  const updateStatus = async (id: string, status: "active" | "delayed" | "paused" | "completed" | "cancelled" | "pending_review") => {
     await supabase.from("deals").update({ status }).eq("id", id);
     toast.success("تم تحديث الحالة");
     fetchData();
+  };
+
+  const triggerProductSearch = async (dealId: string) => {
+    toast.info("جاري إرسال طلب البحث عن المنتجات...");
+    const { error } = await supabase.functions.invoke("search-products", {
+      body: { deal_id: dealId },
+    });
+    if (error) {
+      toast.error("فشل إرسال طلب البحث");
+    } else {
+      toast.success("تم إرسال طلب البحث بنجاح");
+      fetchData();
+    }
   };
 
   const deleteDeal = async (id: string) => {
@@ -110,7 +137,9 @@ const DealsPage = () => {
     clients.find((c) => c.user_id === clientId)?.full_name || "—";
 
   const filtered = deals.filter((d) => {
-    const matchSearch = d.title.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = d.title.toLowerCase().includes(search.toLowerCase()) ||
+      (d.client_full_name || "").toLowerCase().includes(search.toLowerCase()) ||
+      String(d.deal_number).includes(search);
     const matchStatus = statusFilter === "all" || d.status === statusFilter;
     return matchSearch && matchStatus;
   });
@@ -132,27 +161,21 @@ const DealsPage = () => {
                 <Label>العميل</Label>
                 <Select value={newDeal.client_id} onValueChange={(v) => setNewDeal({ ...newDeal, client_id: v })}>
                   <SelectTrigger><SelectValue placeholder="اختر عميل" /></SelectTrigger>
-                  <SelectContent>
-                    {clients.map((c) => <SelectItem key={c.user_id} value={c.user_id}>{c.full_name}</SelectItem>)}
-                  </SelectContent>
+                  <SelectContent>{clients.map((c) => <SelectItem key={c.user_id} value={c.user_id}>{c.full_name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div>
                 <Label>الموظف المسؤول</Label>
                 <Select value={newDeal.employee_id} onValueChange={(v) => setNewDeal({ ...newDeal, employee_id: v })}>
                   <SelectTrigger><SelectValue placeholder="اختر موظف" /></SelectTrigger>
-                  <SelectContent>
-                    {employees.map((e) => <SelectItem key={e.user_id} value={e.user_id}>{e.full_name}</SelectItem>)}
-                  </SelectContent>
+                  <SelectContent>{employees.map((e) => <SelectItem key={e.user_id} value={e.user_id}>{e.full_name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div>
                 <Label>المرحلة</Label>
                 <Select value={newDeal.stage_id} onValueChange={(v) => setNewDeal({ ...newDeal, stage_id: v })}>
                   <SelectTrigger><SelectValue placeholder="اختر مرحلة" /></SelectTrigger>
-                  <SelectContent>
-                    {stages.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                  </SelectContent>
+                  <SelectContent>{stages.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div><Label>الوصف</Label><Textarea value={newDeal.description} onChange={(e) => setNewDeal({ ...newDeal, description: e.target.value })} /></div>
@@ -165,12 +188,13 @@ const DealsPage = () => {
       <div className="flex gap-4 mb-4">
         <div className="relative flex-1">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="بحث..." className="pr-10" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input placeholder="بحث بالاسم أو الرقم..." className="pr-10" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">جميع الحالات</SelectItem>
+            <SelectItem value="pending_review">قيد المراجعة</SelectItem>
             <SelectItem value="active">نشطة</SelectItem>
             <SelectItem value="delayed">متأخرة</SelectItem>
             <SelectItem value="paused">متوقفة</SelectItem>
@@ -199,26 +223,52 @@ const DealsPage = () => {
               {filtered.map((deal) => {
                 const st = STATUS_MAP[deal.status] || { label: deal.status, variant: "secondary" as const };
                 return (
-                  <TableRow key={deal.id}>
+                  <TableRow key={deal.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedDeal(deal)}>
                     <TableCell className="font-mono">{deal.deal_number}</TableCell>
                     <TableCell className="font-medium">{deal.title}</TableCell>
-                    <TableCell>{getClientName(deal.client_id)}</TableCell>
+                    <TableCell>{deal.client_full_name || getClientName(deal.client_id)}</TableCell>
                     <TableCell>{deal.deal_type || "—"}</TableCell>
                     <TableCell>{getStageName(deal.stage_id)}</TableCell>
                     <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
                     <TableCell className="font-mono text-xs">{new Date(deal.created_at).toLocaleDateString("ar-SA")}</TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-1">
+                        <Button size="icon" variant="ghost" onClick={() => setSelectedDeal(deal)} title="عرض التفاصيل">
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        {deal.status === "pending_review" && (
+                          <>
+                            <Button size="icon" variant="ghost" className="text-green-600" onClick={() => updateStatus(deal.id, "active")} title="موافقة">
+                              <CheckCircle className="w-4 h-4" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="text-destructive" onClick={() => updateStatus(deal.id, "cancelled")} title="رفض">
+                              <XCircle className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
                         {deal.status === "active" && (
                           <>
-                            <Button size="icon" variant="ghost" onClick={() => updateStatus(deal.id, "paused")} title="إيقاف"><Pause className="w-4 h-4" /></Button>
-                            <Button size="icon" variant="ghost" onClick={() => updateStatus(deal.id, "delayed")} title="تأخير"><Clock className="w-4 h-4" /></Button>
+                            <Button size="icon" variant="ghost" onClick={() => updateStatus(deal.id, "paused")} title="إيقاف">
+                              <Pause className="w-4 h-4" />
+                            </Button>
+                            <Button size="icon" variant="ghost" onClick={() => updateStatus(deal.id, "delayed")} title="تأخير">
+                              <Clock className="w-4 h-4" />
+                            </Button>
+                            {deal.current_phase === "product_search" && (
+                              <Button size="icon" variant="ghost" className="text-primary" onClick={() => triggerProductSearch(deal.id)} title="بحث عن منتجات">
+                                <Send className="w-4 h-4" />
+                              </Button>
+                            )}
                           </>
                         )}
                         {(deal.status === "paused" || deal.status === "delayed") && (
-                          <Button size="icon" variant="ghost" onClick={() => updateStatus(deal.id, "active")} title="تفعيل"><Play className="w-4 h-4" /></Button>
+                          <Button size="icon" variant="ghost" onClick={() => updateStatus(deal.id, "active")} title="تفعيل">
+                            <Play className="w-4 h-4" />
+                          </Button>
                         )}
-                        <Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteDeal(deal.id)} title="حذف"><Trash2 className="w-4 h-4" /></Button>
+                        <Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteDeal(deal.id)} title="حذف">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -231,6 +281,13 @@ const DealsPage = () => {
           </Table>
         </CardContent>
       </Card>
+
+      <DealDetailDialog
+        deal={selectedDeal}
+        open={!!selectedDeal}
+        onClose={() => setSelectedDeal(null)}
+        clientName={selectedDeal ? getClientName(selectedDeal.client_id) : ""}
+      />
     </div>
   );
 };

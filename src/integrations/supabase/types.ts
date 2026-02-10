@@ -44,6 +44,53 @@ export type Database = {
         }
         Relationships: []
       }
+      deal_product_results: {
+        Row: {
+          created_at: string
+          currency: string | null
+          deal_id: string
+          id: string
+          price: number | null
+          product_image_url: string | null
+          product_name: string
+          quality_rating: string | null
+          selected: boolean | null
+          specifications: Json | null
+        }
+        Insert: {
+          created_at?: string
+          currency?: string | null
+          deal_id: string
+          id?: string
+          price?: number | null
+          product_image_url?: string | null
+          product_name: string
+          quality_rating?: string | null
+          selected?: boolean | null
+          specifications?: Json | null
+        }
+        Update: {
+          created_at?: string
+          currency?: string | null
+          deal_id?: string
+          id?: string
+          price?: number | null
+          product_image_url?: string | null
+          product_name?: string
+          quality_rating?: string | null
+          selected?: boolean | null
+          specifications?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_product_results_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_stages: {
         Row: {
           created_at: string
@@ -75,6 +122,7 @@ export type Database = {
           country: string | null
           created_at: string
           created_by: string | null
+          current_phase: string | null
           deal_number: number
           deal_type: string
           description: string | null
@@ -101,6 +149,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           created_by?: string | null
+          current_phase?: string | null
           deal_number?: number
           deal_type?: string
           description?: string | null
@@ -127,6 +176,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           created_by?: string | null
+          current_phase?: string | null
           deal_number?: number
           deal_type?: string
           description?: string | null

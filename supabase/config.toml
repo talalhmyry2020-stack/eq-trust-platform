@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.send-deal-webhook]
 verify_jwt = false
+
+[functions.update-deal-status]
+verify_jwt = false
+
+[functions.search-products]
+verify_jwt = false

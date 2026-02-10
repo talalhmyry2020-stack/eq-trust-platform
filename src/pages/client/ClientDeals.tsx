@@ -6,9 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus } from "lucide-react";
+import { Plus, Eye, Package } from "lucide-react";
 import CharterAgreement from "@/components/client/CharterAgreement";
 import DealForm from "@/components/client/DealForm";
+import ProductCatalog from "@/components/client/ProductCatalog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const statusMap: Record<string, string> = {
   pending_review: "قيد المراجعة",
@@ -19,11 +21,18 @@ const statusMap: Record<string, string> = {
   cancelled: "ملغاة",
 };
 
+const phaseMap: Record<string, string> = {
+  verification: "التحقق",
+  product_search: "البحث عن منتج",
+  searching_products: "جاري البحث",
+  product_selection: "اختيار المنتج",
+};
+
 const statusVariant = (s: string) => {
-  if (s === "pending_review") return "outline";
-  if (s === "active") return "default";
-  if (s === "delayed") return "destructive";
-  return "secondary";
+  if (s === "pending_review") return "outline" as const;
+  if (s === "active") return "default" as const;
+  if (s === "delayed") return "destructive" as const;
+  return "secondary" as const;
 };
 
 const ClientDeals = () => {
@@ -34,6 +43,7 @@ const ClientDeals = () => {
   const [showCharter, setShowCharter] = useState(false);
   const [charterAccepted, setCharterAccepted] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [selectedDealForProducts, setSelectedDealForProducts] = useState<string | null>(null);
 
   const fetchDeals = async () => {
     if (!user) return;
@@ -58,30 +68,17 @@ const ClientDeals = () => {
         </Button>
       </div>
 
-      {/* Charter Agreement */}
       {showCharter && !charterAccepted && (
         <CharterAgreement
-          onAgree={() => {
-            setCharterAccepted(true);
-            setShowCharter(false);
-            setShowForm(true);
-          }}
+          onAgree={() => { setCharterAccepted(true); setShowCharter(false); setShowForm(true); }}
           onCancel={() => setShowCharter(false)}
         />
       )}
 
-      {/* Deal Form - shown after charter acceptance */}
       {showForm && (
         <DealForm
-          onSubmit={() => {
-            setShowForm(false);
-            setCharterAccepted(false);
-            fetchDeals();
-          }}
-          onCancel={() => {
-            setShowForm(false);
-            setCharterAccepted(false);
-          }}
+          onSubmit={() => { setShowForm(false); setCharterAccepted(false); fetchDeals(); }}
+          onCancel={() => { setShowForm(false); setCharterAccepted(false); }}
         />
       )}
 
@@ -94,7 +91,9 @@ const ClientDeals = () => {
                 <TableHead>العنوان</TableHead>
                 <TableHead>المرحلة</TableHead>
                 <TableHead>الحالة</TableHead>
+                <TableHead>التقدم</TableHead>
                 <TableHead>آخر تحديث</TableHead>
+                <TableHead>إجراءات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -106,16 +105,48 @@ const ClientDeals = () => {
                   <TableCell>
                     <Badge variant={statusVariant(deal.status)}>{statusMap[deal.status] || deal.status}</Badge>
                   </TableCell>
+                  <TableCell>
+                    {deal.current_phase && (
+                      <Badge variant="outline" className="text-xs">
+                        {phaseMap[deal.current_phase] || deal.current_phase}
+                      </Badge>
+                    )}
+                  </TableCell>
                   <TableCell className="font-mono text-xs">{new Date(deal.updated_at).toLocaleDateString("ar-SA")}</TableCell>
+                  <TableCell>
+                    {(deal.current_phase === "product_selection" || deal.current_phase === "searching_products") && deal.status === "active" && (
+                      <Button size="sm" variant="outline" onClick={() => setSelectedDealForProducts(deal.id)} className="gap-1">
+                        <Package className="w-4 h-4" /> المنتجات
+                      </Button>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
               {deals.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">لا توجد صفقات نشطة</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">لا توجد صفقات نشطة</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      {/* كتالوج المنتجات */}
+      <Dialog open={!!selectedDealForProducts} onOpenChange={() => setSelectedDealForProducts(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>المنتجات المتاحة</DialogTitle>
+          </DialogHeader>
+          {selectedDealForProducts && (
+            <ProductCatalog
+              dealId={selectedDealForProducts}
+              onProductSelected={() => {
+                toast({ title: "تم اختيار المنتج بنجاح" });
+                fetchDeals();
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
