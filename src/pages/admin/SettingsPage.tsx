@@ -4,13 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
-import { Settings, Webhook, Shield, Code, Copy, Check } from "lucide-react";
+import { Settings, Webhook, Code, Copy, Check, Send, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const API_BASE = `https://ihaomfghhzfcsezixviq.supabase.co/rest/v1`;
 const FUNCTIONS_BASE = `https://ihaomfghhzfcsezixviq.supabase.co/functions/v1`;
 
 const CodeBlock = ({ title, code }: { title: string; code: string }) => {
@@ -37,118 +34,106 @@ const CodeBlock = ({ title, code }: { title: string; code: string }) => {
 };
 
 const SettingsPage = () => {
-  const [webhooks, setWebhooks] = useState({
-    deal_created: "",
-    deal_updated: "",
-    deal_deleted: "",
-    user_registered: "",
-  });
-  const [security, setSecurity] = useState({
-    max_login_attempts: 5,
-    auto_suspend: true,
-    email_verification: true,
-  });
+  const [webhookUrl, setWebhookUrl] = useState("");
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
-    const fetchSettings = async () => {
-      const { data } = await supabase.from("system_settings").select("*");
-      if (data) {
-        const webhooksSetting = data.find((s) => s.key === "webhooks");
-        const securitySetting = data.find((s) => s.key === "security");
-        if (webhooksSetting) setWebhooks(webhooksSetting.value as any);
-        if (securitySetting) setSecurity(securitySetting.value as any);
-      }
+    const fetchData = async () => {
+      const [settingsRes, dealsRes] = await Promise.all([
+        supabase.from("system_settings").select("value").eq("key", "verification_webhook_url").single(),
+        supabase.from("deals").select("id", { count: "exact" }).eq("status", "pending_review" as any),
+      ]);
+      if (settingsRes.data) setWebhookUrl((settingsRes.data.value as any)?.url || "");
+      setPendingCount(dealsRes.count || 0);
       setLoading(false);
     };
-    fetchSettings();
+    fetchData();
   }, []);
 
-  const saveWebhooks = async () => {
-    const { error } = await supabase
-      .from("system_settings")
-      .update({ value: webhooks as any, updated_at: new Date().toISOString() })
-      .eq("key", "webhooks");
+  const saveWebhook = async () => {
+    setSaving(true);
+    const { error } = await supabase.from("system_settings").upsert(
+      { key: "verification_webhook_url", value: { url: webhookUrl } as any },
+      { onConflict: "key" }
+    );
     if (error) toast.error("خطأ في الحفظ");
-    else toast.success("تم حفظ إعدادات Webhooks");
+    else toast.success("تم حفظ رابط الـ Webhook");
+    setSaving(false);
   };
 
-  const saveSecurity = async () => {
-    const { error } = await supabase
-      .from("system_settings")
-      .update({ value: security as any, updated_at: new Date().toISOString() })
-      .eq("key", "security");
-    if (error) toast.error("خطأ في الحفظ");
-    else toast.success("تم حفظ إعدادات الأمان");
+  const sendPendingDeals = async () => {
+    setSending(true);
+    try {
+      // Fetch all pending_review deals
+      const { data: deals, error } = await supabase
+        .from("deals")
+        .select("id")
+        .eq("status", "pending_review" as any);
+      
+      if (error) throw error;
+      if (!deals || deals.length === 0) {
+        toast.info("لا توجد صفقات قيد المراجعة");
+        setSending(false);
+        return;
+      }
+
+      let sent = 0;
+      let failed = 0;
+      for (const deal of deals) {
+        const { error: fnError } = await supabase.functions.invoke("send-deal-webhook", {
+          body: { deal_id: deal.id },
+        });
+        if (fnError) failed++;
+        else sent++;
+      }
+
+      if (failed > 0) toast.warning(`تم إرسال ${sent} صفقة، فشل ${failed}`);
+      else toast.success(`تم إرسال ${sent} صفقة إلى الـ Webhook بنجاح`);
+      setPendingCount(0);
+    } catch (err: any) {
+      toast.error(err.message || "خطأ في الإرسال");
+    } finally {
+      setSending(false);
+    }
   };
 
   if (loading) return <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 
-  const getDealsExample = `GET ${API_BASE}/deals?select=*&status=eq.pending_review
+  const postbackExample = `POST ${FUNCTIONS_BASE}/update-deal-status
 
 Headers:
-  apikey: YOUR_ANON_KEY
-  Authorization: Bearer YOUR_SERVICE_ROLE_KEY`;
-
-  const getSingleDealExample = `GET ${API_BASE}/deals?id=eq.{DEAL_ID}&select=*
-
-Headers:
-  apikey: YOUR_ANON_KEY
-  Authorization: Bearer YOUR_SERVICE_ROLE_KEY`;
-
-  const updateStatusExample = `PATCH ${API_BASE}/deals?id=eq.{DEAL_ID}
-
-Headers:
-  apikey: YOUR_ANON_KEY
-  Authorization: Bearer YOUR_SERVICE_ROLE_KEY
   Content-Type: application/json
-  Prefer: return=minimal
 
-Body:
+Body (للقبول):
 {
+  "deal_id": "uuid-الصفقة",
   "status": "active"
 }
 
-// القيم المتاحة للحالة:
-// "active"         → نشطة (تمت الموافقة)
-// "cancelled"      → ملغاة (مرفوضة)
-// "delayed"        → متأخرة
-// "paused"         → متوقفة
-// "completed"      → مكتملة
-// "pending_review" → قيد المراجعة`;
+Body (للرفض):
+{
+  "deal_id": "uuid-الصفقة",
+  "status": "cancelled"
+}`;
 
-  const curlPostExample = `curl -X PATCH '${API_BASE}/deals?id=eq.YOUR_DEAL_ID' \\
-  -H "apikey: YOUR_ANON_KEY" \\
-  -H "Authorization: Bearer YOUR_SERVICE_ROLE_KEY" \\
+  const curlAcceptExample = `curl -X POST '${FUNCTIONS_BASE}/update-deal-status' \\
   -H "Content-Type: application/json" \\
-  -H "Prefer: return=minimal" \\
-  -d '{"status": "active"}'`;
+  -d '{"deal_id": "DEAL_UUID", "status": "active"}'`;
 
-  const n8nHttpExample = `// في n8n - استخدم HTTP Request node:
-// Method: PATCH
-// URL: ${API_BASE}/deals?id=eq.{{$json.deal_id}}
-//
-// Headers:
-//   apikey: YOUR_ANON_KEY
-//   Authorization: Bearer YOUR_SERVICE_ROLE_KEY
-//   Content-Type: application/json
-//   Prefer: return=minimal
-//
-// Body (JSON):
-// {
-//   "status": "active"   // أو "cancelled" في حال الرفض
-// }
-//
-// ملاحظة: deal_id يأتي من payload الـ webhook الذي أرسلناه`;
+  const curlRejectExample = `curl -X POST '${FUNCTIONS_BASE}/update-deal-status' \\
+  -H "Content-Type: application/json" \\
+  -d '{"deal_id": "DEAL_UUID", "status": "cancelled"}'`;
 
-  const webhookPayloadExample = `// البيانات التي تُرسل تلقائياً إلى n8n عند إنشاء صفقة:
+  const webhookPayloadExample = `// البيانات التي تُرسل تلقائياً عند وجود صفقة قيد المراجعة:
 {
   "deal_id": "uuid",
   "deal_number": 1,
   "title": "نوع المنتج",
   "deal_type": "وساطة",
   "status": "pending_review",
-  "client_id": "uuid",
   "client_full_name": "اسم العميل",
   "country": "مصر",
   "city": "القاهرة",
@@ -159,9 +144,10 @@ Body:
   "product_description": "وصف المنتج",
   "import_country": "الصين",
   "created_at": "2026-02-10T...",
-  "identity_doc_signed_url": "https://...signed-url (صالح لمدة ساعة)",
+  "identity_doc_signed_url": "https://...signed-url",
   "commercial_register_signed_url": "https://...signed-url",
-  "product_image_signed_url": "https://...signed-url أو null"
+  "product_image_signed_url": "https://...signed-url أو null",
+  "postback_url": "${FUNCTIONS_BASE}/update-deal-status"
 }`;
 
   return (
@@ -173,8 +159,7 @@ Body:
 
       <Tabs defaultValue="webhooks" dir="rtl">
         <TabsList className="mb-4">
-          <TabsTrigger value="webhooks" className="gap-2"><Webhook className="w-4 h-4" /> Webhooks</TabsTrigger>
-          <TabsTrigger value="security" className="gap-2"><Shield className="w-4 h-4" /> الأمان</TabsTrigger>
+          <TabsTrigger value="webhooks" className="gap-2"><Webhook className="w-4 h-4" /> Webhook</TabsTrigger>
           <TabsTrigger value="api" className="gap-2"><Code className="w-4 h-4" /> مرجع API</TabsTrigger>
         </TabsList>
 
@@ -183,110 +168,71 @@ Body:
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Webhook className="w-5 h-5 text-primary" />
-                <CardTitle>Webhooks</CardTitle>
+                <CardTitle>إعدادات الـ Webhook</CardTitle>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                عند وجود أي صفقة قيد المراجعة، يتم إرسال جميع بياناتها ومستنداتها تلقائياً إلى هذا الرابط. يقوم n8n بمراجعتها ثم يرسل النتيجة (مقبولة/مرفوضة) عبر رابط الاستقبال.
+              </p>
               <div>
-                <Label>عند إنشاء صفقة</Label>
-                <Input value={webhooks.deal_created} onChange={(e) => setWebhooks({ ...webhooks, deal_created: e.target.value })} placeholder="https://..." dir="ltr" />
-              </div>
-              <div>
-                <Label>عند تحديث صفقة</Label>
-                <Input value={webhooks.deal_updated} onChange={(e) => setWebhooks({ ...webhooks, deal_updated: e.target.value })} placeholder="https://..." dir="ltr" />
-              </div>
-              <div>
-                <Label>عند حذف صفقة</Label>
-                <Input value={webhooks.deal_deleted} onChange={(e) => setWebhooks({ ...webhooks, deal_deleted: e.target.value })} placeholder="https://..." dir="ltr" />
-              </div>
-              <div>
-                <Label>عند تسجيل مستخدم</Label>
-                <Input value={webhooks.user_registered} onChange={(e) => setWebhooks({ ...webhooks, user_registered: e.target.value })} placeholder="https://..." dir="ltr" />
-              </div>
-              <Button onClick={saveWebhooks}>حفظ Webhooks</Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="security">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-primary" />
-                <CardTitle>الأمان</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>عدد محاولات الدخول القصوى</Label>
+                <Label>رابط الـ Webhook (لإرسال بيانات الصفقات)</Label>
                 <Input
-                  type="number"
-                  value={security.max_login_attempts}
-                  onChange={(e) => setSecurity({ ...security, max_login_attempts: parseInt(e.target.value) || 5 })}
-                  className="w-24"
+                  value={webhookUrl}
+                  onChange={(e) => setWebhookUrl(e.target.value)}
+                  placeholder="https://your-n8n-instance.com/webhook/..."
+                  className="mt-1.5 font-mono text-sm"
+                  dir="ltr"
                 />
               </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <Label>إيقاف الحساب تلقائياً عند تجاوز المحاولات</Label>
-                <Switch checked={security.auto_suspend} onCheckedChange={(v) => setSecurity({ ...security, auto_suspend: v })} />
+              <div className="flex items-center gap-3">
+                <Button onClick={saveWebhook} disabled={saving} className="gap-2">
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                  حفظ
+                </Button>
+                <Button onClick={sendPendingDeals} disabled={sending || !webhookUrl} variant="outline" className="gap-2">
+                  {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  إرسال الصفقات المعلقة الآن ({pendingCount})
+                </Button>
               </div>
-              <div className="flex items-center justify-between">
-                <Label>التحقق بالبريد الإلكتروني</Label>
-                <Switch checked={security.email_verification} onCheckedChange={(v) => setSecurity({ ...security, email_verification: v })} />
+              <div className="bg-muted/50 border border-border rounded-lg p-3 text-sm">
+                <Label className="text-xs font-semibold text-muted-foreground">رابط استقبال النتيجة (انسخه لـ n8n)</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <code className="text-xs font-mono flex-1" dir="ltr">{FUNCTIONS_BASE}/update-deal-status</code>
+                  <Button variant="ghost" size="sm" className="h-7" onClick={() => { navigator.clipboard.writeText(`${FUNCTIONS_BASE}/update-deal-status`); toast.success("تم النسخ"); }}>
+                    <Copy className="w-3 h-3" />
+                  </Button>
+                </div>
               </div>
-              <Button onClick={saveSecurity}>حفظ إعدادات الأمان</Button>
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="api">
           <div className="space-y-6">
-            {/* Webhook Payload */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">📤 بيانات الـ Webhook المُرسلة (Outgoing)</CardTitle>
+                <CardTitle className="text-base">📤 البيانات المرسلة عبر الـ Webhook</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground mb-4">
-                  عند إنشاء صفقة جديدة، يتم إرسال البيانات التالية تلقائياً إلى رابط N8N_WEBHOOK_URL مع روابط موقعة للمستندات.
+                  هذه البيانات تُرسل تلقائياً إلى رابط الـ Webhook عند وجود صفقة قيد المراجعة.
                 </p>
                 <CodeBlock title="Webhook Payload" code={webhookPayloadExample} />
               </CardContent>
             </Card>
 
-            {/* GET APIs */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">📥 جلب الصفقات (GET)</CardTitle>
+                <CardTitle className="text-base">📥 إرسال النتيجة من n8n (POST)</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <CodeBlock title="جلب جميع الصفقات قيد المراجعة" code={getDealsExample} />
-                <CodeBlock title="جلب صفقة واحدة بالـ ID" code={getSingleDealExample} />
-              </CardContent>
-            </Card>
-
-            {/* POST/PATCH APIs */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">✏️ تحديث حالة الصفقة (PATCH)</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <CodeBlock title="تحديث حالة الصفقة" code={updateStatusExample} />
-                <CodeBlock title="مثال cURL" code={curlPostExample} />
-              </CardContent>
-            </Card>
-
-            {/* n8n Example */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">🔗 مثال n8n (HTTP Request Node)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
-                  بعد فحص البيانات في n8n، استخدم HTTP Request node لتحديث حالة الصفقة تلقائياً.
+                <p className="text-sm text-muted-foreground">
+                  بعد مراجعة البيانات في n8n، أرسل POST إلى رابط الاستقبال مع حالة الصفقة (مقبولة أو مرفوضة).
                 </p>
-                <CodeBlock title="إعدادات n8n" code={n8nHttpExample} />
+                <CodeBlock title="صيغة الطلب" code={postbackExample} />
+                <CodeBlock title="مثال cURL - قبول صفقة" code={curlAcceptExample} />
+                <CodeBlock title="مثال cURL - رفض صفقة" code={curlRejectExample} />
               </CardContent>
             </Card>
           </div>
