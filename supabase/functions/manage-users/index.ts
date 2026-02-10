@@ -103,6 +103,43 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (action === "create_client") {
+      const { email, password, full_name } = body;
+
+      if (!email || !password || !full_name) {
+        return new Response(JSON.stringify({ error: "Missing fields" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name },
+      });
+
+      if (createError) {
+        return new Response(JSON.stringify({ error: createError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const userId = newUser.user.id;
+
+      // client role is auto-assigned by trigger, just activate profile
+      await supabaseAdmin
+        .from("profiles")
+        .update({ is_active: true, status: "active" })
+        .eq("user_id", userId);
+
+      return new Response(JSON.stringify({ success: true, user_id: userId }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ error: "Unknown action" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
