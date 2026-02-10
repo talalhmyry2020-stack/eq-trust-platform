@@ -86,7 +86,7 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
         productImage ? uploadFile(productImage, "product") : Promise.resolve(null),
       ]);
 
-      const { error } = await supabase.from("deals").insert({
+      const { data: dealData, error } = await supabase.from("deals").insert({
         title: productType.trim(),
         deal_type: "وساطة",
         description: productDescription.trim(),
@@ -104,9 +104,17 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
         product_description: productDescription.trim(),
         product_image_url: productPath || "",
         import_country: importCountry,
-      });
+        status: "pending_review" as any,
+      }).select("id").single();
 
       if (error) throw error;
+
+      // Send deal data to webhook (non-blocking)
+      if (dealData?.id) {
+        supabase.functions.invoke("send-deal-webhook", {
+          body: { deal_id: dealData.id },
+        }).catch((e) => console.error("Webhook failed:", e));
+      }
 
       toast({ title: "تم الإرسال", description: "تم إنشاء الصفقة بنجاح وهي قيد المراجعة" });
       onSubmit();
