@@ -62,7 +62,7 @@ const DealsPage = () => {
   const [stages, setStages] = useState<Stage[]>([]);
   const [clients, setClients] = useState<{ user_id: string; full_name: string }[]>([]);
   const [employees, setEmployees] = useState<{ user_id: string; full_name: string }[]>([]);
-  const [allProfiles, setAllProfiles] = useState<{ user_id: string; full_name: string }[]>([]);
+  const [allProfiles, setAllProfiles] = useState<{ user_id: string; full_name: string; email?: string }[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -73,7 +73,7 @@ const DealsPage = () => {
     const [dealsRes, stagesRes, profilesRes, rolesRes] = await Promise.all([
       supabase.from("deals").select("*").order("created_at", { ascending: false }),
       supabase.from("deal_stages").select("*").order("display_order"),
-      supabase.from("profiles").select("user_id, full_name"),
+      supabase.from("profiles").select("user_id, full_name, email"),
       supabase.from("user_roles").select("user_id, role"),
     ]);
 
@@ -139,9 +139,9 @@ const DealsPage = () => {
   const getClientName = (clientId: string | null) =>
     clients.find((c) => c.user_id === clientId)?.full_name || "—";
 
-  const getAccountOwner = (clientId: string | null) => {
+  const getAccountOwnerEmail = (clientId: string | null) => {
     if (!clientId) return "—";
-    return allProfiles.find((p) => p.user_id === clientId)?.full_name || "—";
+    return allProfiles.find((p) => p.user_id === clientId)?.email || "—";
   };
 
   const filtered = deals.filter((d) => {
@@ -181,7 +181,7 @@ const DealsPage = () => {
                   <TableCell className="font-mono">{deal.deal_number}</TableCell>
                   <TableCell className="font-medium">{deal.title}</TableCell>
                   <TableCell>{deal.client_full_name || getClientName(deal.client_id)}</TableCell>
-                  <TableCell className="text-muted-foreground">{getAccountOwner(deal.client_id)}</TableCell>
+                  <TableCell className="text-muted-foreground text-xs" dir="ltr">{getAccountOwnerEmail(deal.client_id)}</TableCell>
                   <TableCell>{deal.deal_type || "—"}</TableCell>
                   <TableCell>{getStageName(deal.stage_id)}</TableCell>
                   <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
@@ -316,7 +316,7 @@ const DealsPage = () => {
         open={!!selectedDeal}
         onClose={() => setSelectedDeal(null)}
         clientName={selectedDeal ? getClientName(selectedDeal.client_id) : ""}
-        accountOwnerName={selectedDeal ? getAccountOwner(selectedDeal.client_id) : ""}
+        accountOwnerName={selectedDeal ? getAccountOwnerEmail(selectedDeal.client_id) : ""}
       />
     </div>
   );
