@@ -103,6 +103,70 @@ export type Database = {
           },
         ]
       }
+      deal_search_columns: {
+        Row: {
+          column_name: string
+          column_order: number
+          created_at: string
+          deal_id: string
+          id: string
+        }
+        Insert: {
+          column_name: string
+          column_order?: number
+          created_at?: string
+          deal_id: string
+          id?: string
+        }
+        Update: {
+          column_name?: string
+          column_order?: number
+          created_at?: string
+          deal_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_search_columns_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deal_search_rows: {
+        Row: {
+          created_at: string
+          deal_id: string
+          id: string
+          row_data: Json
+          row_order: number
+        }
+        Insert: {
+          created_at?: string
+          deal_id: string
+          id?: string
+          row_data?: Json
+          row_order?: number
+        }
+        Update: {
+          created_at?: string
+          deal_id?: string
+          id?: string
+          row_data?: Json
+          row_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_search_rows_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_stages: {
         Row: {
           created_at: string

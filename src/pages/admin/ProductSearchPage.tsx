@@ -3,29 +3,24 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Plus, Pencil, Trash2, Save, X, ExternalLink } from "lucide-react";
+import { Plus, Trash2, GripVertical, Pencil, Save, X } from "lucide-react";
 import { toast } from "sonner";
 
-interface ProductResult {
+interface Column {
   id: string;
   deal_id: string;
-  product_name: string;
-  price: number | null;
-  currency: string | null;
-  quality_rating: string | null;
-  product_image_url: string | null;
-  selected: boolean | null;
-  specifications: any;
-  supplier_name: string | null;
-  origin_country: string | null;
-  product_url: string | null;
-  notes: string | null;
-  created_at: string;
+  column_name: string;
+  column_order: number;
+}
+
+interface Row {
+  id: string;
+  deal_id: string;
+  row_data: Record<string, string>;
+  row_order: number;
 }
 
 interface Deal {
@@ -35,25 +30,17 @@ interface Deal {
   client_full_name: string | null;
 }
 
-const emptyProduct = {
-  product_name: "",
-  price: "",
-  currency: "USD",
-  quality_rating: "",
-  product_image_url: "",
-  supplier_name: "",
-  origin_country: "",
-  product_url: "",
-  notes: "",
-};
-
 const ProductSearchPage = () => {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [selectedDealId, setSelectedDealId] = useState<string>("");
-  const [products, setProducts] = useState<ProductResult[]>([]);
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<ProductResult | null>(null);
-  const [form, setForm] = useState(emptyProduct);
+  const [columns, setColumns] = useState<Column[]>([]);
+  const [rows, setRows] = useState<Row[]>([]);
+  const [showAddColDialog, setShowAddColDialog] = useState(false);
+  const [newColName, setNewColName] = useState("");
+  const [editingCell, setEditingCell] = useState<{ rowId: string; colId: string } | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [editingColId, setEditingColId] = useState<string | null>(null);
+  const [editColName, setEditColName] = useState("");
 
   const fetchDeals = useCallback(async () => {
     const { data } = await supabase
@@ -66,74 +53,115 @@ const ProductSearchPage = () => {
     }
   }, [selectedDealId]);
 
-  const fetchProducts = useCallback(async () => {
+  const fetchColumns = useCallback(async () => {
     if (!selectedDealId) return;
     const { data } = await supabase
-      .from("deal_product_results")
+      .from("deal_search_columns")
       .select("*")
       .eq("deal_id", selectedDealId)
-      .order("created_at", { ascending: true });
-    setProducts(data as ProductResult[] || []);
+      .order("column_order", { ascending: true });
+    setColumns((data as Column[]) || []);
+  }, [selectedDealId]);
+
+  const fetchRows = useCallback(async () => {
+    if (!selectedDealId) return;
+    const { data } = await supabase
+      .from("deal_search_rows")
+      .select("*")
+      .eq("deal_id", selectedDealId)
+      .order("row_order", { ascending: true });
+    setRows((data as Row[]) || []);
   }, [selectedDealId]);
 
   useEffect(() => { fetchDeals(); }, [fetchDeals]);
-  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+  useEffect(() => { fetchColumns(); fetchRows(); }, [fetchColumns, fetchRows]);
 
-  const openAdd = () => {
-    setForm(emptyProduct);
-    setEditingProduct(null);
-    setShowAddDialog(true);
-  };
-
-  const openEdit = (p: ProductResult) => {
-    setEditingProduct(p);
-    setForm({
-      product_name: p.product_name || "",
-      price: p.price?.toString() || "",
-      currency: p.currency || "USD",
-      quality_rating: p.quality_rating || "",
-      product_image_url: p.product_image_url || "",
-      supplier_name: p.supplier_name || "",
-      origin_country: p.origin_country || "",
-      product_url: p.product_url || "",
-      notes: p.notes || "",
-    });
-    setShowAddDialog(true);
-  };
-
-  const saveProduct = async () => {
-    if (!form.product_name) { toast.error("اسم المنتج مطلوب"); return; }
-    const payload = {
+  // --- Column CRUD ---
+  const addColumn = async () => {
+    if (!newColName.trim()) { toast.error("اسم العمود مطلوب"); return; }
+    const maxOrder = columns.length > 0 ? Math.max(...columns.map(c => c.column_order)) + 1 : 0;
+    const { error } = await supabase.from("deal_search_columns").insert({
       deal_id: selectedDealId,
-      product_name: form.product_name,
-      price: form.price ? parseFloat(form.price) : null,
-      currency: form.currency || "USD",
-      quality_rating: form.quality_rating || null,
-      product_image_url: form.product_image_url || null,
-      supplier_name: form.supplier_name || null,
-      origin_country: form.origin_country || null,
-      product_url: form.product_url || null,
-      notes: form.notes || null,
-    };
-
-    if (editingProduct) {
-      const { error } = await supabase.from("deal_product_results").update(payload).eq("id", editingProduct.id);
-      if (error) { toast.error("خطأ في التحديث"); return; }
-      toast.success("تم التحديث");
-    } else {
-      const { error } = await supabase.from("deal_product_results").insert(payload);
-      if (error) { toast.error("خطأ في الإضافة"); return; }
-      toast.success("تمت الإضافة");
-    }
-    setShowAddDialog(false);
-    fetchProducts();
+      column_name: newColName.trim(),
+      column_order: maxOrder,
+    });
+    if (error) { toast.error("خطأ في إضافة العمود"); return; }
+    toast.success("تم إضافة العمود");
+    setNewColName("");
+    setShowAddColDialog(false);
+    fetchColumns();
   };
 
-  const deleteProduct = async (id: string) => {
-    const { error } = await supabase.from("deal_product_results").delete().eq("id", id);
-    if (error) { toast.error("خطأ في الحذف"); return; }
-    toast.success("تم الحذف");
-    fetchProducts();
+  const deleteColumn = async (colId: string, colName: string) => {
+    const { error } = await supabase.from("deal_search_columns").delete().eq("id", colId);
+    if (error) { toast.error("خطأ في حذف العمود"); return; }
+    // Remove column data from all rows
+    const updatedRows = rows.map(r => {
+      const newData = { ...r.row_data };
+      delete newData[colName];
+      return { id: r.id, row_data: newData };
+    });
+    for (const r of updatedRows) {
+      await supabase.from("deal_search_rows").update({ row_data: r.row_data }).eq("id", r.id);
+    }
+    toast.success("تم حذف العمود");
+    fetchColumns();
+    fetchRows();
+  };
+
+  const saveColumnRename = async (colId: string, oldName: string) => {
+    if (!editColName.trim()) { setEditingColId(null); return; }
+    const { error } = await supabase.from("deal_search_columns").update({ column_name: editColName.trim() }).eq("id", colId);
+    if (error) { toast.error("خطأ في تعديل العمود"); return; }
+    // Rename key in all rows
+    if (editColName.trim() !== oldName) {
+      for (const r of rows) {
+        const newData = { ...r.row_data };
+        if (oldName in newData) {
+          newData[editColName.trim()] = newData[oldName];
+          delete newData[oldName];
+        }
+        await supabase.from("deal_search_rows").update({ row_data: newData }).eq("id", r.id);
+      }
+    }
+    setEditingColId(null);
+    fetchColumns();
+    fetchRows();
+  };
+
+  // --- Row CRUD ---
+  const addRow = async () => {
+    const maxOrder = rows.length > 0 ? Math.max(...rows.map(r => r.row_order)) + 1 : 0;
+    const emptyData: Record<string, string> = {};
+    columns.forEach(c => { emptyData[c.column_name] = ""; });
+    const { error } = await supabase.from("deal_search_rows").insert({
+      deal_id: selectedDealId,
+      row_data: emptyData,
+      row_order: maxOrder,
+    });
+    if (error) { toast.error("خطأ في إضافة الصف"); return; }
+    fetchRows();
+  };
+
+  const deleteRow = async (rowId: string) => {
+    const { error } = await supabase.from("deal_search_rows").delete().eq("id", rowId);
+    if (error) { toast.error("خطأ في حذف الصف"); return; }
+    fetchRows();
+  };
+
+  const startEditCell = (rowId: string, colName: string, value: string) => {
+    setEditingCell({ rowId, colId: colName });
+    setEditValue(value || "");
+  };
+
+  const saveCellEdit = async (rowId: string, colName: string) => {
+    const row = rows.find(r => r.id === rowId);
+    if (!row) return;
+    const newData = { ...row.row_data, [colName]: editValue };
+    const { error } = await supabase.from("deal_search_rows").update({ row_data: newData }).eq("id", rowId);
+    if (error) { toast.error("خطأ في الحفظ"); return; }
+    setEditingCell(null);
+    fetchRows();
   };
 
   const selectedDeal = deals.find(d => d.id === selectedDealId);
@@ -141,7 +169,7 @@ const ProductSearchPage = () => {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="font-heading text-2xl font-bold">نتائج البحث عن المنتجات</h1>
+        <h1 className="font-heading text-2xl font-bold">نتائج البحث</h1>
       </div>
 
       {/* Deal selector */}
@@ -161,15 +189,9 @@ const ProductSearchPage = () => {
             </SelectContent>
           </Select>
         </div>
-        {selectedDealId && (
-          <Button onClick={openAdd}>
-            <Plus className="w-4 h-4 ml-2" />
-            إضافة منتج
-          </Button>
-        )}
       </div>
 
-      {/* Selected deal info */}
+      {/* Deal info */}
       {selectedDeal && (
         <Card className="mb-4">
           <CardHeader className="py-3">
@@ -181,105 +203,147 @@ const ProductSearchPage = () => {
         </Card>
       )}
 
-      {/* Products table */}
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">#</TableHead>
-                  <TableHead>اسم المنتج</TableHead>
-                  <TableHead>المورد</TableHead>
-                  <TableHead>بلد المنشأ</TableHead>
-                  <TableHead>السعر</TableHead>
-                  <TableHead>العملة</TableHead>
-                  <TableHead>التقييم</TableHead>
-                  <TableHead>رابط</TableHead>
-                  <TableHead>صورة</TableHead>
-                  <TableHead>ملاحظات</TableHead>
-                  <TableHead>إجراءات</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {products.map((p, idx) => (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-mono text-xs">{idx + 1}</TableCell>
-                    <TableCell className="font-medium">{p.product_name}</TableCell>
-                    <TableCell>{p.supplier_name || "—"}</TableCell>
-                    <TableCell>{p.origin_country || "—"}</TableCell>
-                    <TableCell className="font-mono">{p.price ?? "—"}</TableCell>
-                    <TableCell>{p.currency || "—"}</TableCell>
-                    <TableCell>{p.quality_rating || "—"}</TableCell>
-                    <TableCell>
-                      {p.product_url ? (
-                        <a href={p.product_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                      ) : "—"}
-                    </TableCell>
-                    <TableCell>
-                      {p.product_image_url ? (
-                        <img src={p.product_image_url} alt={p.product_name} className="w-10 h-10 object-cover rounded" />
-                      ) : "—"}
-                    </TableCell>
-                    <TableCell className="text-xs max-w-[150px] truncate">{p.notes || "—"}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button size="icon" variant="ghost" onClick={() => openEdit(p)} title="تعديل">
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteProduct(p.id)} title="حذف">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {products.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={11} className="text-center text-muted-foreground py-8">
-                      لا توجد نتائج بحث لهذه الصفقة
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Toolbar */}
+      {selectedDealId && (
+        <div className="flex gap-2 mb-4">
+          <Button variant="outline" size="sm" onClick={() => setShowAddColDialog(true)}>
+            <Plus className="w-4 h-4 ml-1" />
+            عمود جديد
+          </Button>
+          <Button variant="outline" size="sm" onClick={addRow} disabled={columns.length === 0}>
+            <Plus className="w-4 h-4 ml-1" />
+            صف جديد
+          </Button>
+        </div>
+      )}
 
-      {/* Add/Edit dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="max-w-lg">
+      {/* Spreadsheet */}
+      {selectedDealId && (
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              {columns.length === 0 ? (
+                <div className="text-center text-muted-foreground py-12">
+                  لا توجد أعمدة بعد. أضف عموداً للبدء.
+                </div>
+              ) : (
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="p-2 text-center w-12 font-medium text-muted-foreground">#</th>
+                      {columns.map((col) => (
+                        <th key={col.id} className="p-2 text-right font-medium text-muted-foreground min-w-[150px] group">
+                          {editingColId === col.id ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                value={editColName}
+                                onChange={e => setEditColName(e.target.value)}
+                                className="h-7 text-xs"
+                                autoFocus
+                                onKeyDown={e => {
+                                  if (e.key === "Enter") saveColumnRename(col.id, col.column_name);
+                                  if (e.key === "Escape") setEditingColId(null);
+                                }}
+                              />
+                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => saveColumnRename(col.id, col.column_name)}>
+                                <Save className="w-3 h-3" />
+                              </Button>
+                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setEditingColId(null)}>
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1">
+                              <span>{col.column_name}</span>
+                              <div className="opacity-0 group-hover:opacity-100 flex gap-0.5 transition-opacity">
+                                <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => { setEditingColId(col.id); setEditColName(col.column_name); }}>
+                                  <Pencil className="w-3 h-3" />
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-5 w-5 text-destructive" onClick={() => deleteColumn(col.id, col.column_name)}>
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </th>
+                      ))}
+                      <th className="p-2 w-12"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((row, idx) => (
+                      <tr key={row.id} className="border-b hover:bg-muted/30">
+                        <td className="p-2 text-center font-mono text-xs text-muted-foreground">{idx + 1}</td>
+                        {columns.map((col) => {
+                          const isEditing = editingCell?.rowId === row.id && editingCell?.colId === col.column_name;
+                          const cellValue = row.row_data?.[col.column_name] || "";
+                          return (
+                            <td key={col.id} className="p-0 border-l">
+                              {isEditing ? (
+                                <Input
+                                  value={editValue}
+                                  onChange={e => setEditValue(e.target.value)}
+                                  className="h-8 rounded-none border-0 border-primary ring-1 ring-primary text-xs"
+                                  autoFocus
+                                  onBlur={() => saveCellEdit(row.id, col.column_name)}
+                                  onKeyDown={e => {
+                                    if (e.key === "Enter") saveCellEdit(row.id, col.column_name);
+                                    if (e.key === "Escape") setEditingCell(null);
+                                  }}
+                                />
+                              ) : (
+                                <div
+                                  className="px-2 py-1.5 min-h-[32px] cursor-text text-xs hover:bg-muted/50"
+                                  onClick={() => startEditCell(row.id, col.column_name, cellValue)}
+                                >
+                                  {cellValue || <span className="text-muted-foreground/40">—</span>}
+                                </div>
+                              )}
+                            </td>
+                          );
+                        })}
+                        <td className="p-1 text-center">
+                          <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => deleteRow(row.id)}>
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                    {rows.length === 0 && (
+                      <tr>
+                        <td colSpan={columns.length + 2} className="text-center text-muted-foreground py-8">
+                          لا توجد بيانات. أضف صفاً للبدء.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Add column dialog */}
+      <Dialog open={showAddColDialog} onOpenChange={setShowAddColDialog}>
+        <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>{editingProduct ? "تعديل المنتج" : "إضافة منتج جديد"}</DialogTitle>
+            <DialogTitle>إضافة عمود جديد</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <div><Label>اسم المنتج *</Label><Input value={form.product_name} onChange={e => setForm({ ...form, product_name: e.target.value })} /></div>
-            <div><Label>المورد / الشركة</Label><Input value={form.supplier_name} onChange={e => setForm({ ...form, supplier_name: e.target.value })} /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>السعر</Label><Input type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} /></div>
-              <div><Label>العملة</Label>
-                <Select value={form.currency} onValueChange={v => setForm({ ...form, currency: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="USD">USD</SelectItem>
-                    <SelectItem value="SAR">SAR</SelectItem>
-                    <SelectItem value="EUR">EUR</SelectItem>
-                    <SelectItem value="CNY">CNY</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Label>اسم العمود</Label>
+              <Input
+                value={newColName}
+                onChange={e => setNewColName(e.target.value)}
+                placeholder="مثال: البريد الإلكتروني"
+                autoFocus
+                onKeyDown={e => { if (e.key === "Enter") addColumn(); }}
+              />
             </div>
-            <div><Label>بلد المنشأ</Label><Input value={form.origin_country} onChange={e => setForm({ ...form, origin_country: e.target.value })} /></div>
-            <div><Label>التقييم / الجودة</Label><Input value={form.quality_rating} onChange={e => setForm({ ...form, quality_rating: e.target.value })} /></div>
-            <div><Label>رابط المنتج</Label><Input value={form.product_url} onChange={e => setForm({ ...form, product_url: e.target.value })} dir="ltr" /></div>
-            <div><Label>رابط صورة المنتج</Label><Input value={form.product_image_url} onChange={e => setForm({ ...form, product_image_url: e.target.value })} dir="ltr" /></div>
-            <div><Label>ملاحظات</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
-            <Button onClick={saveProduct} className="w-full">
-              <Save className="w-4 h-4 ml-2" />
-              {editingProduct ? "تحديث" : "إضافة"}
+            <Button onClick={addColumn} className="w-full">
+              <Plus className="w-4 h-4 ml-2" />
+              إضافة
             </Button>
           </div>
         </DialogContent>
