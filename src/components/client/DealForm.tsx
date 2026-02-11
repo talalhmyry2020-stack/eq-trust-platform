@@ -299,20 +299,20 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
               🟦 القسم الثالث: المستندات
             </h2>
             <FileUploadButton
-              label="صورة الهوية (PDF فقط)"
-              accept=".pdf"
+              label="صورة الهوية (صورة)"
+              accept="image/*"
               file={identityFile}
               inputRef={identityRef as React.RefObject<HTMLInputElement>}
               onChange={setIdentityFile}
-              icon={FileText}
+              icon={Image}
             />
             <FileUploadButton
-              label="السجل التجاري (PDF)"
-              accept=".pdf"
+              label="السجل التجاري (صورة)"
+              accept="image/*"
               file={commercialFile}
               inputRef={commercialRef as React.RefObject<HTMLInputElement>}
               onChange={setCommercialFile}
-              icon={FileText}
+              icon={Image}
             />
           </section>
 
