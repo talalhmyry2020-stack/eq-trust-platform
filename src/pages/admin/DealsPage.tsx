@@ -112,6 +112,11 @@ const DealsPage = () => {
     await supabase.from("deals").update({ status }).eq("id", id);
     toast.success("تم تحديث الحالة");
     fetchData();
+
+    // عند قبول الصفقة، إرسال بيانات المنتج تلقائياً لـ n8n للبحث
+    if (status === "active") {
+      triggerProductSearch(id);
+    }
   };
 
   const triggerProductSearch = async (dealId: string) => {
