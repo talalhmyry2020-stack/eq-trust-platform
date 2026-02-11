@@ -8,6 +8,7 @@ import {
   Settings,
   Shield,
   LogOut,
+  Search,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,7 @@ const navItems = [
   { to: "/admin/users", icon: Users, label: "المستخدمون" },
   { to: "/admin/deals", icon: Handshake, label: "الصفقات" },
   { to: "/admin/archive", icon: Archive, label: "الأرشيف" },
+  { to: "/admin/product-search", icon: Search, label: "نتائج البحث" },
   { to: "/admin/logs", icon: ScrollText, label: "السجلات" },
   { to: "/admin/sensitive", icon: Shield, label: "بيانات حساسة" },
   { to: "/admin/settings", icon: Settings, label: "الإعدادات" },

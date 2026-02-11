@@ -50,36 +50,48 @@ export type Database = {
           currency: string | null
           deal_id: string
           id: string
+          notes: string | null
+          origin_country: string | null
           price: number | null
           product_image_url: string | null
           product_name: string
+          product_url: string | null
           quality_rating: string | null
           selected: boolean | null
           specifications: Json | null
+          supplier_name: string | null
         }
         Insert: {
           created_at?: string
           currency?: string | null
           deal_id: string
           id?: string
+          notes?: string | null
+          origin_country?: string | null
           price?: number | null
           product_image_url?: string | null
           product_name: string
+          product_url?: string | null
           quality_rating?: string | null
           selected?: boolean | null
           specifications?: Json | null
+          supplier_name?: string | null
         }
         Update: {
           created_at?: string
           currency?: string | null
           deal_id?: string
           id?: string
+          notes?: string | null
+          origin_country?: string | null
           price?: number | null
           product_image_url?: string | null
           product_name?: string
+          product_url?: string | null
           quality_rating?: string | null
           selected?: boolean | null
           specifications?: Json | null
+          supplier_name?: string | null
         }
         Relationships: [
           {
