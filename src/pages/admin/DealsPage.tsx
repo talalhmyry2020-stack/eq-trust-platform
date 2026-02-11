@@ -316,6 +316,7 @@ const DealsPage = () => {
         open={!!selectedDeal}
         onClose={() => setSelectedDeal(null)}
         clientName={selectedDeal ? getClientName(selectedDeal.client_id) : ""}
+        accountOwnerName={selectedDeal ? getAccountOwner(selectedDeal.client_id) : ""}
       />
     </div>
   );
