@@ -209,11 +209,9 @@ const DealsPage = () => {
                           <Button size="icon" variant="ghost" onClick={() => updateStatus(deal.id, "delayed")} title="تأخير">
                             <Clock className="w-4 h-4" />
                           </Button>
-                          {deal.current_phase === "product_search" && (
-                            <Button size="icon" variant="ghost" className="text-primary" onClick={() => triggerProductSearch(deal.id)} title="بحث عن منتجات">
-                              <Send className="w-4 h-4" />
-                            </Button>
-                          )}
+                          <Button size="icon" variant="ghost" className="text-primary" onClick={() => triggerProductSearch(deal.id)} title="بحث عن منتجات">
+                            <Send className="w-4 h-4" />
+                          </Button>
                         </>
                       )}
                       {(deal.status === "paused" || deal.status === "delayed") && (
