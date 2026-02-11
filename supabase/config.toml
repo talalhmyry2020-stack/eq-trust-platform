@@ -20,3 +20,9 @@ verify_jwt = false
 
 [functions.get-pending-deals]
 verify_jwt = false
+
+[functions.auto-process-deals]
+verify_jwt = false
+
+[functions.receive-search-results]
+verify_jwt = false

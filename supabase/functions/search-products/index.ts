@@ -31,6 +31,15 @@ serve(async (req) => {
 
     if (dealError || !deal) throw new Error("Deal not found");
 
+    // إرسال صورة المنتج إذا كانت موجودة
+    let productImageSignedUrl: string | null = null;
+    if (deal.product_image_url) {
+      const { data: signedData } = await supabase.storage
+        .from("deal-documents")
+        .createSignedUrl(deal.product_image_url, 3600);
+      productImageSignedUrl = signedData?.signedUrl || null;
+    }
+
     // إرسال وصف المنتج وبلد التصدير لـ n8n للبحث
     const payload = {
       deal_id: deal.id,
@@ -38,6 +47,8 @@ serve(async (req) => {
       product_type: deal.product_type,
       product_description: deal.product_description,
       import_country: deal.import_country,
+      product_image_signed_url: productImageSignedUrl,
+      callback_url: `${supabaseUrl}/functions/v1/receive-search-results`,
     };
 
     console.log("Sending product search request to n8n:", JSON.stringify(payload));
