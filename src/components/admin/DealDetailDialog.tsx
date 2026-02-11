@@ -12,6 +12,7 @@ interface DealDetailDialogProps {
   open: boolean;
   onClose: () => void;
   clientName: string;
+  accountOwnerName?: string;
 }
 
 const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -30,7 +31,7 @@ const PHASE_MAP: Record<string, string> = {
   product_selection: "اختيار المنتج",
 };
 
-const DealDetailDialog = ({ deal, open, onClose, clientName }: DealDetailDialogProps) => {
+const DealDetailDialog = ({ deal, open, onClose, clientName, accountOwnerName }: DealDetailDialogProps) => {
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -94,6 +95,10 @@ const DealDetailDialog = ({ deal, open, onClose, clientName }: DealDetailDialogP
               <div>
                 <span className="text-muted-foreground">نوع الكيان:</span>
                 <span className="font-medium mr-2">{deal.entity_type || "—"}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">صاحب الحساب:</span>
+                <span className="font-medium mr-2">{accountOwnerName || "—"}</span>
               </div>
               <div>
                 <span className="text-muted-foreground">التاريخ:</span>
