@@ -62,6 +62,7 @@ const DealsPage = () => {
   const [stages, setStages] = useState<Stage[]>([]);
   const [clients, setClients] = useState<{ user_id: string; full_name: string }[]>([]);
   const [employees, setEmployees] = useState<{ user_id: string; full_name: string }[]>([]);
+  const [allProfiles, setAllProfiles] = useState<{ user_id: string; full_name: string }[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -81,6 +82,7 @@ const DealsPage = () => {
 
     const roles = rolesRes.data || [];
     const profiles = profilesRes.data || [];
+    setAllProfiles(profiles);
     setClients(profiles.filter((p) => roles.some((r) => r.user_id === p.user_id && r.role === "client")));
     setEmployees(profiles.filter((p) => roles.some((r) => r.user_id === p.user_id && r.role === "employee")));
   };
@@ -137,6 +139,11 @@ const DealsPage = () => {
   const getClientName = (clientId: string | null) =>
     clients.find((c) => c.user_id === clientId)?.full_name || "—";
 
+  const getAccountOwner = (clientId: string | null) => {
+    if (!clientId) return "—";
+    return allProfiles.find((p) => p.user_id === clientId)?.full_name || "—";
+  };
+
   const filtered = deals.filter((d) => {
     const matchSearch = d.title.toLowerCase().includes(search.toLowerCase()) ||
       (d.client_full_name || "").toLowerCase().includes(search.toLowerCase()) ||
@@ -158,6 +165,7 @@ const DealsPage = () => {
               <TableHead>#</TableHead>
               <TableHead>العنوان</TableHead>
               <TableHead>العميل</TableHead>
+              <TableHead>صاحب الحساب</TableHead>
               <TableHead>النوع</TableHead>
               <TableHead>المرحلة</TableHead>
               <TableHead>الحالة</TableHead>
@@ -173,6 +181,7 @@ const DealsPage = () => {
                   <TableCell className="font-mono">{deal.deal_number}</TableCell>
                   <TableCell className="font-medium">{deal.title}</TableCell>
                   <TableCell>{deal.client_full_name || getClientName(deal.client_id)}</TableCell>
+                  <TableCell className="text-muted-foreground">{getAccountOwner(deal.client_id)}</TableCell>
                   <TableCell>{deal.deal_type || "—"}</TableCell>
                   <TableCell>{getStageName(deal.stage_id)}</TableCell>
                   <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
@@ -221,7 +230,7 @@ const DealsPage = () => {
               );
             })}
             {dealsList.length === 0 && (
-              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">لا توجد صفقات</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">لا توجد صفقات</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
