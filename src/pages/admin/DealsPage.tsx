@@ -204,9 +204,10 @@ const DealsPage = () => {
     toast.success("تم تحديث الحالة");
     fetchData();
 
-    // عند قبول الصفقة، إرسال بيانات المنتج تلقائياً لـ n8n للبحث
+    // عند قبول الصفقة، ننقلها لمرحلة product_search ليلتقطها الـ cron
     if (status === "active") {
-      triggerProductSearch(id);
+      await supabase.from("deals").update({ current_phase: "product_search" }).eq("id", id);
+      fetchCountdownData();
     }
   };
 
@@ -229,15 +230,26 @@ const DealsPage = () => {
     fetchData();
   };
 
+  const PHASE_MAP: Record<string, string> = {
+    verification: "قيد المراجعة",
+    product_search: "مقبولة",
+    searching_products: "انتظار نتائج البحث",
+    results_ready: "النتائج جاهزة",
+    product_selection: "اختيار المنتج",
+  };
+
+  const getPhaseName = (phase: string | null) =>
+    phase ? (PHASE_MAP[phase] || phase) : "";
+
   const getStageName = (stageId: string | null) =>
-    stages.find((s) => s.id === stageId)?.name || "—";
+    stages.find((s) => s.id === stageId)?.name || "";
 
   const getClientName = (clientId: string | null) =>
-    clients.find((c) => c.user_id === clientId)?.full_name || "—";
+    clients.find((c) => c.user_id === clientId)?.full_name || "";
 
   const getAccountOwnerEmail = (clientId: string | null) => {
-    if (!clientId) return "—";
-    return allProfiles.find((p) => p.user_id === clientId)?.email || "—";
+    if (!clientId) return "";
+    return allProfiles.find((p) => p.user_id === clientId)?.email || "";
   };
 
   const filtered = deals.filter((d) => {
@@ -249,7 +261,8 @@ const DealsPage = () => {
   });
 
   const pendingDeals = filtered.filter(d => d.status === "pending_review");
-  const acceptedDeals = filtered.filter(d => d.status === "active" || d.status === "completed" || d.status === "delayed" || d.status === "paused");
+  const acceptedDeals = filtered.filter(d => d.status === "active" && d.current_phase === "product_search");
+  const waitingResultsDeals = filtered.filter(d => d.status === "active" && (d.current_phase === "searching_products" || d.current_phase === "results_ready" || d.current_phase === "product_selection"));
   const rejectedDeals = filtered.filter(d => d.status === "cancelled");
 
   const renderDealsTable = (dealsList: Deal[]) => (
@@ -279,7 +292,7 @@ const DealsPage = () => {
                   <TableCell>{deal.client_full_name || getClientName(deal.client_id)}</TableCell>
                   <TableCell className="text-muted-foreground text-xs" dir="ltr">{getAccountOwnerEmail(deal.client_id)}</TableCell>
                   <TableCell>{deal.deal_type || "—"}</TableCell>
-                  <TableCell>{getStageName(deal.stage_id)}</TableCell>
+                  <TableCell>{getPhaseName(deal.current_phase)}</TableCell>
                   <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
                   <TableCell className="font-mono text-xs">{new Date(deal.created_at).toLocaleDateString("ar-SA")}</TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
@@ -429,14 +442,16 @@ const DealsPage = () => {
 
       <Tabs defaultValue="all" className="w-full">
         <TabsList className="mb-4">
-          <TabsTrigger value="all">جميع الصفقات ({filtered.length})</TabsTrigger>
+          <TabsTrigger value="all">الكل ({filtered.length})</TabsTrigger>
           <TabsTrigger value="pending">قيد المراجعة ({pendingDeals.length})</TabsTrigger>
           <TabsTrigger value="accepted">مقبولة ({acceptedDeals.length})</TabsTrigger>
+          <TabsTrigger value="waiting">انتظار نتائج البحث ({waitingResultsDeals.length})</TabsTrigger>
           <TabsTrigger value="rejected">مرفوضة ({rejectedDeals.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="all">{renderDealsTable(filtered)}</TabsContent>
         <TabsContent value="pending">{renderDealsTable(pendingDeals)}</TabsContent>
         <TabsContent value="accepted">{renderDealsTable(acceptedDeals)}</TabsContent>
+        <TabsContent value="waiting">{renderDealsTable(waitingResultsDeals)}</TabsContent>
         <TabsContent value="rejected">{renderDealsTable(rejectedDeals)}</TabsContent>
       </Tabs>
 
