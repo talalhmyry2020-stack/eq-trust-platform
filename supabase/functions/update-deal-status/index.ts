@@ -41,7 +41,7 @@ serve(async (req) => {
 
       const updateData: any = { status };
       
-      // إذا تم تفعيل الصفقة، ننقلها للمرحلة التالية (البحث عن المنتج)
+      // إذا تم تفعيل الصفقة، ننقلها للمرحلة التالية (مقبولة - بانتظار الإرسال التلقائي)
       if (status === "active") {
         updateData.current_phase = "product_search";
       }
