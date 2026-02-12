@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Plus, Pause, Play, Trash2, Clock, Eye, CheckCircle, XCircle, Send } from "lucide-react";
+import { Search, Plus, Pause, Play, Trash2, Clock, Eye, CheckCircle, XCircle, Send, Timer, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import DealDetailDialog from "@/components/admin/DealDetailDialog";
@@ -68,6 +68,87 @@ const DealsPage = () => {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [newDeal, setNewDeal] = useState({ title: "", deal_type: "", client_id: "", employee_id: "", stage_id: "", description: "" });
+
+  // حالة العداد التنازلي
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [nextDealNumber, setNextDealNumber] = useState<number | null>(null);
+  const [intervalMinutes, setIntervalMinutes] = useState(5);
+  const [webhookConfigured, setWebhookConfigured] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+
+  const fetchCountdownData = useCallback(async () => {
+    const { data: settings } = await supabase
+      .from("system_settings")
+      .select("key, value")
+      .in("key", ["phase1_webhook_url", "auto_process_interval", "last_auto_process_time"]);
+
+    const map: Record<string, any> = {};
+    for (const s of settings || []) map[s.key] = s.value;
+
+    const webhookUrl = (map["phase1_webhook_url"] as any)?.url;
+    setWebhookConfigured(!!webhookUrl);
+    const mins = (map["auto_process_interval"] as any)?.minutes || 5;
+    setIntervalMinutes(mins);
+    const lastTime = (map["last_auto_process_time"] as any)?.timestamp;
+
+    // حساب الوقت المتبقي
+    if (lastTime) {
+      const elapsed = (Date.now() - new Date(lastTime).getTime()) / 1000;
+      const remaining = Math.max(0, mins * 60 - elapsed);
+      setCountdown(Math.ceil(remaining));
+    } else {
+      setCountdown(0); // لم يُرسل بعد، جاهز للإرسال
+    }
+
+    // جلب الصفقة التالية في الطابور
+    const { data: nextDeals } = await supabase
+      .from("deals")
+      .select("deal_number")
+      .eq("status", "active")
+      .eq("current_phase", "product_search")
+      .order("created_at", { ascending: true })
+      .limit(1);
+
+    setNextDealNumber(nextDeals?.[0]?.deal_number || null);
+  }, []);
+
+  // تحديث العداد كل ثانية
+  useEffect(() => {
+    fetchCountdownData();
+    const settingsInterval = setInterval(fetchCountdownData, 30000); // تحديث البيانات كل 30 ثانية
+
+    const tickInterval = setInterval(() => {
+      setCountdown(prev => {
+        if (prev === null || prev <= 0) return 0;
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      clearInterval(settingsInterval);
+      clearInterval(tickInterval);
+    };
+  }, [fetchCountdownData]);
+
+  // عند وصول العداد لـ 0 والصفقة التالية موجودة
+  useEffect(() => {
+    if (countdown === 0 && nextDealNumber && webhookConfigured && !isSending) {
+      setIsSending(true);
+      // بعد ثوانٍ قليلة يتم التحديث تلقائياً عبر الـ cron
+      const timeout = setTimeout(() => {
+        fetchCountdownData();
+        fetchData();
+        setIsSending(false);
+      }, 10000);
+      return () => clearTimeout(timeout);
+    }
+  }, [countdown, nextDealNumber, webhookConfigured, isSending, fetchCountdownData]);
+
+  const formatCountdown = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  };
 
   const fetchData = async () => {
     const [dealsRes, stagesRes, profilesRes, rolesRes] = await Promise.all([
@@ -300,6 +381,35 @@ const DealsPage = () => {
           </SelectContent>
         </Select>
       </div>
+
+      {/* عداد النظام التلقائي */}
+      {webhookConfigured && (
+        <Card className="mb-4 border-primary/20 bg-primary/5">
+          <CardContent className="py-3 px-4 flex items-center gap-3">
+            <Timer className="w-5 h-5 text-primary shrink-0" />
+            {nextDealNumber ? (
+              countdown !== null && countdown > 0 ? (
+                <p className="text-sm">
+                  <span className="text-muted-foreground">الإرسال التالي بعد</span>{" "}
+                  <span className="font-mono font-bold text-primary text-base">{formatCountdown(countdown)}</span>{" "}
+                  <span className="text-muted-foreground">— الصفقة رقم</span>{" "}
+                  <span className="font-bold">#{nextDealNumber}</span>{" "}
+                  <span className="text-muted-foreground">إلى Webhook</span>
+                </p>
+              ) : (
+                <p className="text-sm flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                  <span className="font-bold">جاري إرسال الصفقة رقم #{nextDealNumber} إلى Webhook...</span>
+                </p>
+              )
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                لا توجد صفقات في انتظار الإرسال حالياً
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs defaultValue="all" className="w-full">
         <TabsList className="mb-4">
