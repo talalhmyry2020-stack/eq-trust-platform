@@ -56,6 +56,23 @@ serve(async (req) => {
       }
     }
 
+    // التحقق: هل هناك صفقة حالياً في انتظار نتائج البحث؟
+    const { count: searchingCount } = await supabase
+      .from("deals")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "active")
+      .eq("current_phase", "searching_products");
+
+    if ((searchingCount || 0) > 0) {
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: "هناك صفقة قيد البحث حالياً. سيتم إرسال التالية بعد استلام النتائج.",
+        waiting_count: searchingCount,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // جلب أقدم صفقة مقبولة في انتظار البحث (صفقة واحدة فقط)
     const { data: deals, error: dealsError } = await supabase
       .from("deals")
