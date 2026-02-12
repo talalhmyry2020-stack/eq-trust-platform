@@ -75,6 +75,7 @@ const DealsPage = () => {
   const [intervalMinutes, setIntervalMinutes] = useState(5);
   const [webhookConfigured, setWebhookConfigured] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [waitingDealsCount, setWaitingDealsCount] = useState(0);
 
   const fetchCountdownData = useCallback(async () => {
     const { data: settings } = await supabase
@@ -110,6 +111,15 @@ const DealsPage = () => {
       .limit(1);
 
     setNextDealNumber(nextDeals?.[0]?.deal_number || null);
+
+    // جلب عدد الصفقات المنتظرة الرد
+    const { count } = await supabase
+      .from("deals")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "active")
+      .eq("current_phase", "searching_products");
+
+    setWaitingDealsCount(count || 0);
   }, []);
 
   // تحديث العداد كل ثانية
@@ -402,9 +412,15 @@ const DealsPage = () => {
                   <span className="font-bold">جاري إرسال الصفقة رقم #{nextDealNumber} إلى Webhook...</span>
                 </p>
               )
+            ) : waitingDealsCount > 0 ? (
+              <p className="text-sm">
+                <Loader2 className="w-4 h-4 animate-spin text-primary inline ml-2" />
+                <span className="font-bold">{waitingDealsCount} صفقة</span>{" "}
+                <span className="text-muted-foreground">في انتظار الرد من Webhook</span>
+              </p>
             ) : (
               <p className="text-sm text-muted-foreground">
-                لا توجد صفقات في انتظار الإرسال حالياً
+                لا توجد صفقات في انتظار الإرسال أو الرد حالياً
               </p>
             )}
           </CardContent>
