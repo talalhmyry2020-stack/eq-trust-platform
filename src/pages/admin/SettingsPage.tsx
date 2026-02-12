@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 const SettingsPage = () => {
   const [phase1Webhook, setPhase1Webhook] = useState("");
+  const [intervalMinutes, setIntervalMinutes] = useState("5");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -17,12 +18,15 @@ const SettingsPage = () => {
       const { data } = await supabase
         .from("system_settings")
         .select("key, value")
-        .in("key", ["phase1_webhook_url"]);
+        .in("key", ["phase1_webhook_url", "auto_process_interval"]);
 
       if (data) {
         for (const setting of data) {
           if (setting.key === "phase1_webhook_url") {
             setPhase1Webhook((setting.value as any)?.url || "");
+          }
+          if (setting.key === "auto_process_interval") {
+            setIntervalMinutes(String((setting.value as any)?.minutes || 5));
           }
         }
       }
@@ -34,16 +38,22 @@ const SettingsPage = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from("system_settings")
-        .upsert(
+      const now = new Date().toISOString();
+      const { error } = await supabase.from("system_settings").upsert(
+        [
           {
             key: "phase1_webhook_url",
             value: { url: phase1Webhook } as any,
-            updated_at: new Date().toISOString(),
+            updated_at: now,
           },
-          { onConflict: "key" }
-        );
+          {
+            key: "auto_process_interval",
+            value: { minutes: parseInt(intervalMinutes) || 5 } as any,
+            updated_at: now,
+          },
+        ],
+        { onConflict: "key" }
+      );
 
       if (error) throw error;
       toast.success("تم حفظ الإعدادات بنجاح");
@@ -89,6 +99,25 @@ const SettingsPage = () => {
             />
             <p className="text-xs text-muted-foreground">
               يُرسل النظام بيانات المنتج (النوع، الوصف، دولة الاستيراد، الصورة) إلى هذا الرابط لكل صفقة مقبولة.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="interval-minutes">
+              الفترة الزمنية بين كل إرسال (بالدقائق)
+            </Label>
+            <Input
+              id="interval-minutes"
+              type="number"
+              min="1"
+              max="60"
+              dir="ltr"
+              placeholder="5"
+              value={intervalMinutes}
+              onChange={(e) => setIntervalMinutes(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              النظام يرسل صفقة واحدة فقط كل فترة. مثلاً: 5 يعني كل 5 دقائق يُرسل صفقة واحدة.
             </p>
           </div>
 
