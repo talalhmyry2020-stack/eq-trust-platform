@@ -16,29 +16,54 @@ serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // قراءة رابط الـ Webhook من إعدادات النظام
-    const { data: settingData, error: settingError } = await supabase
+    // قراءة الإعدادات: رابط الـ Webhook + الفترة الزمنية
+    const { data: settings, error: settingsError } = await supabase
       .from("system_settings")
-      .select("value")
-      .eq("key", "phase1_webhook_url")
-      .single();
+      .select("key, value")
+      .in("key", ["phase1_webhook_url", "auto_process_interval", "last_auto_process_time"]);
 
-    if (settingError || !settingData) {
-      throw new Error("رابط Webhook المرحلة الأولى غير مُعد في الإعدادات");
+    if (settingsError) throw new Error("Failed to read settings");
+
+    const settingsMap: Record<string, any> = {};
+    for (const s of settings || []) {
+      settingsMap[s.key] = s.value;
     }
 
-    const phase1WebhookUrl = (settingData.value as any)?.url;
-    if (!phase1WebhookUrl) {
-      throw new Error("رابط Webhook المرحلة الأولى فارغ");
+    const webhookUrl = settingsMap["phase1_webhook_url"]?.url;
+    if (!webhookUrl) {
+      return new Response(JSON.stringify({ 
+        success: false, 
+        message: "رابط Webhook غير مُعد في الإعدادات" 
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // جلب الصفقات المقبولة في المرحلة الأولى (product_search)
+    const intervalMinutes = settingsMap["auto_process_interval"]?.minutes || 5;
+    const lastProcessTime = settingsMap["last_auto_process_time"]?.timestamp;
+
+    // التحقق من الفترة الزمنية - هل مضى وقت كافٍ منذ آخر إرسال؟
+    if (lastProcessTime) {
+      const elapsed = (Date.now() - new Date(lastProcessTime).getTime()) / 60000;
+      if (elapsed < intervalMinutes) {
+        return new Response(JSON.stringify({ 
+          success: true, 
+          message: `لم يحن وقت الإرسال بعد. المتبقي: ${Math.ceil(intervalMinutes - elapsed)} دقيقة`,
+          next_in_minutes: Math.ceil(intervalMinutes - elapsed),
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // جلب أقدم صفقة مقبولة في انتظار البحث (صفقة واحدة فقط)
     const { data: deals, error: dealsError } = await supabase
       .from("deals")
       .select("*")
       .eq("status", "active")
       .eq("current_phase", "product_search")
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: true })
+      .limit(1);
 
     if (dealsError) throw new Error("Failed to fetch deals: " + dealsError.message);
 
@@ -52,75 +77,63 @@ serve(async (req) => {
       });
     }
 
-    const results: any[] = [];
+    const deal = deals[0];
 
-    for (const deal of deals) {
-      try {
-        // تحديث المرحلة فوراً لمنع التكرار
-        await supabase.from("deals").update({ 
-          current_phase: "searching_products" 
-        }).eq("id", deal.id);
+    // تحديث المرحلة فوراً لمنع التكرار
+    await supabase.from("deals").update({ 
+      current_phase: "searching_products" 
+    }).eq("id", deal.id);
 
-        // إعداد رابط موقّع لصورة المنتج
-        let productImageSignedUrl: string | null = null;
-        if (deal.product_image_url) {
-          const { data: signedData } = await supabase.storage
-            .from("deal-documents")
-            .createSignedUrl(deal.product_image_url, 3600);
-          productImageSignedUrl = signedData?.signedUrl || null;
-        }
-
-        const payload = {
-          deal_id: deal.id,
-          deal_number: deal.deal_number,
-          product_type: deal.product_type,
-          product_description: deal.product_description,
-          import_country: deal.import_country,
-          product_image_signed_url: productImageSignedUrl,
-          callback_url: `${supabaseUrl}/functions/v1/receive-search-results`,
-        };
-
-        console.log(`[Auto-Process] Sending deal ${deal.deal_number} (${deal.id}) to webhook`);
-
-        const response = await fetch(phase1WebhookUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        const responseText = await response.text();
-        console.log(`[Auto-Process] Deal ${deal.deal_number} response: ${response.status}`);
-
-        results.push({
-          deal_id: deal.id,
-          deal_number: deal.deal_number,
-          status: response.status,
-          success: response.ok,
-        });
-
-      } catch (dealError) {
-        console.error(`[Auto-Process] Error processing deal ${deal.deal_number}:`, dealError);
-        
-        // إرجاع المرحلة في حال الخطأ
-        await supabase.from("deals").update({ 
-          current_phase: "product_search" 
-        }).eq("id", deal.id);
-
-        results.push({
-          deal_id: deal.id,
-          deal_number: deal.deal_number,
-          success: false,
-          error: (dealError as Error).message,
-        });
-      }
+    // إعداد رابط موقّع لصورة المنتج
+    let productImageSignedUrl: string | null = null;
+    if (deal.product_image_url) {
+      const { data: signedData } = await supabase.storage
+        .from("deal-documents")
+        .createSignedUrl(deal.product_image_url, 3600);
+      productImageSignedUrl = signedData?.signedUrl || null;
     }
+
+    const payload = {
+      deal_id: deal.id,
+      deal_number: deal.deal_number,
+      product_type: deal.product_type,
+      product_description: deal.product_description,
+      import_country: deal.import_country,
+      product_image_signed_url: productImageSignedUrl,
+      callback_url: `${supabaseUrl}/functions/v1/receive-search-results`,
+    };
+
+    console.log(`[Auto-Process] Sending deal #${deal.deal_number} to webhook`);
+
+    const response = await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    console.log(`[Auto-Process] Deal #${deal.deal_number} response: ${response.status}`);
+
+    if (!response.ok) {
+      // إرجاع المرحلة في حال فشل الإرسال
+      await supabase.from("deals").update({ 
+        current_phase: "product_search" 
+      }).eq("id", deal.id);
+
+      throw new Error(`Webhook returned ${response.status}`);
+    }
+
+    // تسجيل وقت آخر إرسال
+    await supabase.from("system_settings").upsert({
+      key: "last_auto_process_time",
+      value: { timestamp: new Date().toISOString() },
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "key" });
 
     return new Response(JSON.stringify({ 
       success: true,
-      total: deals.length,
-      processed: results.filter(r => r.success).length,
-      failed: results.filter(r => !r.success).length,
-      results,
+      deal_id: deal.id,
+      deal_number: deal.deal_number,
+      message: `تم إرسال الصفقة #${deal.deal_number} بنجاح`,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
