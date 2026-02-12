@@ -14,14 +14,25 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const phase2WebhookUrl = Deno.env.get("N8N_PHASE2_WEBHOOK_URL");
-
-    if (!phase2WebhookUrl) throw new Error("N8N_PHASE2_WEBHOOK_URL not configured");
-
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // جلب جميع الصفقات المقبولة التي تحتاج بحث عن منتجات
-    // المرحلة product_search تعني أنها جاهزة للبحث ولم يتم إرسالها بعد
+    // قراءة رابط الـ Webhook من إعدادات النظام
+    const { data: settingData, error: settingError } = await supabase
+      .from("system_settings")
+      .select("value")
+      .eq("key", "phase1_webhook_url")
+      .single();
+
+    if (settingError || !settingData) {
+      throw new Error("رابط Webhook المرحلة الأولى غير مُعد في الإعدادات");
+    }
+
+    const phase1WebhookUrl = (settingData.value as any)?.url;
+    if (!phase1WebhookUrl) {
+      throw new Error("رابط Webhook المرحلة الأولى فارغ");
+    }
+
+    // جلب الصفقات المقبولة في المرحلة الأولى (product_search)
     const { data: deals, error: dealsError } = await supabase
       .from("deals")
       .select("*")
@@ -43,7 +54,6 @@ serve(async (req) => {
 
     const results: any[] = [];
 
-    // معالجة كل صفقة على حدة - كل صفقة لها طلب مستقل
     for (const deal of deals) {
       try {
         // تحديث المرحلة فوراً لمنع التكرار
@@ -51,18 +61,7 @@ serve(async (req) => {
           current_phase: "searching_products" 
         }).eq("id", deal.id);
 
-        // إعداد بيانات المنتج للإرسال
-        const payload = {
-          deal_id: deal.id,
-          deal_number: deal.deal_number,
-          product_type: deal.product_type,
-          product_description: deal.product_description,
-          import_country: deal.import_country,
-          // رابط استقبال النتائج - كل صفقة لها رابط خاص بها
-          callback_url: `${supabaseUrl}/functions/v1/receive-search-results`,
-        };
-
-        // إرسال صورة المنتج إذا كانت موجودة
+        // إعداد رابط موقّع لصورة المنتج
         let productImageSignedUrl: string | null = null;
         if (deal.product_image_url) {
           const { data: signedData } = await supabase.storage
@@ -71,17 +70,22 @@ serve(async (req) => {
           productImageSignedUrl = signedData?.signedUrl || null;
         }
 
-        const fullPayload = {
-          ...payload,
+        const payload = {
+          deal_id: deal.id,
+          deal_number: deal.deal_number,
+          product_type: deal.product_type,
+          product_description: deal.product_description,
+          import_country: deal.import_country,
           product_image_signed_url: productImageSignedUrl,
+          callback_url: `${supabaseUrl}/functions/v1/receive-search-results`,
         };
 
-        console.log(`[Auto-Process] Sending deal ${deal.deal_number} (${deal.id}) to n8n`);
+        console.log(`[Auto-Process] Sending deal ${deal.deal_number} (${deal.id}) to webhook`);
 
-        const response = await fetch(phase2WebhookUrl, {
+        const response = await fetch(phase1WebhookUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(fullPayload),
+          body: JSON.stringify(payload),
         });
 
         const responseText = await response.text();
@@ -106,7 +110,7 @@ serve(async (req) => {
           deal_id: deal.id,
           deal_number: deal.deal_number,
           success: false,
-          error: dealError.message,
+          error: (dealError as Error).message,
         });
       }
     }
@@ -123,7 +127,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("[Auto-Process] Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: (error as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
