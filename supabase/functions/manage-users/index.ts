@@ -151,6 +151,56 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (action === "list_users_auth") {
+      // Fetch all auth users to get last_sign_in_at
+      const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+      if (listError) {
+        return new Response(JSON.stringify({ error: listError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const authData = (users || []).map((u) => ({
+        id: u.id,
+        email: u.email,
+        last_sign_in_at: u.last_sign_in_at,
+        created_at: u.created_at,
+      }));
+
+      return new Response(JSON.stringify({ success: true, users: authData }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "send_notification") {
+      const { user_id, title, message } = body;
+      if (!user_id || !title || !message) {
+        return new Response(JSON.stringify({ error: "Missing fields" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { error: notifError } = await supabaseAdmin.from("notifications").insert({
+        user_id,
+        title,
+        message,
+        type: "admin_message",
+      });
+
+      if (notifError) {
+        return new Response(JSON.stringify({ error: notifError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ error: "Unknown action" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
