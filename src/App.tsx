@@ -30,6 +30,7 @@ import GeofencePage from "./pages/inspector/GeofencePage";
 import CapturePage from "./pages/inspector/CapturePage";
 import ValidatePage from "./pages/inspector/ValidatePage";
 import ReportsPage from "./pages/inspector/ReportsPage";
+import InspectorSettings from "./pages/inspector/InspectorSettings";
 
 const queryClient = new QueryClient();
 
@@ -68,6 +69,7 @@ const App = () => (
               <Route path="capture" element={<CapturePage />} />
               <Route path="validate" element={<ValidatePage />} />
               <Route path="reports" element={<ReportsPage />} />
+              <Route path="settings" element={<InspectorSettings />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

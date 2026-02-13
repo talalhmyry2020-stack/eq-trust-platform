@@ -8,6 +8,7 @@ import {
   CloudUpload,
   LogOut,
   Shield,
+  Settings,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ const navItems = [
   { to: "/inspector/capture", icon: Camera, label: "التوثيق المقيد" },
   { to: "/inspector/validate", icon: Eye, label: "المطابقة البصرية" },
   { to: "/inspector/reports", icon: CloudUpload, label: "التقارير" },
+  { to: "/inspector/settings", icon: Settings, label: "الإعدادات" },
 ];
 
 const InspectorSidebar = () => {
