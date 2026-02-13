@@ -301,6 +301,39 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_details: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          job_code: string
+          job_title: string
+          motto: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          job_code?: string
+          job_title?: string
+          motto?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          job_code?: string
+          job_title?: string
+          motto?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       employee_permissions: {
         Row: {
           created_at: string
@@ -560,6 +593,11 @@ export type Database = {
         | "contact_clients"
         | "view_clients"
         | "manage_clients"
+        | "receive_briefing"
+        | "geo_checkin"
+        | "capture_evidence"
+        | "visual_validation"
+        | "submit_report"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -702,6 +740,11 @@ export const Constants = {
         "contact_clients",
         "view_clients",
         "manage_clients",
+        "receive_briefing",
+        "geo_checkin",
+        "capture_evidence",
+        "visual_validation",
+        "submit_report",
       ],
     },
   },

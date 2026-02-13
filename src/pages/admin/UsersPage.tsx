@@ -32,12 +32,23 @@ const PERMISSIONS = [
   { value: "manage_clients", label: "إدارة العملاء" },
 ];
 
+const INSPECTOR_PERMISSIONS = [
+  "receive_briefing",
+  "geo_checkin",
+  "capture_evidence",
+  "visual_validation",
+  "submit_report",
+];
+
+type EmployeeType = "general" | "inspector";
+
 const UsersPage = () => {
   const [clients, setClients] = useState<UserProfile[]>([]);
   const [employees, setEmployees] = useState<UserProfile[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [showEmployeeDialog, setShowEmployeeDialog] = useState(false);
+  const [employeeType, setEmployeeType] = useState<EmployeeType>("general");
   const [newEmployee, setNewEmployee] = useState({ name: "", email: "", password: "", permissions: [] as string[] });
 
   const fetchUsers = async () => {
@@ -76,24 +87,35 @@ const UsersPage = () => {
       return;
     }
 
-    const { data, error } = await supabase.functions.invoke("manage-users", {
-      body: {
-        action: "create_employee",
-        email: newEmployee.email,
-        password: newEmployee.password,
-        full_name: newEmployee.name,
-        permissions: newEmployee.permissions,
-      },
-    });
+    const isInspector = employeeType === "inspector";
+    const permissions = isInspector ? INSPECTOR_PERMISSIONS : newEmployee.permissions;
+
+    const body: Record<string, unknown> = {
+      action: "create_employee",
+      email: newEmployee.email,
+      password: newEmployee.password,
+      full_name: newEmployee.name,
+      permissions,
+    };
+
+    if (isInspector) {
+      body.job_title = "المفتش الميداني";
+      body.job_code = "agent_06";
+      body.motto = "العين التي لا ترمش.. واليد المقيدة بالحقيقة";
+      body.description = "كيان بشري يعمل بعقل رقمي. لا يملك سلطة التقدير الشخصي، بل يملك فقط سلطة نقل الواقع.";
+    }
+
+    const { data, error } = await supabase.functions.invoke("manage-users", { body });
 
     if (error) {
       toast.error("حدث خطأ أثناء إنشاء الموظف");
       return;
     }
 
-    toast.success("تم إنشاء حساب الموظف بنجاح");
+    toast.success(isInspector ? "تم إنشاء حساب المفتش الميداني بنجاح" : "تم إنشاء حساب الموظف بنجاح");
     setShowEmployeeDialog(false);
     setNewEmployee({ name: "", email: "", password: "", permissions: [] });
+    setEmployeeType("general");
     fetchUsers();
   };
 
@@ -136,6 +158,18 @@ const UsersPage = () => {
             </DialogHeader>
             <div className="space-y-4">
               <div>
+                <Label>نوع الموظف</Label>
+                <Select value={employeeType} onValueChange={(v) => setEmployeeType(v as EmployeeType)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="general">موظف عام</SelectItem>
+                    <SelectItem value="inspector">مفتش ميداني — الوكيل 06</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label>الاسم الكامل</Label>
                 <Input value={newEmployee.name} onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })} />
               </div>
@@ -147,21 +181,39 @@ const UsersPage = () => {
                 <Label>كلمة المرور المؤقتة</Label>
                 <Input type="password" value={newEmployee.password} onChange={(e) => setNewEmployee({ ...newEmployee, password: e.target.value })} />
               </div>
-              <div>
-                <Label>الصلاحيات</Label>
-                <div className="space-y-2 mt-2">
-                  {PERMISSIONS.map((p) => (
-                    <div key={p.value} className="flex items-center gap-2">
-                      <Checkbox
-                        checked={newEmployee.permissions.includes(p.value)}
-                        onCheckedChange={() => togglePermission(p.value)}
-                      />
-                      <span className="text-sm">{p.label}</span>
-                    </div>
-                  ))}
+              {employeeType === "general" && (
+                <div>
+                  <Label>الصلاحيات</Label>
+                  <div className="space-y-2 mt-2">
+                    {PERMISSIONS.map((p) => (
+                      <div key={p.value} className="flex items-center gap-2">
+                        <Checkbox
+                          checked={newEmployee.permissions.includes(p.value)}
+                          onCheckedChange={() => togglePermission(p.value)}
+                        />
+                        <span className="text-sm">{p.label}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-              <Button onClick={createEmployee} className="w-full">إنشاء الموظف</Button>
+              )}
+              {employeeType === "inspector" && (
+                <Card className="border-primary/20 bg-primary/5">
+                  <CardContent className="p-4">
+                    <p className="text-sm font-semibold mb-2">صلاحيات المفتش الميداني (تلقائية):</p>
+                    <ul className="text-xs text-muted-foreground space-y-1">
+                      <li>✓ استلام المواصفات المشفرة</li>
+                      <li>✓ القفل الجغرافي</li>
+                      <li>✓ التوثيق المقيد بالكاميرا</li>
+                      <li>✓ المطابقة البصرية وإطلاق التوكن</li>
+                      <li>✓ رفع التقارير للسحابة الآمنة</li>
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}
+              <Button onClick={createEmployee} className="w-full">
+                {employeeType === "inspector" ? "إنشاء المفتش الميداني" : "إنشاء الموظف"}
+              </Button>
             </div>
           </DialogContent>
         </Dialog>

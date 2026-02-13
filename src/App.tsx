@@ -23,6 +23,13 @@ import ClientArchive from "./pages/client/ClientArchive";
 import ClientAccount from "./pages/client/ClientAccount";
 import ClientNotifications from "./pages/client/ClientNotifications";
 import ClientSupport from "./pages/client/ClientSupport";
+import InspectorLayout from "./components/inspector/InspectorLayout";
+import InspectorDashboard from "./pages/inspector/InspectorDashboard";
+import BriefingPage from "./pages/inspector/BriefingPage";
+import GeofencePage from "./pages/inspector/GeofencePage";
+import CapturePage from "./pages/inspector/CapturePage";
+import ValidatePage from "./pages/inspector/ValidatePage";
+import ReportsPage from "./pages/inspector/ReportsPage";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +60,14 @@ const App = () => (
               <Route path="account" element={<ClientAccount />} />
               <Route path="notifications" element={<ClientNotifications />} />
               <Route path="support" element={<ClientSupport />} />
+            </Route>
+            <Route path="/inspector" element={<InspectorLayout />}>
+              <Route index element={<InspectorDashboard />} />
+              <Route path="briefing" element={<BriefingPage />} />
+              <Route path="geofence" element={<GeofencePage />} />
+              <Route path="capture" element={<CapturePage />} />
+              <Route path="validate" element={<ValidatePage />} />
+              <Route path="reports" element={<ReportsPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
