@@ -65,6 +65,8 @@ const Auth = () => {
         const userRoles = (roles || []).map((r) => r.role);
         if (userRoles.includes("admin")) {
           navigate("/admin");
+        } else if (userRoles.includes("employee")) {
+          navigate("/inspector");
         } else {
           navigate("/client");
         }
