@@ -30,6 +30,7 @@ import ClientAccount from "./pages/client/ClientAccount";
 import ClientNotifications from "./pages/client/ClientNotifications";
 import ClientSupport from "./pages/client/ClientSupport";
 import ClientChatPage from "./pages/client/ClientChatPage";
+import ClientNegotiationResults from "./pages/client/ClientNegotiationResults";
 import InspectorLayout from "./components/inspector/InspectorLayout";
 import InspectorDashboard from "./pages/inspector/InspectorDashboard";
 import BriefingPage from "./pages/inspector/BriefingPage";
@@ -75,6 +76,7 @@ const App = () => (
               <Route path="notifications" element={<ClientNotifications />} />
               <Route path="support" element={<ClientSupport />} />
               <Route path="chat" element={<ClientChatPage />} />
+              <Route path="negotiation-results" element={<ClientNegotiationResults />} />
             </Route>
             <Route path="/inspector" element={<InspectorLayout />}>
               <Route index element={<InspectorDashboard />} />

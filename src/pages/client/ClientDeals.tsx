@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Package, AlertTriangle } from "lucide-react";
+import { Plus, Package, AlertTriangle, Handshake } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import CharterAgreement from "@/components/client/CharterAgreement";
 import DealForm from "@/components/client/DealForm";
 import ProductCatalog from "@/components/client/ProductCatalog";
@@ -28,6 +29,10 @@ const phaseMap: Record<string, string> = {
   product_search: "البحث عن منتج",
   searching_products: "جاري البحث",
   product_selection: "اختيار المنتج",
+  negotiation: "بدء التفاوض",
+  negotiating: "جاري التفاوض",
+  negotiation_complete: "عروض الأسعار جاهزة",
+  product_selected: "تم اختيار المنتج",
 };
 
 const statusVariant = (s: string) => {
@@ -40,6 +45,7 @@ const statusVariant = (s: string) => {
 const ClientDeals = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [deals, setDeals] = useState<any[]>([]);
   const [stages, setStages] = useState<any[]>([]);
   const [showCharter, setShowCharter] = useState(false);
@@ -143,6 +149,11 @@ const ClientDeals = () => {
                     {(deal.current_phase === "product_selection" || deal.current_phase === "searching_products") && deal.status === "active" && (
                       <Button size="sm" variant="outline" onClick={() => setSelectedDealForProducts(deal.id)} className="gap-1">
                         <Package className="w-4 h-4" /> المنتجات
+                      </Button>
+                    )}
+                    {(deal.current_phase === "negotiation_complete" || deal.current_phase === "product_selected") && deal.status === "active" && (
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/client/negotiation-results?deal_id=${deal.id}`)} className="gap-1">
+                        <Handshake className="w-4 h-4" /> العروض
                       </Button>
                     )}
                     {deal.status === "cancelled" && (
