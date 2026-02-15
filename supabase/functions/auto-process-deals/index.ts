@@ -33,27 +33,17 @@ serve(async (req) => {
       console.error("[Auto-Process] Qualification error:", qualifyError);
     }
 
-    // قراءة الإعدادات: رابط الـ Webhook + الفترة الزمنية
+    // قراءة الإعدادات: الفترة الزمنية
     const { data: settings, error: settingsError } = await supabase
       .from("system_settings")
       .select("key, value")
-      .in("key", ["phase1_webhook_url", "auto_process_interval", "last_auto_process_time"]);
+      .in("key", ["auto_process_interval", "last_auto_process_time"]);
 
     if (settingsError) throw new Error("Failed to read settings");
 
     const settingsMap: Record<string, any> = {};
     for (const s of settings || []) {
       settingsMap[s.key] = s.value;
-    }
-
-    const webhookUrl = settingsMap["phase1_webhook_url"]?.url;
-    if (!webhookUrl) {
-      return new Response(JSON.stringify({ 
-        success: false, 
-        message: "رابط Webhook غير مُعد في الإعدادات" 
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
     }
 
     const intervalMinutes = settingsMap["auto_process_interval"]?.minutes || 5;
@@ -113,47 +103,29 @@ serve(async (req) => {
 
     const deal = deals[0];
 
-    // تحديث المرحلة فوراً لمنع التكرار
-    await supabase.from("deals").update({ 
-      current_phase: "searching_products" 
-    }).eq("id", deal.id);
+    console.log(`[Auto-Process] Running search agent for deal #${deal.deal_number}`);
 
-    // إعداد رابط موقّع لصورة المنتج
-    let productImageSignedUrl: string | null = null;
-    if (deal.product_image_url) {
-      const { data: signedData } = await supabase.storage
-        .from("deal-documents")
-        .createSignedUrl(deal.product_image_url, 3600);
-      productImageSignedUrl = signedData?.signedUrl || null;
-    }
+    // استدعاء وكيل البحث عن المنتجات داخلياً
+    try {
+      const agentRes = await fetch(`${supabaseUrl}/functions/v1/search-products-agent`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${anonKey}`,
+        },
+        body: JSON.stringify({ deal_id: deal.id }),
+      });
 
-    const payload = {
-      deal_id: deal.id,
-      deal_number: deal.deal_number,
-      product_type: deal.product_type,
-      product_description: deal.product_description,
-      import_country: deal.import_country,
-      product_image_signed_url: productImageSignedUrl,
-      callback_url: `${supabaseUrl}/functions/v1/receive-search-results`,
-    };
+      const agentData = await agentRes.json();
+      console.log(`[Auto-Process] Agent result for deal #${deal.deal_number}:`, JSON.stringify(agentData));
 
-    console.log(`[Auto-Process] Sending deal #${deal.deal_number} to webhook`);
-
-    const response = await fetch(webhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    console.log(`[Auto-Process] Deal #${deal.deal_number} response: ${response.status}`);
-
-    if (!response.ok) {
-      // إرجاع المرحلة في حال فشل الإرسال
-      await supabase.from("deals").update({ 
-        current_phase: "product_search" 
-      }).eq("id", deal.id);
-
-      throw new Error(`Webhook returned ${response.status}`);
+      if (!agentRes.ok) {
+        console.error(`[Auto-Process] Agent failed:`, agentData);
+      }
+    } catch (agentError) {
+      console.error(`[Auto-Process] Agent call error:`, agentError);
+      // إرجاع المرحلة في حال فشل الاستدعاء
+      await supabase.from("deals").update({ current_phase: "product_search" }).eq("id", deal.id);
     }
 
     // تسجيل وقت آخر إرسال
