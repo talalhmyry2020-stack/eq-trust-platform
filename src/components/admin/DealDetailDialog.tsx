@@ -29,6 +29,10 @@ const PHASE_MAP: Record<string, string> = {
   product_search: "البحث عن المنتج",
   searching_products: "جاري البحث عن منتجات",
   product_selection: "اختيار المنتج",
+  results_ready: "النتائج جاهزة",
+  negotiation: "بدء التفاوض",
+  negotiating: "جاري التفاوض",
+  negotiation_complete: "اكتمل التفاوض",
 };
 
 const DealDetailDialog = ({ deal, open, onClose, clientName, accountOwnerName }: DealDetailDialogProps) => {

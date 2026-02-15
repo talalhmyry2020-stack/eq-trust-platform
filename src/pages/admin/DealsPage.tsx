@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Plus, Pause, Play, Trash2, Clock, Eye, CheckCircle, XCircle, RotateCcw, FileSearch } from "lucide-react";
+import { Search, Plus, Pause, Play, Trash2, Clock, Eye, CheckCircle, XCircle, RotateCcw, FileSearch, Handshake } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import DealDetailDialog from "@/components/admin/DealDetailDialog";
@@ -141,6 +141,9 @@ const DealsPage = () => {
     searching_products: "انتظار نتائج البحث",
     results_ready: "النتائج جاهزة",
     product_selection: "اختيار المنتج",
+    negotiation: "بدء التفاوض",
+    negotiating: "جاري التفاوض",
+    negotiation_complete: "اكتمل التفاوض",
   };
 
   const getPhaseName = (phase: string | null) =>
@@ -168,6 +171,7 @@ const DealsPage = () => {
   const pendingDeals = filtered.filter(d => d.status === "pending_review");
   const acceptedDeals = filtered.filter(d => d.status === "active" && d.current_phase === "product_search");
   const waitingResultsDeals = filtered.filter(d => d.status === "active" && (d.current_phase === "searching_products" || d.current_phase === "results_ready" || d.current_phase === "product_selection"));
+  const negotiationDeals = filtered.filter(d => d.status === "active" && (d.current_phase === "negotiation" || d.current_phase === "negotiating" || d.current_phase === "negotiation_complete"));
   const rejectedDeals = filtered.filter(d => d.status === "cancelled");
 
   const renderDealsTable = (dealsList: Deal[]) => (
@@ -208,6 +212,11 @@ const DealsPage = () => {
                       {(deal.current_phase === "results_ready" || deal.current_phase === "searching_products" || deal.current_phase === "product_selection") && (
                         <Button size="icon" variant="ghost" className="text-primary" onClick={() => navigate(`/admin/deal-search-results?deal_id=${deal.id}`)} title="نتائج البحث">
                           <FileSearch className="w-4 h-4" />
+                        </Button>
+                      )}
+                      {(deal.current_phase === "negotiation" || deal.current_phase === "negotiating" || deal.current_phase === "negotiation_complete") && (
+                        <Button size="icon" variant="ghost" className="text-amber-600" onClick={() => navigate(`/admin/deal-negotiations?deal_id=${deal.id}`)} title="نتائج التفاوض">
+                          <Handshake className="w-4 h-4" />
                         </Button>
                       )}
                       {deal.status === "pending_review" && (
@@ -330,12 +339,14 @@ const DealsPage = () => {
           <TabsTrigger value="pending">قيد المراجعة ({pendingDeals.length})</TabsTrigger>
           <TabsTrigger value="accepted">مقبولة ({acceptedDeals.length})</TabsTrigger>
           <TabsTrigger value="waiting">انتظار نتائج البحث ({waitingResultsDeals.length})</TabsTrigger>
+          <TabsTrigger value="negotiation">التفاوض ({negotiationDeals.length})</TabsTrigger>
           <TabsTrigger value="rejected">مرفوضة ({rejectedDeals.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="all">{renderDealsTable(filtered)}</TabsContent>
         <TabsContent value="pending">{renderDealsTable(pendingDeals)}</TabsContent>
         <TabsContent value="accepted">{renderDealsTable(acceptedDeals)}</TabsContent>
         <TabsContent value="waiting">{renderDealsTable(waitingResultsDeals)}</TabsContent>
+        <TabsContent value="negotiation">{renderDealsTable(negotiationDeals)}</TabsContent>
         <TabsContent value="rejected">{renderDealsTable(rejectedDeals)}</TabsContent>
       </Tabs>
 

@@ -44,6 +44,74 @@ export type Database = {
         }
         Relationships: []
       }
+      deal_negotiations: {
+        Row: {
+          created_at: string
+          currency: string | null
+          deal_id: string
+          factory_country: string | null
+          factory_email: string | null
+          factory_name: string
+          factory_phone: string | null
+          factory_response: string | null
+          id: string
+          message_sent: string | null
+          offered_price: number | null
+          product_image_url: string | null
+          product_name: string | null
+          response_date: string | null
+          specifications: Json | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string | null
+          deal_id: string
+          factory_country?: string | null
+          factory_email?: string | null
+          factory_name: string
+          factory_phone?: string | null
+          factory_response?: string | null
+          id?: string
+          message_sent?: string | null
+          offered_price?: number | null
+          product_image_url?: string | null
+          product_name?: string | null
+          response_date?: string | null
+          specifications?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string | null
+          deal_id?: string
+          factory_country?: string | null
+          factory_email?: string | null
+          factory_name?: string
+          factory_phone?: string | null
+          factory_response?: string | null
+          id?: string
+          message_sent?: string | null
+          offered_price?: number | null
+          product_image_url?: string | null
+          product_name?: string | null
+          response_date?: string | null
+          specifications?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_negotiations_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_objections: {
         Row: {
           admin_response: string | null
