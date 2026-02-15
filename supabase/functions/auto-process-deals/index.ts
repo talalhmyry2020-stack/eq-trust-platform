@@ -68,13 +68,56 @@ serve(async (req) => {
       .from("deals")
       .select("id", { count: "exact", head: true })
       .eq("status", "active")
-      .in("current_phase", ["searching_products", "negotiating"]);
+      .in("current_phase", ["searching_products", "negotiating", "negotiating_phase2"]);
 
     if ((searchingCount || 0) > 0) {
       return new Response(JSON.stringify({ 
         success: true, 
         message: "هناك صفقة قيد المعالجة حالياً.",
         waiting_count: searchingCount,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // التحقق: هل هناك صفقات بحاجة لوكيل التفاوض المرحلة 2؟
+    const { data: readyForPhase2 } = await supabase
+      .from("deals")
+      .select("*")
+      .eq("status", "active")
+      .eq("current_phase", "negotiating_phase2")
+      .order("created_at", { ascending: true })
+      .limit(1);
+
+    if (readyForPhase2 && readyForPhase2.length > 0) {
+      const p2Deal = readyForPhase2[0];
+      console.log(`[Auto-Process] Running negotiation phase 2 for deal #${p2Deal.deal_number}`);
+      
+      try {
+        const p2Res = await fetch(`${supabaseUrl}/functions/v1/negotiate-deals-phase2`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${anonKey}`,
+          },
+          body: JSON.stringify({ deal_id: p2Deal.id }),
+        });
+        const p2Data = await p2Res.json();
+        console.log(`[Auto-Process] Phase 2 result:`, JSON.stringify(p2Data));
+      } catch (p2Error) {
+        console.error(`[Auto-Process] Phase 2 error:`, p2Error);
+      }
+
+      await supabase.from("system_settings").upsert({
+        key: "last_auto_process_time",
+        value: { timestamp: new Date().toISOString() },
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "key" });
+
+      return new Response(JSON.stringify({ 
+        success: true,
+        deal_id: p2Deal.id,
+        message: `تم تشغيل وكيل التفاوض المرحلة 2 للصفقة #${p2Deal.deal_number}`,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

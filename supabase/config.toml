@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.qualify-deals]
 verify_jwt = false
+
+[functions.negotiate-deals-phase2]
+verify_jwt = false

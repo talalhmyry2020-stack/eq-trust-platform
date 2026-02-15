@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
-import { ArrowRight, DollarSign, Package, ImageIcon, CheckCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowRight, DollarSign, Package, ImageIcon, CheckCircle, Check, Truck, Clock } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
@@ -20,7 +21,13 @@ interface ClientNegotiation {
   specifications: Record<string, string>;
   status: string;
   response_date: string | null;
+  negotiation_phase: number;
+  requested_quantity: number | null;
+  final_price: number | null;
+  shipping_time: string | null;
 }
+
+const hiddenKeys = ["الشحن", "وقت التسليم", "Shipping", "Delivery Time"];
 
 const ClientNegotiationResults = () => {
   const { user } = useAuth();
@@ -30,10 +37,13 @@ const ClientNegotiationResults = () => {
   const dealId = searchParams.get("deal_id");
 
   const [negotiations, setNegotiations] = useState<ClientNegotiation[]>([]);
+  const [phase2Results, setPhase2Results] = useState<ClientNegotiation[]>([]);
   const [deal, setDeal] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedNeg, setSelectedNeg] = useState<ClientNegotiation | null>(null);
-  const [confirmSelect, setConfirmSelect] = useState<ClientNegotiation | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [quantity, setQuantity] = useState<string>("");
+  const [confirmSubmit, setConfirmSubmit] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -44,27 +54,55 @@ const ClientNegotiationResults = () => {
     setLoading(true);
     const [dealRes, negRes] = await Promise.all([
       supabase.from("deals").select("*").eq("id", dealId!).eq("client_id", user!.id).single(),
-      supabase.from("deal_negotiations").select("id, deal_id, product_name, offered_price, currency, product_image_url, specifications, status, response_date").eq("deal_id", dealId!).eq("status", "responded").order("offered_price", { ascending: true }),
+      supabase.from("deal_negotiations").select("*").eq("deal_id", dealId!).order("offered_price", { ascending: true }),
     ]);
     setDeal(dealRes.data);
-    setNegotiations((negRes.data as unknown as ClientNegotiation[]) || []);
+    const allNegs = (negRes.data as unknown as ClientNegotiation[]) || [];
+    // Phase 1 responded offers
+    setNegotiations(allNegs.filter(n => n.negotiation_phase === 1 && n.status === "responded"));
+    // Phase 2 results
+    setPhase2Results(allNegs.filter(n => n.negotiation_phase === 2 && n.status === "responded"));
     setLoading(false);
   };
 
-  const handleSelectProduct = async (neg: ClientNegotiation) => {
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else if (next.size < 2) {
+        next.add(id);
+      } else {
+        toast({ title: "يمكنك اختيار عرضين كحد أقصى", variant: "destructive" });
+      }
+      return next;
+    });
+  };
+
+  const handleSubmitSelection = async () => {
+    if (selectedIds.size === 0 || !quantity || parseInt(quantity) <= 0) {
+      toast({ title: "يرجى اختيار عرض واحد على الأقل وتحديد الكمية", variant: "destructive" });
+      return;
+    }
     setSubmitting(true);
     try {
-      // Mark selected negotiation as accepted
-      await supabase.from("deal_negotiations").update({ status: "accepted" } as any).eq("id", neg.id);
-      // Move deal to next phase
-      await supabase.from("deals").update({ current_phase: "product_selected" }).eq("id", dealId!);
+      // Mark selected negotiations as accepted with quantity
+      for (const id of selectedIds) {
+        await supabase.from("deal_negotiations").update({ 
+          status: "accepted",
+          requested_quantity: parseInt(quantity),
+        } as any).eq("id", id);
+      }
+      // Move deal to negotiating_phase2
+      await supabase.from("deals").update({ current_phase: "negotiating_phase2" }).eq("id", dealId!);
       
-      toast({ title: "تم اختيار المنتج بنجاح", description: "سيتم متابعة الصفقة في المرحلة التالية" });
-      setConfirmSelect(null);
-      setSelectedNeg(null);
+      toast({ title: "تم إرسال اختيارك بنجاح", description: "سيتم التفاوض مع المصانع على السعر النهائي والكمية المطلوبة" });
+      setConfirmSubmit(false);
+      setSelectedIds(new Set());
+      setQuantity("");
       fetchData();
     } catch {
-      toast({ title: "خطأ", description: "فشل في اختيار المنتج", variant: "destructive" });
+      toast({ title: "خطأ", description: "فشل في إرسال الاختيار", variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
@@ -75,6 +113,115 @@ const ClientNegotiationResults = () => {
   }
 
   const alreadySelected = negotiations.some(n => n.status === "accepted");
+  const isPhase2 = deal?.current_phase === "negotiating_phase2" || deal?.current_phase === "negotiation_phase2_complete";
+  const showPhase1Selection = deal?.current_phase === "negotiation_complete" && !alreadySelected;
+
+  // Phase 2 complete view
+  if (deal?.current_phase === "negotiation_phase2_complete" && phase2Results.length > 0) {
+    return (
+      <div>
+        <div className="flex items-center gap-3 mb-6">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <ArrowRight className="w-5 h-5" />
+          </Button>
+          <div>
+            <h1 className="font-heading text-2xl font-bold">العرض النهائي</h1>
+            {deal && (
+              <p className="text-muted-foreground text-sm">
+                صفقة #{deal.deal_number} — {deal.product_type || deal.title}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          {phase2Results.map((neg, idx) => (
+            <Card key={neg.id} className="overflow-hidden border-primary/30">
+              {neg.product_image_url && (
+                <div className="w-full h-40 overflow-hidden">
+                  <img src={neg.product_image_url} alt="المنتج" className="w-full h-full object-cover" />
+                </div>
+              )}
+              <CardContent className="p-4 space-y-3">
+                <h3 className="font-semibold text-lg">العرض النهائي #{idx + 1}</h3>
+                <p className="text-sm text-muted-foreground">{neg.product_name}</p>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <Card>
+                    <CardContent className="p-3 text-center">
+                      <DollarSign className="w-4 h-4 mx-auto mb-1 text-green-600" />
+                      <p className="text-xl font-bold text-green-600">${neg.final_price}</p>
+                      <p className="text-xs text-muted-foreground">السعر النهائي / وحدة</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-3 text-center">
+                      <Package className="w-4 h-4 mx-auto mb-1 text-blue-600" />
+                      <p className="text-xl font-bold text-blue-600">{neg.requested_quantity}</p>
+                      <p className="text-xs text-muted-foreground">الكمية</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {neg.shipping_time && (
+                  <div className="flex items-center gap-2 text-sm bg-muted/50 p-2 rounded-md">
+                    <Truck className="w-4 h-4 text-muted-foreground" />
+                    <span>فترة الشحن: <strong>{neg.shipping_time}</strong></span>
+                  </div>
+                )}
+
+                {neg.final_price && neg.requested_quantity && (
+                  <div className="text-center bg-primary/5 p-3 rounded-md">
+                    <p className="text-sm text-muted-foreground">الإجمالي التقديري</p>
+                    <p className="text-2xl font-bold text-primary">${(neg.final_price * neg.requested_quantity).toLocaleString()}</p>
+                  </div>
+                )}
+
+                {neg.specifications && (() => {
+                  const filtered = Object.entries(neg.specifications).filter(([key]) => !hiddenKeys.includes(key));
+                  return filtered.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {filtered.map(([key, val]) => (
+                        <Badge key={key} variant="outline" className="text-xs">{key}: {String(val)}</Badge>
+                      ))}
+                    </div>
+                  ) : null;
+                })()}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Waiting for phase 2 results
+  if (deal?.current_phase === "negotiating_phase2") {
+    return (
+      <div>
+        <div className="flex items-center gap-3 mb-6">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <ArrowRight className="w-5 h-5" />
+          </Button>
+          <div>
+            <h1 className="font-heading text-2xl font-bold">جاري التفاوض النهائي</h1>
+            {deal && (
+              <p className="text-muted-foreground text-sm">
+                صفقة #{deal.deal_number} — {deal.product_type || deal.title}
+              </p>
+            )}
+          </div>
+        </div>
+        <Card>
+          <CardContent className="text-center py-16 space-y-4">
+            <Clock className="w-12 h-12 mx-auto text-primary animate-pulse" />
+            <h2 className="text-xl font-semibold">جاري التفاوض مع المصانع</h2>
+            <p className="text-muted-foreground">تم إرسال اختيارك والكمية المطلوبة للمصانع. سنخبرك فور وصول الرد بالسعر النهائي.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -123,54 +270,93 @@ const ClientNegotiationResults = () => {
       ) : negotiations.length === 0 ? (
         <Card>
           <CardContent className="text-center py-10 text-muted-foreground">
-            لا توجد عروض أسعار لهذه الصفقة بعد
+            {alreadySelected ? "تم اختيار العروض وإرسالها للتفاوض النهائي" : "لا توجد عروض أسعار لهذه الصفقة بعد"}
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {negotiations.map((neg, idx) => (
-            <Card
-              key={neg.id}
-              className="cursor-pointer hover:border-primary/50 transition-colors overflow-hidden"
-              onClick={() => setSelectedNeg(neg)}
-            >
-              {neg.product_image_url && (
-                <div className="w-full h-40 overflow-hidden">
-                  <img src={neg.product_image_url} alt="المنتج" className="w-full h-full object-cover" />
-                </div>
-              )}
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1">
-                    <h3 className="font-semibold mb-1">عرض #{idx + 1}</h3>
-                    <p className="text-sm text-muted-foreground">{neg.product_name}</p>
-                  </div>
-                  <div className="text-left">
-                    {neg.offered_price && (
-                      <p className="text-xl font-bold text-green-600">${neg.offered_price}</p>
+        <>
+          {showPhase1Selection && (
+            <div className="bg-muted/50 rounded-lg p-4 mb-4 space-y-3">
+              <p className="text-sm font-medium">اختر عرضاً أو عرضين (حد أقصى 2) ثم حدد الكمية المطلوبة:</p>
+              <div className="flex items-center gap-3">
+                <Input
+                  type="number"
+                  placeholder="الكمية المطلوبة"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  min={1}
+                  className="max-w-[200px]"
+                  dir="ltr"
+                />
+                <Badge variant="outline">{selectedIds.size} / 2 عروض مختارة</Badge>
+                <Button 
+                  onClick={() => setConfirmSubmit(true)} 
+                  disabled={selectedIds.size === 0 || !quantity || parseInt(quantity) <= 0}
+                  className="gap-2"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  تأكيد وإرسال للتفاوض النهائي
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {negotiations.map((neg, idx) => {
+              const isSelected = selectedIds.has(neg.id);
+              return (
+                <Card
+                  key={neg.id}
+                  className={`cursor-pointer transition-all overflow-hidden ${isSelected ? "border-primary ring-2 ring-primary/20" : "hover:border-primary/50"}`}
+                  onClick={() => showPhase1Selection ? toggleSelect(neg.id) : setSelectedNeg(neg)}
+                >
+                  {showPhase1Selection && (
+                    <div className={`h-1 ${isSelected ? "bg-primary" : "bg-transparent"}`} />
+                  )}
+                  {neg.product_image_url && (
+                    <div className="w-full h-40 overflow-hidden relative">
+                      <img src={neg.product_image_url} alt="المنتج" className="w-full h-full object-cover" />
+                      {isSelected && (
+                        <div className="absolute top-2 left-2 bg-primary text-primary-foreground rounded-full p-1">
+                          <Check className="w-4 h-4" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <h3 className="font-semibold mb-1">عرض #{idx + 1}</h3>
+                        <p className="text-sm text-muted-foreground">{neg.product_name}</p>
+                      </div>
+                      <div className="text-left">
+                        {neg.offered_price && (
+                          <p className="text-xl font-bold text-green-600">${neg.offered_price}</p>
+                        )}
+                      </div>
+                    </div>
+                    {neg.specifications && Object.keys(neg.specifications).length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {Object.entries(neg.specifications)
+                          .filter(([key]) => !hiddenKeys.includes(key))
+                          .slice(0, 3).map(([key, val]) => (
+                          <Badge key={key} variant="outline" className="text-xs">{key}: {String(val)}</Badge>
+                        ))}
+                      </div>
                     )}
-                    {neg.status === "accepted" && (
-                      <Badge className="mt-1">تم الاختيار</Badge>
+                    {!showPhase1Selection && isSelected && (
+                      <Badge className="mt-2">تم الاختيار</Badge>
                     )}
-                  </div>
-                </div>
-                {neg.specifications && Object.keys(neg.specifications).length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {Object.entries(neg.specifications)
-                      .filter(([key]) => !["الشحن", "وقت التسليم", "Shipping", "Delivery Time"].includes(key))
-                      .slice(0, 3).map(([key, val]) => (
-                      <Badge key={key} variant="outline" className="text-xs">{key}: {String(val)}</Badge>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </>
       )}
 
-      {/* تفاصيل العرض */}
-      <Dialog open={!!selectedNeg && !confirmSelect} onOpenChange={() => setSelectedNeg(null)}>
+      {/* تفاصيل العرض - فقط في حالة غير الاختيار */}
+      <Dialog open={!!selectedNeg && !showPhase1Selection} onOpenChange={() => setSelectedNeg(null)}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           {selectedNeg && (
             <>
@@ -201,7 +387,6 @@ const ClientNegotiationResults = () => {
                 </Card>
 
                 {selectedNeg.specifications && Object.keys(selectedNeg.specifications).length > 0 && (() => {
-                  const hiddenKeys = ["الشحن", "وقت التسليم", "Shipping", "Delivery Time"];
                   const filtered = Object.entries(selectedNeg.specifications).filter(([key]) => !hiddenKeys.includes(key));
                   return filtered.length > 0 ? (
                   <Card>
@@ -223,17 +408,6 @@ const ClientNegotiationResults = () => {
                   </Card>
                   ) : null;
                 })()}
-
-                {!alreadySelected && deal?.current_phase === "negotiation_complete" && (
-                  <Button
-                    className="w-full gap-2"
-                    size="lg"
-                    onClick={() => setConfirmSelect(selectedNeg)}
-                  >
-                    <CheckCircle className="w-5 h-5" />
-                    اختيار هذا العرض
-                  </Button>
-                )}
               </div>
             </>
           )}
@@ -241,19 +415,23 @@ const ClientNegotiationResults = () => {
       </Dialog>
 
       {/* تأكيد الاختيار */}
-      <Dialog open={!!confirmSelect} onOpenChange={() => setConfirmSelect(null)}>
+      <Dialog open={confirmSubmit} onOpenChange={() => setConfirmSubmit(false)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>تأكيد اختيار العرض</DialogTitle>
+            <DialogTitle>تأكيد الاختيار والكمية</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            هل أنت متأكد من اختيار هذا العرض بسعر <strong className="text-foreground">${confirmSelect?.offered_price}</strong>؟
-            سيتم المتابعة في الخطوات التالية.
-          </p>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              سيتم إرسال <strong className="text-foreground">{selectedIds.size} عرض(ين)</strong> بكمية <strong className="text-foreground">{quantity} وحدة</strong> للتفاوض النهائي مع المصانع.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              ستختفي العروض الأخرى وستنتقل الصفقة لمرحلة التفاوض النهائي.
+            </p>
+          </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setConfirmSelect(null)}>إلغاء</Button>
-            <Button onClick={() => confirmSelect && handleSelectProduct(confirmSelect)} disabled={submitting}>
-              {submitting ? "جاري التأكيد..." : "تأكيد الاختيار"}
+            <Button variant="outline" onClick={() => setConfirmSubmit(false)}>إلغاء</Button>
+            <Button onClick={handleSubmitSelection} disabled={submitting}>
+              {submitting ? "جاري الإرسال..." : "تأكيد الإرسال"}
             </Button>
           </DialogFooter>
         </DialogContent>
