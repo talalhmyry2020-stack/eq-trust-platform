@@ -201,6 +201,13 @@ serve(async (req) => {
 
         console.log(`[Qualify] Deal #${deal.deal_number} result:`, JSON.stringify(verification));
 
+        // جلب قائمة المدراء لإرسال الإشعارات
+        const { data: adminRoles } = await supabase
+          .from("user_roles")
+          .select("user_id")
+          .eq("role", "admin");
+        const adminIds = (adminRoles || []).map((r: any) => r.user_id);
+
         if (verification.approved) {
           // قبول الصفقة
           await supabase.from("deals").update({
@@ -208,12 +215,24 @@ serve(async (req) => {
             current_phase: "product_search",
           }).eq("id", deal.id);
 
-          // إرسال إشعار للعميل
+          // إشعار العميل
           if (deal.client_id) {
             await supabase.from("notifications").insert({
               user_id: deal.client_id,
               title: `✅ تم قبول الصفقة #${deal.deal_number}`,
               message: `تم التحقق من مستنداتك بنجاح وقبول صفقتك. سيتم الآن البحث عن أفضل الخيارات لك.`,
+              type: "deal_update",
+              entity_type: "deal",
+              entity_id: deal.id,
+            });
+          }
+
+          // إشعار المدراء
+          for (const adminId of adminIds) {
+            await supabase.from("notifications").insert({
+              user_id: adminId,
+              title: `✅ وكيل التأهيل: قبول الصفقة #${deal.deal_number}`,
+              message: `تم قبول الصفقة "${deal.title}" تلقائياً بعد التحقق من المستندات بنسبة ثقة ${verification.confidence || 0}%.`,
               type: "deal_update",
               entity_type: "deal",
               entity_id: deal.id,
@@ -232,7 +251,7 @@ serve(async (req) => {
         } else {
           // رفض الصفقة
           const reason = verification.rejection_reason || "لم تتطابق البيانات المدخلة مع المستندات المرفقة.";
-          await rejectDeal(supabase, deal, reason, verification);
+          await rejectDeal(supabase, deal, reason, verification, adminIds);
           results.push({ deal_number: deal.deal_number, status: "rejected", reason: verification.rejection_reason });
         }
 
@@ -259,7 +278,7 @@ serve(async (req) => {
   }
 });
 
-async function rejectDeal(supabase: any, deal: any, reason: string, verificationData?: any) {
+async function rejectDeal(supabase: any, deal: any, reason: string, verificationData?: any, adminIds?: string[]) {
   // تحديث الصفقة إلى ملغاة
   await supabase.from("deals").update({
     status: "cancelled",
@@ -271,11 +290,25 @@ async function rejectDeal(supabase: any, deal: any, reason: string, verification
     await supabase.from("notifications").insert({
       user_id: deal.client_id,
       title: `❌ تم رفض الصفقة #${deal.deal_number}`,
-      message: `سبب الرفض: ${reason}`,
+      message: `سبب الرفض: ${reason}\n\nيمكنك تقديم اعتراض من صفحة صفقاتك.`,
       type: "deal_update",
       entity_type: "deal",
       entity_id: deal.id,
     });
+  }
+
+  // إشعار المدراء
+  if (adminIds) {
+    for (const adminId of adminIds) {
+      await supabase.from("notifications").insert({
+        user_id: adminId,
+        title: `❌ وكيل التأهيل: رفض الصفقة #${deal.deal_number}`,
+        message: `تم رفض الصفقة "${deal.title}" تلقائياً.\nسبب الرفض: ${reason}`,
+        type: "deal_update",
+        entity_type: "deal",
+        entity_id: deal.id,
+      });
+    }
   }
 
   // سجل النشاط
