@@ -42,6 +42,7 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
   const [productType, setProductType] = useState("");
   const [productDescription, setProductDescription] = useState("");
   const [importCountry, setImportCountry] = useState("");
+  const [estimatedAmount, setEstimatedAmount] = useState("");
   const [agreement, setAgreement] = useState(false);
 
   const [identityFile, setIdentityFile] = useState<File | null>(null);
@@ -67,6 +68,8 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
     productType.trim() &&
     productDescription.trim() &&
     productDescription.length <= 100 &&
+    estimatedAmount.trim() &&
+    Number(estimatedAmount) > 0 &&
     importCountry &&
     agreement;
 
@@ -107,6 +110,7 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
         product_description: productDescription.trim(),
         product_image_url: productPath || "",
         import_country: importCountry,
+        estimated_amount: Number(estimatedAmount),
         status: "pending_review" as any,
       }).select("id, deal_number").single();
 
@@ -123,6 +127,7 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
         entity_type: entityType,
         product_type: productType.trim(),
         product_description: productDescription.trim(),
+        estimated_amount: Number(estimatedAmount),
         import_country: importCountry,
         status: "pending_review",
       };
@@ -350,11 +355,24 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
             />
           </section>
 
-          {/* القسم الخامس: دولة الاستيراد */}
+          {/* القسم الخامس: إعدادات الصفقة */}
           <section className="space-y-4">
             <h2 className="font-heading text-lg font-semibold border-b border-border pb-2 text-primary">
-              🟦 القسم الخامس: دولة الاستيراد
+              🟦 القسم الخامس: إعدادات الصفقة
             </h2>
+            <div>
+              <Label htmlFor="estimatedAmount">مبلغ الصفقة التقريبي (بالدولار) <span className="text-destructive">*</span></Label>
+              <Input
+                id="estimatedAmount"
+                type="number"
+                min="0"
+                value={estimatedAmount}
+                onChange={(e) => setEstimatedAmount(e.target.value)}
+                placeholder="مثال: 5000"
+                className="mt-1.5"
+                dir="ltr"
+              />
+            </div>
             <div>
               <Label>الدولة المستورد منها <span className="text-destructive">*</span></Label>
               <Select value={importCountry} onValueChange={setImportCountry}>

@@ -1,0 +1,1 @@
+ALTER TABLE public.deals ADD COLUMN estimated_amount numeric NULL DEFAULT NULL;

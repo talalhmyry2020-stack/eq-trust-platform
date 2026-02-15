@@ -260,6 +260,7 @@ export type Database = {
           description: string | null
           employee_id: string | null
           entity_type: string | null
+          estimated_amount: number | null
           id: string
           identity_doc_url: string | null
           import_country: string | null
@@ -287,6 +288,7 @@ export type Database = {
           description?: string | null
           employee_id?: string | null
           entity_type?: string | null
+          estimated_amount?: number | null
           id?: string
           identity_doc_url?: string | null
           import_country?: string | null
@@ -314,6 +316,7 @@ export type Database = {
           description?: string | null
           employee_id?: string | null
           entity_type?: string | null
+          estimated_amount?: number | null
           id?: string
           identity_doc_url?: string | null
           import_country?: string | null
