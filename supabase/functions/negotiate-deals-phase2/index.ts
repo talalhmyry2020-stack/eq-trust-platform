@@ -101,10 +101,10 @@ serve(async (req) => {
       throw new Error("Failed to save phase 2 negotiations: " + insertError.message);
     }
 
-    // تحديث مرحلة الصفقة
+    // تحديث مرحلة الصفقة - تبقى في انتظار قرار المدير
     await supabase.from("deals").update({ current_phase: "negotiation_phase2_complete" }).eq("id", deal_id);
 
-    // إشعار المدير
+    // إشعار المدير فقط
     const adminContacts = await supabase.rpc("get_admin_contacts");
     const admins = adminContacts.data || [];
 
@@ -112,19 +112,7 @@ serve(async (req) => {
       await supabase.from("notifications").insert({
         user_id: admin.user_id,
         title: `نتائج التفاوض النهائي - صفقة #${deal.deal_number}`,
-        message: `تم استلام ${phase2Results.length} رد(ود) نهائي من المصانع للصفقة #${deal.deal_number} بالأسعار النهائية والكميات`,
-        type: "negotiation_phase2_complete",
-        entity_type: "deal",
-        entity_id: deal_id,
-      });
-    }
-
-    // إشعار العميل
-    if (deal.client_id) {
-      await supabase.from("notifications").insert({
-        user_id: deal.client_id,
-        title: "العرض النهائي جاهز",
-        message: `تم استلام ${phase2Results.length} عرض(ين) نهائي لصفقتك #${deal.deal_number} بالسعر النهائي وفترة الشحن. يرجى مراجعة العروض.`,
+        message: `تم استلام ${phase2Results.length} رد(ود) نهائي من المصانع للصفقة #${deal.deal_number} بالأسعار النهائية والكميات. بانتظار قرارك.`,
         type: "negotiation_phase2_complete",
         entity_type: "deal",
         entity_id: deal_id,
