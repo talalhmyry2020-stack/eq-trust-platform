@@ -16,6 +16,7 @@ import LogsPage from "./pages/admin/LogsPage";
 import SensitivePage from "./pages/admin/SensitivePage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import ProductSearchPage from "./pages/admin/ProductSearchPage";
+import FactorySearchPage from "./pages/admin/FactorySearchPage";
 import ClientLayout from "./components/client/ClientLayout";
 import ClientDashboard from "./pages/client/ClientDashboard";
 import ClientDeals from "./pages/client/ClientDeals";
@@ -50,6 +51,7 @@ const App = () => (
               <Route path="deals" element={<DealsPage />} />
               <Route path="archive" element={<ArchivePage />} />
               <Route path="product-search" element={<ProductSearchPage />} />
+              <Route path="factory-search" element={<FactorySearchPage />} />
               <Route path="logs" element={<LogsPage />} />
               <Route path="sensitive" element={<SensitivePage />} />
               <Route path="settings" element={<SettingsPage />} />

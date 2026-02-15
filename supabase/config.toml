@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.receive-sample-results]
 verify_jwt = false
+
+[functions.search-factories]
+verify_jwt = false
