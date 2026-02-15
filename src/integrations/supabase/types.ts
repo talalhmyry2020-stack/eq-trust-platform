@@ -103,6 +103,62 @@ export type Database = {
           },
         ]
       }
+      deal_samples: {
+        Row: {
+          actual_arrival: string | null
+          callback_data: Json | null
+          created_at: string
+          deal_id: string
+          estimated_arrival: string | null
+          id: string
+          notes: string | null
+          sample_details: Json | null
+          shipping_company: string | null
+          shipping_date: string | null
+          status: string
+          tracking_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_arrival?: string | null
+          callback_data?: Json | null
+          created_at?: string
+          deal_id: string
+          estimated_arrival?: string | null
+          id?: string
+          notes?: string | null
+          sample_details?: Json | null
+          shipping_company?: string | null
+          shipping_date?: string | null
+          status?: string
+          tracking_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_arrival?: string | null
+          callback_data?: Json | null
+          created_at?: string
+          deal_id?: string
+          estimated_arrival?: string | null
+          id?: string
+          notes?: string | null
+          sample_details?: Json | null
+          shipping_company?: string | null
+          shipping_date?: string | null
+          status?: string
+          tracking_number?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_samples_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_search_columns: {
         Row: {
           column_name: string
