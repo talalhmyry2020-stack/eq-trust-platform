@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Plus, Pause, Play, Trash2, Clock, Eye, CheckCircle, XCircle, RotateCcw } from "lucide-react";
+import { Search, Plus, Pause, Play, Trash2, Clock, Eye, CheckCircle, XCircle, RotateCcw, FileSearch } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import DealDetailDialog from "@/components/admin/DealDetailDialog";
@@ -205,6 +205,11 @@ const DealsPage = () => {
                       <Button size="icon" variant="ghost" onClick={() => setSelectedDeal(deal)} title="عرض التفاصيل">
                         <Eye className="w-4 h-4" />
                       </Button>
+                      {(deal.current_phase === "results_ready" || deal.current_phase === "searching_products" || deal.current_phase === "product_selection") && (
+                        <Button size="icon" variant="ghost" className="text-primary" onClick={() => navigate(`/admin/deal-search-results?deal_id=${deal.id}`)} title="نتائج البحث">
+                          <FileSearch className="w-4 h-4" />
+                        </Button>
+                      )}
                       {deal.status === "pending_review" && (
                         <>
                           <Button size="icon" variant="ghost" className="text-green-600" onClick={() => updateStatus(deal.id, "active")} title="موافقة">
