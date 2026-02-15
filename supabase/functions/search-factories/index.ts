@@ -14,43 +14,46 @@ serve(async (req) => {
     const { query, country } = await req.json();
     if (!query) throw new Error("query is required");
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
+    const tavilyKey = Deno.env.get("TAVILY_API_KEY");
+    if (!tavilyKey) throw new Error("TAVILY_API_KEY not configured");
 
-    const searchPrompt = `ابحث عن مصانع وموردين لـ "${query}"${country ? ` في ${country}` : ""}.
+    const searchQuery = `${query} manufacturers suppliers factories${country ? ` in ${country}` : ""} contact email phone address website`;
 
-أريد قائمة بأهم المصانع والموردين مع المعلومات التالية لكل مصنع:
-1. اسم المصنع/الشركة
-2. العنوان الكامل
-3. البريد الإلكتروني
-4. رقم الهاتف
-5. الموقع الإلكتروني
-6. البلد
-7. المنتجات الرئيسية
-8. ملاحظات إضافية
+    console.log("Tavily search:", searchQuery);
 
-أعطني النتائج بصيغة JSON array فقط بدون أي نص إضافي، بالشكل التالي:
-[
-  {
-    "name": "اسم المصنع",
-    "address": "العنوان الكامل",
-    "email": "البريد الإلكتروني",
-    "phone": "رقم الهاتف",
-    "website": "الموقع الإلكتروني",
-    "country": "البلد",
-    "products": "المنتجات الرئيسية",
-    "notes": "ملاحظات"
-  }
-]
+    const tavilyResponse = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: tavilyKey,
+        query: searchQuery,
+        search_depth: "advanced",
+        max_results: 10,
+        include_answer: true,
+      }),
+    });
 
-أعطني 5-10 نتائج حقيقية ومفصلة قدر الإمكان.`;
+    if (!tavilyResponse.ok) {
+      const errText = await tavilyResponse.text();
+      console.error("Tavily error:", tavilyResponse.status, errText);
+      throw new Error(`Tavily request failed: ${tavilyResponse.status}`);
+    }
 
-    console.log("Searching factories for:", query, country);
+    const tavilyData = await tavilyResponse.json();
+    console.log("Tavily results count:", tavilyData.results?.length);
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Now use Lovable AI to extract structured factory data from Tavily results
+    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    if (!lovableKey) throw new Error("LOVABLE_API_KEY not configured");
+
+    const resultsText = tavilyData.results?.map((r: any, i: number) => 
+      `[${i + 1}] ${r.title}\nURL: ${r.url}\n${r.content}`
+    ).join("\n\n") || "";
+
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
+        "Authorization": `Bearer ${lovableKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -58,24 +61,35 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: "أنت مساعد متخصص في البحث عن المصانع والموردين حول العالم. أجب دائماً بصيغة JSON array فقط بدون أي نص إضافي أو markdown.",
+            content: "أنت مساعد متخصص في استخراج بيانات المصانع والموردين. استخرج المعلومات من نتائج البحث وأرجعها كـ JSON array فقط بدون أي نص إضافي أو markdown.",
           },
-          { role: "user", content: searchPrompt },
+          {
+            role: "user",
+            content: `من نتائج البحث التالية، استخرج بيانات المصانع والموردين بصيغة JSON array:
+
+${resultsText}
+
+${tavilyData.answer ? `\nملخص البحث: ${tavilyData.answer}` : ""}
+
+أريد لكل مصنع:
+[{"name":"اسم المصنع","address":"العنوان","email":"الإيميل","phone":"الهاتف","website":"الموقع","country":"البلد","products":"المنتجات","notes":"ملاحظات"}]
+
+إذا لم تجد معلومة معينة اتركها فارغة. أعط أكبر عدد ممكن من النتائج.`,
+          },
         ],
-        temperature: 0.3,
+        temperature: 0.2,
       }),
     });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("AI Gateway error:", response.status, errText);
-      throw new Error(`AI request failed: ${response.status}`);
+    if (!aiResponse.ok) {
+      const errText = await aiResponse.text();
+      console.error("AI error:", aiResponse.status, errText);
+      throw new Error(`AI request failed: ${aiResponse.status}`);
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "[]";
+    const aiData = await aiResponse.json();
+    const content = aiData.choices?.[0]?.message?.content || "[]";
 
-    // Parse JSON from response, handling potential markdown wrapping
     let factories = [];
     try {
       const jsonMatch = content.match(/\[[\s\S]*\]/);
@@ -87,7 +101,7 @@ serve(async (req) => {
       factories = [];
     }
 
-    console.log(`Found ${factories.length} factories`);
+    console.log(`Extracted ${factories.length} factories`);
 
     return new Response(JSON.stringify({ success: true, factories }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
