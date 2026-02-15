@@ -63,18 +63,61 @@ serve(async (req) => {
       }
     }
 
-    // التحقق: هل هناك صفقة حالياً في انتظار نتائج البحث؟
+    // التحقق: هل هناك صفقة حالياً في انتظار نتائج البحث أو جاري التفاوض؟
     const { count: searchingCount } = await supabase
       .from("deals")
       .select("id", { count: "exact", head: true })
       .eq("status", "active")
-      .eq("current_phase", "searching_products");
+      .in("current_phase", ["searching_products", "negotiating"]);
 
     if ((searchingCount || 0) > 0) {
       return new Response(JSON.stringify({ 
         success: true, 
-        message: "هناك صفقة قيد البحث حالياً. سيتم إرسال التالية بعد استلام النتائج.",
+        message: "هناك صفقة قيد المعالجة حالياً.",
         waiting_count: searchingCount,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // التحقق: هل هناك صفقات جاهزة للتفاوض (results_ready)؟
+    const { data: readyForNeg } = await supabase
+      .from("deals")
+      .select("*")
+      .eq("status", "active")
+      .eq("current_phase", "results_ready")
+      .order("created_at", { ascending: true })
+      .limit(1);
+
+    if (readyForNeg && readyForNeg.length > 0) {
+      const negDeal = readyForNeg[0];
+      console.log(`[Auto-Process] Running negotiation agent for deal #${negDeal.deal_number}`);
+      
+      try {
+        const negRes = await fetch(`${supabaseUrl}/functions/v1/negotiate-deals`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${anonKey}`,
+          },
+          body: JSON.stringify({ deal_id: negDeal.id }),
+        });
+        const negData = await negRes.json();
+        console.log(`[Auto-Process] Negotiation result:`, JSON.stringify(negData));
+      } catch (negError) {
+        console.error(`[Auto-Process] Negotiation error:`, negError);
+      }
+
+      await supabase.from("system_settings").upsert({
+        key: "last_auto_process_time",
+        value: { timestamp: new Date().toISOString() },
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "key" });
+
+      return new Response(JSON.stringify({ 
+        success: true,
+        deal_id: negDeal.id,
+        message: `تم تشغيل وكيل التفاوض للصفقة #${negDeal.deal_number}`,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

@@ -21,6 +21,7 @@ import ClientDealsPage from "./pages/admin/ClientDealsPage";
 import FactorySearchPage from "./pages/admin/FactorySearchPage";
 import AdminNotificationsPage from "./pages/admin/AdminNotificationsPage";
 import AdminChatPage from "./pages/admin/AdminChatPage";
+import DealNegotiationsPage from "./pages/admin/DealNegotiationsPage";
 import ClientLayout from "./components/client/ClientLayout";
 import ClientDashboard from "./pages/client/ClientDashboard";
 import ClientDeals from "./pages/client/ClientDeals";
@@ -59,6 +60,7 @@ const App = () => (
               <Route path="product-search" element={<ProductSearchPage />} />
               <Route path="deal-search-results" element={<DealSearchResultsPage />} />
               <Route path="factory-search" element={<FactorySearchPage />} />
+              <Route path="deal-negotiations" element={<DealNegotiationsPage />} />
               <Route path="notifications" element={<AdminNotificationsPage />} />
               <Route path="chat" element={<AdminChatPage />} />
               <Route path="logs" element={<LogsPage />} />
