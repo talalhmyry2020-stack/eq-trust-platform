@@ -14,7 +14,24 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
+
+    // أولاً: تشغيل وكيل التأهيل لفحص الصفقات قيد المراجعة
+    try {
+      console.log("[Auto-Process] Running qualification agent...");
+      const qualifyRes = await fetch(`${supabaseUrl}/functions/v1/qualify-deals`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${anonKey}`,
+        },
+      });
+      const qualifyData = await qualifyRes.json();
+      console.log("[Auto-Process] Qualification result:", JSON.stringify(qualifyData));
+    } catch (qualifyError) {
+      console.error("[Auto-Process] Qualification error:", qualifyError);
+    }
 
     // قراءة الإعدادات: رابط الـ Webhook + الفترة الزمنية
     const { data: settings, error: settingsError } = await supabase
