@@ -8,7 +8,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const SettingsPage = () => {
-  const [phase1Webhook, setPhase1Webhook] = useState("");
   const [intervalMinutes, setIntervalMinutes] = useState("5");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -18,13 +17,10 @@ const SettingsPage = () => {
       const { data } = await supabase
         .from("system_settings")
         .select("key, value")
-        .in("key", ["phase1_webhook_url", "auto_process_interval"]);
+        .in("key", ["auto_process_interval"]);
 
       if (data) {
         for (const setting of data) {
-          if (setting.key === "phase1_webhook_url") {
-            setPhase1Webhook((setting.value as any)?.url || "");
-          }
           if (setting.key === "auto_process_interval") {
             setIntervalMinutes(String((setting.value as any)?.minutes || 5));
           }
@@ -41,11 +37,6 @@ const SettingsPage = () => {
       const now = new Date().toISOString();
       const { error } = await supabase.from("system_settings").upsert(
         [
-          {
-            key: "phase1_webhook_url",
-            value: { url: phase1Webhook } as any,
-            updated_at: now,
-          },
           {
             key: "auto_process_interval",
             value: { minutes: parseInt(intervalMinutes) || 5 } as any,
@@ -83,24 +74,9 @@ const SettingsPage = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">🔗 روابط التكامل (Webhooks)</CardTitle>
+          <CardTitle className="text-base">⚙️ إعدادات المعالجة</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="phase1-webhook">
-              رابط Webhook المرحلة الأولى - البحث عن بيانات المنتج
-            </Label>
-            <Input
-              id="phase1-webhook"
-              dir="ltr"
-              placeholder="https://your-n8n-instance.com/webhook/..."
-              value={phase1Webhook}
-              onChange={(e) => setPhase1Webhook(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              يُرسل النظام بيانات المنتج (النوع، الوصف، دولة الاستيراد، الصورة) إلى هذا الرابط لكل صفقة مقبولة.
-            </p>
-          </div>
 
           <div className="space-y-2">
             <Label htmlFor="interval-minutes">
