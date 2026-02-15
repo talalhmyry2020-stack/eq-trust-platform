@@ -19,6 +19,7 @@ const navItems = [
   { to: "/admin/deals", icon: Handshake, label: "الصفقات" },
   { to: "/admin/archive", icon: Archive, label: "الأرشيف" },
   { to: "/admin/product-search", icon: Search, label: "نتائج البحث" },
+  { to: "/admin/factory-search", icon: Search, label: "بحث المصانع" },
   { to: "/admin/logs", icon: ScrollText, label: "السجلات" },
   { to: "/admin/sensitive", icon: Shield, label: "بيانات حساسة" },
   { to: "/admin/settings", icon: Settings, label: "الإعدادات" },
