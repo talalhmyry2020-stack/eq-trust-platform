@@ -32,13 +32,9 @@ const ClientChatPage = () => {
 
   useEffect(() => {
     if (!user) return;
-    // Find admins to chat with
-    Promise.all([
-      supabase.from("user_roles").select("user_id").eq("role", "admin"),
-      supabase.from("profiles").select("user_id, full_name"),
-    ]).then(([rolesRes, profilesRes]) => {
-      const adminIds = (rolesRes.data || []).map(r => r.user_id);
-      const adminProfiles = (profilesRes.data || []).filter(p => adminIds.includes(p.user_id));
+    // Find admins using secure DB function
+    supabase.rpc("get_admin_contacts").then(({ data }) => {
+      const adminProfiles = (data || []) as Admin[];
       setAdmins(adminProfiles);
       if (adminProfiles.length === 1) setSelectedAdmin(adminProfiles[0]);
     });
