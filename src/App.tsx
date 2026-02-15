@@ -17,6 +17,8 @@ import SensitivePage from "./pages/admin/SensitivePage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import ProductSearchPage from "./pages/admin/ProductSearchPage";
 import FactorySearchPage from "./pages/admin/FactorySearchPage";
+import AdminNotificationsPage from "./pages/admin/AdminNotificationsPage";
+import AdminChatPage from "./pages/admin/AdminChatPage";
 import ClientLayout from "./components/client/ClientLayout";
 import ClientDashboard from "./pages/client/ClientDashboard";
 import ClientDeals from "./pages/client/ClientDeals";
@@ -24,6 +26,7 @@ import ClientArchive from "./pages/client/ClientArchive";
 import ClientAccount from "./pages/client/ClientAccount";
 import ClientNotifications from "./pages/client/ClientNotifications";
 import ClientSupport from "./pages/client/ClientSupport";
+import ClientChatPage from "./pages/client/ClientChatPage";
 import InspectorLayout from "./components/inspector/InspectorLayout";
 import InspectorDashboard from "./pages/inspector/InspectorDashboard";
 import BriefingPage from "./pages/inspector/BriefingPage";
@@ -52,6 +55,8 @@ const App = () => (
               <Route path="archive" element={<ArchivePage />} />
               <Route path="product-search" element={<ProductSearchPage />} />
               <Route path="factory-search" element={<FactorySearchPage />} />
+              <Route path="notifications" element={<AdminNotificationsPage />} />
+              <Route path="chat" element={<AdminChatPage />} />
               <Route path="logs" element={<LogsPage />} />
               <Route path="sensitive" element={<SensitivePage />} />
               <Route path="settings" element={<SettingsPage />} />
@@ -63,6 +68,7 @@ const App = () => (
               <Route path="account" element={<ClientAccount />} />
               <Route path="notifications" element={<ClientNotifications />} />
               <Route path="support" element={<ClientSupport />} />
+              <Route path="chat" element={<ClientChatPage />} />
             </Route>
             <Route path="/inspector" element={<InspectorLayout />}>
               <Route index element={<InspectorDashboard />} />

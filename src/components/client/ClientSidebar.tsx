@@ -7,6 +7,7 @@ import {
   Bell,
   HelpCircle,
   LogOut,
+  MessageSquare,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -16,6 +17,7 @@ const navItems = [
   { to: "/client/deals", icon: Handshake, label: "صفقاتي" },
   { to: "/client/archive", icon: Archive, label: "الأرشيف" },
   { to: "/client/notifications", icon: Bell, label: "الإشعارات" },
+  { to: "/client/chat", icon: MessageSquare, label: "الدردشة" },
   { to: "/client/support", icon: HelpCircle, label: "الدعم" },
   { to: "/client/account", icon: UserCircle, label: "حسابي" },
 ];
