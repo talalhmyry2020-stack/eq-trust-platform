@@ -156,7 +156,9 @@ const ClientNegotiationResults = () => {
                 </div>
                 {neg.specifications && Object.keys(neg.specifications).length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-3">
-                    {Object.entries(neg.specifications).slice(0, 3).map(([key, val]) => (
+                    {Object.entries(neg.specifications)
+                      .filter(([key]) => !["الشحن", "وقت التسليم", "Shipping", "Delivery Time"].includes(key))
+                      .slice(0, 3).map(([key, val]) => (
                       <Badge key={key} variant="outline" className="text-xs">{key}: {String(val)}</Badge>
                     ))}
                   </div>
@@ -198,7 +200,10 @@ const ClientNegotiationResults = () => {
                   </CardContent>
                 </Card>
 
-                {selectedNeg.specifications && Object.keys(selectedNeg.specifications).length > 0 && (
+                {selectedNeg.specifications && Object.keys(selectedNeg.specifications).length > 0 && (() => {
+                  const hiddenKeys = ["الشحن", "وقت التسليم", "Shipping", "Delivery Time"];
+                  const filtered = Object.entries(selectedNeg.specifications).filter(([key]) => !hiddenKeys.includes(key));
+                  return filtered.length > 0 ? (
                   <Card>
                     <CardHeader className="pb-2">
                       <CardTitle className="text-sm flex items-center gap-1"><Package className="w-4 h-4" />المواصفات</CardTitle>
@@ -206,7 +211,7 @@ const ClientNegotiationResults = () => {
                     <CardContent>
                       <Table>
                         <TableBody>
-                          {Object.entries(selectedNeg.specifications).map(([key, val]) => (
+                          {filtered.map(([key, val]) => (
                             <TableRow key={key}>
                               <TableCell className="font-medium text-muted-foreground">{key}</TableCell>
                               <TableCell>{String(val)}</TableCell>
@@ -216,7 +221,8 @@ const ClientNegotiationResults = () => {
                       </Table>
                     </CardContent>
                   </Card>
-                )}
+                  ) : null;
+                })()}
 
                 {!alreadySelected && deal?.current_phase === "negotiation_complete" && (
                   <Button
