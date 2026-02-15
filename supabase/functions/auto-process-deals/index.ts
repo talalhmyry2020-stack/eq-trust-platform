@@ -68,13 +68,56 @@ serve(async (req) => {
       .from("deals")
       .select("id", { count: "exact", head: true })
       .eq("status", "active")
-      .in("current_phase", ["searching_products", "negotiating", "negotiating_phase2"]);
+      .in("current_phase", ["searching_products", "negotiating", "negotiating_phase2", "negotiating_phase3"]);
 
     if ((searchingCount || 0) > 0) {
       return new Response(JSON.stringify({ 
         success: true, 
         message: "هناك صفقة قيد المعالجة حالياً.",
         waiting_count: searchingCount,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // التحقق: هل هناك صفقات بحاجة لوكيل التفاوض المرحلة 3 (موافقة المصنع النهائية)؟
+    const { data: readyForPhase3 } = await supabase
+      .from("deals")
+      .select("*")
+      .eq("status", "active")
+      .eq("current_phase", "negotiating_phase3")
+      .order("created_at", { ascending: true })
+      .limit(1);
+
+    if (readyForPhase3 && readyForPhase3.length > 0) {
+      const p3Deal = readyForPhase3[0];
+      console.log(`[Auto-Process] Running negotiation phase 3 for deal #${p3Deal.deal_number}`);
+      
+      try {
+        const p3Res = await fetch(`${supabaseUrl}/functions/v1/negotiate-deals-phase3`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${anonKey}`,
+          },
+          body: JSON.stringify({ deal_id: p3Deal.id }),
+        });
+        const p3Data = await p3Res.json();
+        console.log(`[Auto-Process] Phase 3 result:`, JSON.stringify(p3Data));
+      } catch (p3Error) {
+        console.error(`[Auto-Process] Phase 3 error:`, p3Error);
+      }
+
+      await supabase.from("system_settings").upsert({
+        key: "last_auto_process_time",
+        value: { timestamp: new Date().toISOString() },
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "key" });
+
+      return new Response(JSON.stringify({ 
+        success: true,
+        deal_id: p3Deal.id,
+        message: `تم تشغيل وكيل التفاوض المرحلة 3 للصفقة #${p3Deal.deal_number}`,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
