@@ -61,6 +61,7 @@ export type Database = {
           offered_price: number | null
           product_image_url: string | null
           product_name: string | null
+          quantity_unit: string | null
           requested_quantity: number | null
           response_date: string | null
           shipping_time: string | null
@@ -84,6 +85,7 @@ export type Database = {
           offered_price?: number | null
           product_image_url?: string | null
           product_name?: string | null
+          quantity_unit?: string | null
           requested_quantity?: number | null
           response_date?: string | null
           shipping_time?: string | null
@@ -107,6 +109,7 @@ export type Database = {
           offered_price?: number | null
           product_image_url?: string | null
           product_name?: string | null
+          quantity_unit?: string | null
           requested_quantity?: number | null
           response_date?: string | null
           shipping_time?: string | null

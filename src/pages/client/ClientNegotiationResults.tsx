@@ -93,6 +93,7 @@ const ClientNegotiationResults = () => {
         await supabase.from("deal_negotiations").update({ 
           status: "accepted",
           requested_quantity: parseInt(quantity),
+          quantity_unit: quantityUnit,
         } as any).eq("id", id);
       }
       // Move deal to negotiating_phase2
