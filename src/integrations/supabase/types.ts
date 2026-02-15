@@ -44,6 +44,47 @@ export type Database = {
         }
         Relationships: []
       }
+      deal_objections: {
+        Row: {
+          admin_response: string | null
+          client_id: string
+          created_at: string
+          deal_id: string
+          id: string
+          reason: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_response?: string | null
+          client_id: string
+          created_at?: string
+          deal_id: string
+          id?: string
+          reason: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_response?: string | null
+          client_id?: string
+          created_at?: string
+          deal_id?: string
+          id?: string
+          reason?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_objections_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_product_results: {
         Row: {
           created_at: string

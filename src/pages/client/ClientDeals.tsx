@@ -6,12 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Package } from "lucide-react";
+import { Plus, Package, AlertTriangle } from "lucide-react";
 import CharterAgreement from "@/components/client/CharterAgreement";
 import DealForm from "@/components/client/DealForm";
 import ProductCatalog from "@/components/client/ProductCatalog";
 import ClientDealDetailDialog from "@/components/client/ClientDealDetailDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 const statusMap: Record<string, string> = {
   pending_review: "قيد المراجعة",
@@ -46,11 +47,14 @@ const ClientDeals = () => {
   const [showForm, setShowForm] = useState(false);
   const [selectedDealForProducts, setSelectedDealForProducts] = useState<string | null>(null);
   const [selectedDealDetail, setSelectedDealDetail] = useState<any | null>(null);
+  const [objectionDeal, setObjectionDeal] = useState<any | null>(null);
+  const [objectionText, setObjectionText] = useState("");
+  const [submittingObjection, setSubmittingObjection] = useState(false);
 
   const fetchDeals = async () => {
     if (!user) return;
     const [d, s] = await Promise.all([
-      supabase.from("deals").select("*").eq("client_id", user.id).not("status", "in", '("completed","cancelled")').order("created_at", { ascending: false }),
+      supabase.from("deals").select("*").eq("client_id", user.id).order("created_at", { ascending: false }),
       supabase.from("deal_stages").select("*").order("display_order"),
     ]);
     setDeals(d.data || []);
@@ -60,6 +64,26 @@ const ClientDeals = () => {
   useEffect(() => { fetchDeals(); }, [user]);
 
   const getStageName = (id: string | null) => stages.find((s) => s.id === id)?.name || "—";
+
+  const submitObjection = async () => {
+    if (!objectionDeal || !objectionText.trim() || !user) return;
+    setSubmittingObjection(true);
+    try {
+      const { error } = await supabase.from("deal_objections" as any).insert({
+        deal_id: objectionDeal.id,
+        client_id: user.id,
+        reason: objectionText.trim(),
+      } as any);
+      if (error) throw error;
+      toast({ title: "تم إرسال الاعتراض بنجاح", description: "سيتم مراجعته من قبل الإدارة" });
+      setObjectionDeal(null);
+      setObjectionText("");
+    } catch (err) {
+      toast({ title: "خطأ", description: "فشل في إرسال الاعتراض", variant: "destructive" });
+    } finally {
+      setSubmittingObjection(false);
+    }
+  };
 
   return (
     <div>
@@ -115,10 +139,15 @@ const ClientDeals = () => {
                     )}
                   </TableCell>
                   <TableCell className="font-mono text-xs">{new Date(deal.updated_at).toLocaleDateString("ar-SA")}</TableCell>
-                  <TableCell>
+                  <TableCell className="flex gap-1">
                     {(deal.current_phase === "product_selection" || deal.current_phase === "searching_products") && deal.status === "active" && (
                       <Button size="sm" variant="outline" onClick={() => setSelectedDealForProducts(deal.id)} className="gap-1">
                         <Package className="w-4 h-4" /> المنتجات
+                      </Button>
+                    )}
+                    {deal.status === "cancelled" && (
+                      <Button size="sm" variant="outline" onClick={() => setObjectionDeal(deal)} className="gap-1 text-destructive border-destructive/30">
+                        <AlertTriangle className="w-4 h-4" /> اعتراض
                       </Button>
                     )}
                   </TableCell>
@@ -156,6 +185,31 @@ const ClientDeals = () => {
         open={!!selectedDealDetail}
         onClose={() => setSelectedDealDetail(null)}
       />
+
+      {/* حوار الاعتراض */}
+      <Dialog open={!!objectionDeal} onOpenChange={() => { setObjectionDeal(null); setObjectionText(""); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>تقديم اعتراض على الصفقة #{objectionDeal?.deal_number}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">يمكنك كتابة سبب اعتراضك وسيتم مراجعته من قبل الإدارة.</p>
+            <Textarea
+              placeholder="اكتب سبب الاعتراض..."
+              value={objectionText}
+              onChange={(e) => setObjectionText(e.target.value)}
+              rows={4}
+              dir="rtl"
+            />
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => { setObjectionDeal(null); setObjectionText(""); }}>إلغاء</Button>
+              <Button onClick={submitObjection} disabled={!objectionText.trim() || submittingObjection}>
+                {submittingObjection ? "جاري الإرسال..." : "إرسال الاعتراض"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
