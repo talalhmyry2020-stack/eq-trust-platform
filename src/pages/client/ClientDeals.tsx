@@ -33,6 +33,8 @@ const phaseMap: Record<string, string> = {
   negotiating: "جاري التفاوض",
   negotiation_complete: "عروض الأسعار جاهزة",
   product_selected: "تم اختيار المنتج",
+  negotiating_phase2: "جاري التفاوض النهائي",
+  negotiation_phase2_complete: "العرض النهائي جاهز",
 };
 
 const statusVariant = (s: string) => {
@@ -151,7 +153,7 @@ const ClientDeals = () => {
                         <Package className="w-4 h-4" /> المنتجات
                       </Button>
                     )}
-                    {(deal.current_phase === "negotiation_complete" || deal.current_phase === "product_selected") && deal.status === "active" && (
+                    {(deal.current_phase === "negotiation_complete" || deal.current_phase === "negotiating_phase2" || deal.current_phase === "negotiation_phase2_complete") && deal.status === "active" && (
                       <Button size="sm" variant="outline" onClick={() => navigate(`/client/negotiation-results?deal_id=${deal.id}`)} className="gap-1">
                         <Handshake className="w-4 h-4" /> العروض
                       </Button>

@@ -54,12 +54,16 @@ export type Database = {
           factory_name: string
           factory_phone: string | null
           factory_response: string | null
+          final_price: number | null
           id: string
           message_sent: string | null
+          negotiation_phase: number
           offered_price: number | null
           product_image_url: string | null
           product_name: string | null
+          requested_quantity: number | null
           response_date: string | null
+          shipping_time: string | null
           specifications: Json | null
           status: string
           updated_at: string
@@ -73,12 +77,16 @@ export type Database = {
           factory_name: string
           factory_phone?: string | null
           factory_response?: string | null
+          final_price?: number | null
           id?: string
           message_sent?: string | null
+          negotiation_phase?: number
           offered_price?: number | null
           product_image_url?: string | null
           product_name?: string | null
+          requested_quantity?: number | null
           response_date?: string | null
+          shipping_time?: string | null
           specifications?: Json | null
           status?: string
           updated_at?: string
@@ -92,12 +100,16 @@ export type Database = {
           factory_name?: string
           factory_phone?: string | null
           factory_response?: string | null
+          final_price?: number | null
           id?: string
           message_sent?: string | null
+          negotiation_phase?: number
           offered_price?: number | null
           product_image_url?: string | null
           product_name?: string | null
+          requested_quantity?: number | null
           response_date?: string | null
+          shipping_time?: string | null
           specifications?: Json | null
           status?: string
           updated_at?: string
