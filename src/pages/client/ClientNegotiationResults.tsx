@@ -101,9 +101,8 @@ const ClientNegotiationResults = () => {
       
       toast({ title: "تم إرسال اختيارك بنجاح", description: "سيتم التفاوض مع المصانع على السعر النهائي والكمية المطلوبة" });
       setConfirmSubmit(false);
-      setSelectedIds(new Set());
-      setQuantity("");
-      fetchData();
+      // Navigate back to deals list - the deal will show "waiting for phase 2" status
+      navigate("/client/deals");
     } catch {
       toast({ title: "خطأ", description: "فشل في إرسال الاختيار", variant: "destructive" });
     } finally {
