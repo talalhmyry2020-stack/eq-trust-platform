@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, FileText, Image, Loader2, ShieldCheck } from "lucide-react";
+import { Upload, FileText, Image, Loader2, ShieldCheck, Wand2 } from "lucide-react";
 
 const COUNTRIES = ["مصر", "السعودية", "الإمارات", "أخرى"];
 const IMPORT_COUNTRIES = ["مصر", "الصين"];
@@ -55,6 +55,81 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
 
   const isEgypt = country === "مصر";
   const descLength = productDescription.length;
+
+  // توليد صورة مستند وهمية باستخدام Canvas
+  const generateDocImage = (lines: string[], fileName: string): File => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 600;
+    canvas.height = 400;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#FFFFF0";
+    ctx.fillRect(0, 0, 600, 400);
+    ctx.strokeStyle = "#333";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(10, 10, 580, 380);
+    ctx.fillStyle = "#1a1a1a";
+    ctx.font = "bold 22px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(lines[0], 300, 60);
+    ctx.font = "18px Arial";
+    lines.slice(1).forEach((line, i) => {
+      ctx.fillText(line, 300, 110 + i * 40);
+    });
+    const dataUrl = canvas.toDataURL("image/png");
+    const arr = dataUrl.split(",");
+    const bstr = atob(arr[1]);
+    const u8arr = new Uint8Array(bstr.length);
+    for (let i = 0; i < bstr.length; i++) u8arr[i] = bstr.charCodeAt(i);
+    return new File([u8arr], fileName, { type: "image/png" });
+  };
+
+  const fillTestData = () => {
+    const names = ["أحمد محمد علي", "خالد إبراهيم حسن", "محمود عبدالله سعيد", "يوسف عمر فاروق"];
+    const products = ["أجهزة إلكترونية", "ملابس جاهزة", "مواد غذائية", "قطع غيار سيارات"];
+    const descs = ["شاشات LED 55 بوصة للاستيراد", "ملابس قطنية رجالية متنوعة", "أرز بسمتي هندي ممتاز", "فلاتر زيت لسيارات تويوتا"];
+    const entities = ["فرد", "شركة", "مؤسسة"];
+    const rand = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)];
+    const randNum = (len: number) => Array.from({ length: len }, () => Math.floor(Math.random() * 10)).join("");
+
+    const name = rand(names);
+    const natId = randNum(14);
+    const comReg = randNum(8);
+    const idx = Math.floor(Math.random() * products.length);
+    const entity = rand(entities);
+
+    setClientFullName(name);
+    setCountry("مصر");
+    setCity(rand(EGYPT_CITIES));
+    setNationalId(natId);
+    setCommercialRegNumber(comReg);
+    setEntityType(entity);
+    setProductType(products[idx]);
+    setProductDescription(descs[idx]);
+    setImportCountry(rand(IMPORT_COUNTRIES));
+    setEstimatedAmount(String(Math.floor(Math.random() * 50000) + 1000));
+    setAgreement(true);
+
+    // توليد صور مستندات مطابقة
+    const idImage = generateDocImage([
+      "بطاقة الهوية الوطنية",
+      `الاسم: ${name}`,
+      `رقم الهوية: ${natId}`,
+      `الجنسية: مصري`,
+      `تاريخ الميلاد: 1990/05/15`,
+    ], "identity-test.png");
+
+    const comImage = generateDocImage([
+      "السجل التجاري",
+      `رقم السجل: ${comReg}`,
+      `الاسم: ${name}`,
+      `نوع الكيان: ${entity}`,
+      `رقم الهوية: ${natId}`,
+      `تاريخ التسجيل: 2020/01/10`,
+    ], "commercial-test.png");
+
+    setIdentityFile(idImage);
+    setCommercialFile(comImage);
+  };
 
   const isValid =
     clientFullName.trim() &&
@@ -236,6 +311,10 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
           <p className="text-muted-foreground text-sm">
             يرجى تعبئة جميع الحقول المطلوبة بدقة لضمان معالجة طلبك بسرعة
           </p>
+          <Button variant="outline" size="sm" className="mt-3 gap-2" onClick={fillTestData} type="button">
+            <Wand2 className="w-4 h-4" />
+            تعبئة تجريبية
+          </Button>
         </div>
 
         <div className="space-y-8">
