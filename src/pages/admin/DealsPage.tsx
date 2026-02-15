@@ -14,6 +14,7 @@ import { Search, Plus, Pause, Play, Trash2, Clock, Eye, CheckCircle, XCircle, Ro
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import DealDetailDialog from "@/components/admin/DealDetailDialog";
+import QualificationAgentBanner from "@/components/admin/QualificationAgentBanner";
 
 interface Deal {
   id: string;
@@ -256,6 +257,7 @@ const DealsPage = () => {
 
   return (
     <div>
+      <QualificationAgentBanner onDealProcessed={fetchData} />
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-heading text-2xl font-bold">إدارة الصفقات</h1>
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
