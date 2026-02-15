@@ -56,6 +56,7 @@ serve(async (req) => {
 
     for (const neg of acceptedNegs) {
       const quantity = neg.requested_quantity || 100;
+      const unit = neg.quantity_unit || "وحدة";
       const basePrice = neg.offered_price || 1000;
       
       // محاكاة: خصم بناءً على الكمية
@@ -79,12 +80,13 @@ serve(async (req) => {
         offered_price: neg.offered_price,
         final_price: finalPrice,
         requested_quantity: quantity,
+        quantity_unit: unit,
         shipping_time: shippingTime,
         currency: neg.currency || "USD",
         negotiation_phase: 2,
         status: "responded",
-        message_sent: `نرغب في طلب ${quantity} وحدة من المنتج "${neg.product_name}". يرجى تأكيد السعر النهائي لكل وحدة وفترة الشحن المتوقعة.`,
-        factory_response: `شكراً لطلبكم. بناءً على الكمية المطلوبة (${quantity} وحدة)، السعر النهائي هو $${finalPrice} لكل وحدة. فترة الشحن المتوقعة: ${shippingTime}.`,
+        message_sent: `نرغب في طلب ${quantity} ${unit} من المنتج "${neg.product_name}". يرجى تأكيد السعر النهائي لكل ${unit} وفترة الشحن المتوقعة.`,
+        factory_response: `شكراً لطلبكم. بناءً على الكمية المطلوبة (${quantity} ${unit})، السعر النهائي هو $${finalPrice} لكل ${unit}. فترة الشحن المتوقعة: ${shippingTime}.`,
         response_date: new Date().toISOString(),
       };
 
