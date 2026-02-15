@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,7 @@ const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondar
 
 const DealsPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [deals, setDeals] = useState<Deal[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
   const [clients, setClients] = useState<{ user_id: string; full_name: string }[]>([]);
@@ -189,7 +191,7 @@ const DealsPage = () => {
             {dealsList.map((deal) => {
               const st = STATUS_MAP[deal.status] || { label: deal.status, variant: "secondary" as const };
               return (
-                <TableRow key={deal.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedDeal(deal)}>
+                <TableRow key={deal.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedDeal(deal)} onDoubleClick={() => navigate(`/admin/deal-search-results?deal_id=${deal.id}`)}>
                   <TableCell className="font-mono">{deal.deal_number}</TableCell>
                   <TableCell className="font-medium">{deal.title}</TableCell>
                   <TableCell>{deal.client_full_name || getClientName(deal.client_id)}</TableCell>

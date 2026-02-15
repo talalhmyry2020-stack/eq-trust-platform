@@ -16,6 +16,7 @@ import LogsPage from "./pages/admin/LogsPage";
 import SensitivePage from "./pages/admin/SensitivePage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import ProductSearchPage from "./pages/admin/ProductSearchPage";
+import DealSearchResultsPage from "./pages/admin/DealSearchResultsPage";
 import FactorySearchPage from "./pages/admin/FactorySearchPage";
 import AdminNotificationsPage from "./pages/admin/AdminNotificationsPage";
 import AdminChatPage from "./pages/admin/AdminChatPage";
@@ -54,6 +55,7 @@ const App = () => (
               <Route path="deals" element={<DealsPage />} />
               <Route path="archive" element={<ArchivePage />} />
               <Route path="product-search" element={<ProductSearchPage />} />
+              <Route path="deal-search-results" element={<DealSearchResultsPage />} />
               <Route path="factory-search" element={<FactorySearchPage />} />
               <Route path="notifications" element={<AdminNotificationsPage />} />
               <Route path="chat" element={<AdminChatPage />} />
