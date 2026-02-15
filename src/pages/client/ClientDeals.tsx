@@ -6,10 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Eye, Package } from "lucide-react";
+import { Plus, Package } from "lucide-react";
 import CharterAgreement from "@/components/client/CharterAgreement";
 import DealForm from "@/components/client/DealForm";
 import ProductCatalog from "@/components/client/ProductCatalog";
+import ClientDealDetailDialog from "@/components/client/ClientDealDetailDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const statusMap: Record<string, string> = {
@@ -44,6 +45,7 @@ const ClientDeals = () => {
   const [charterAccepted, setCharterAccepted] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [selectedDealForProducts, setSelectedDealForProducts] = useState<string | null>(null);
+  const [selectedDealDetail, setSelectedDealDetail] = useState<any | null>(null);
 
   const fetchDeals = async () => {
     if (!user) return;
@@ -98,7 +100,7 @@ const ClientDeals = () => {
             </TableHeader>
             <TableBody>
               {deals.map((deal) => (
-                <TableRow key={deal.id}>
+                <TableRow key={deal.id} className="cursor-pointer hover:bg-muted/50" onDoubleClick={() => setSelectedDealDetail(deal)}>
                   <TableCell className="font-mono">{deal.deal_number}</TableCell>
                   <TableCell className="font-medium">{deal.title}</TableCell>
                   <TableCell>{getStageName(deal.stage_id)}</TableCell>
@@ -147,6 +149,13 @@ const ClientDeals = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* تفاصيل الصفقة */}
+      <ClientDealDetailDialog
+        deal={selectedDealDetail}
+        open={!!selectedDealDetail}
+        onClose={() => setSelectedDealDetail(null)}
+      />
     </div>
   );
 };
