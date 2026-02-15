@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Plus, Ban, MessageSquare, Shield } from "lucide-react";
+import { Search, Plus, Ban, MessageSquare, Shield, Eye } from "lucide-react";
 import { toast } from "sonner";
 
 interface UserProfile {
@@ -64,6 +65,7 @@ const PHASE_LABELS: Record<string, string> = {
 };
 
 const UsersPage = () => {
+  const navigate = useNavigate();
   const [clients, setClients] = useState<UserProfile[]>([]);
   const [employees, setEmployees] = useState<UserProfile[]>([]);
   const [search, setSearch] = useState("");
@@ -352,7 +354,11 @@ const UsersPage = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredClients.map((client) => (
-                    <TableRow key={client.id}>
+                    <TableRow
+                      key={client.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => navigate(`/admin/client-deals?user_id=${client.user_id}`)}
+                    >
                       <TableCell className="font-medium">{client.full_name || "بدون اسم"}</TableCell>
                       <TableCell className="text-xs font-mono">{client.email || "—"}</TableCell>
                       <TableCell>{statusBadge(client.status)}</TableCell>
@@ -362,7 +368,10 @@ const UsersPage = () => {
                       <TableCell>{dealStatusSummary(client.deal_statuses, client.deal_count)}</TableCell>
                       <TableCell className="text-xs">{formatDate(client.created_at)}</TableCell>
                       <TableCell>
-                        <div className="flex gap-1">
+                        <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                          <Button size="sm" variant="outline" className="text-primary" onClick={() => navigate(`/admin/client-deals?user_id=${client.user_id}`)}>
+                            <Eye className="w-3 h-3 ml-1" />الصفقات
+                          </Button>
                           {client.status === "active" ? (
                             <Button size="sm" variant="outline" onClick={() => suspendUser(client.user_id)}>
                               <Ban className="w-3 h-3 ml-1" />إيقاف
