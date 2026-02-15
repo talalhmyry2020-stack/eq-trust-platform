@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowRight, DollarSign, Package, ImageIcon, CheckCircle, Check, Truck, Clock } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -43,6 +44,7 @@ const ClientNegotiationResults = () => {
   const [selectedNeg, setSelectedNeg] = useState<ClientNegotiation | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [quantity, setQuantity] = useState<string>("");
+  const [quantityUnit, setQuantityUnit] = useState<string>("وحدة");
   const [confirmSubmit, setConfirmSubmit] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -277,17 +279,31 @@ const ClientNegotiationResults = () => {
         <>
           {showPhase1Selection && (
             <div className="bg-muted/50 rounded-lg p-4 mb-4 space-y-3">
-              <p className="text-sm font-medium">اختر عرضاً أو عرضين (حد أقصى 2) ثم حدد الكمية المطلوبة:</p>
-              <div className="flex items-center gap-3">
+              <p className="text-sm font-medium">اختر عرضاً أو عرضين (حد أقصى 2) ثم حدد الكمية ووحدة القياس:</p>
+              <div className="flex flex-wrap items-center gap-3">
                 <Input
                   type="number"
                   placeholder="الكمية المطلوبة"
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
                   min={1}
-                  className="max-w-[200px]"
+                  className="max-w-[160px]"
                   dir="ltr"
                 />
+                <Select value={quantityUnit} onValueChange={setQuantityUnit}>
+                  <SelectTrigger className="w-[130px]">
+                    <SelectValue placeholder="وحدة القياس" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="وحدة">وحدة</SelectItem>
+                    <SelectItem value="كرتون">كرتون</SelectItem>
+                    <SelectItem value="كيلو">كيلو</SelectItem>
+                    <SelectItem value="طن">طن</SelectItem>
+                    <SelectItem value="لتر">لتر</SelectItem>
+                    <SelectItem value="متر">متر</SelectItem>
+                    <SelectItem value="قطعة">قطعة</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Badge variant="outline">{selectedIds.size} / 2 عروض مختارة</Badge>
                 <Button 
                   onClick={() => setConfirmSubmit(true)} 
@@ -422,7 +438,7 @@ const ClientNegotiationResults = () => {
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              سيتم إرسال <strong className="text-foreground">{selectedIds.size} عرض(ين)</strong> بكمية <strong className="text-foreground">{quantity} وحدة</strong> للتفاوض النهائي مع المصانع.
+              سيتم إرسال <strong className="text-foreground">{selectedIds.size} عرض(ين)</strong> بكمية <strong className="text-foreground">{quantity} {quantityUnit}</strong> للتفاوض النهائي مع المصانع.
             </p>
             <p className="text-sm text-muted-foreground">
               ستختفي العروض الأخرى وستنتقل الصفقة لمرحلة التفاوض النهائي.
