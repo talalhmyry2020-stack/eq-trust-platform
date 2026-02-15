@@ -26,3 +26,9 @@ verify_jwt = false
 
 [functions.receive-search-results]
 verify_jwt = false
+
+[functions.send-samples]
+verify_jwt = false
+
+[functions.receive-sample-results]
+verify_jwt = false
