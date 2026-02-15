@@ -690,6 +690,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_admin_contacts: {
+        Args: never
+        Returns: {
+          full_name: string
+          user_id: string
+        }[]
+      }
       has_permission: {
         Args: {
           _perm: Database["public"]["Enums"]["employee_permission"]
