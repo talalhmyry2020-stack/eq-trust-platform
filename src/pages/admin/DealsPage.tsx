@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Plus, Pause, Play, Trash2, Clock, Eye, CheckCircle, XCircle } from "lucide-react";
+import { Search, Plus, Pause, Play, Trash2, Clock, Eye, CheckCircle, XCircle, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import DealDetailDialog from "@/components/admin/DealDetailDialog";
@@ -126,6 +126,12 @@ const DealsPage = () => {
     fetchData();
   };
 
+  const restoreDeal = async (id: string) => {
+    await supabase.from("deals").update({ status: "pending_review" as any, current_phase: "verification" }).eq("id", id);
+    toast.success("تم إرجاع الصفقة للمراجعة");
+    fetchData();
+  };
+
   const PHASE_MAP: Record<string, string> = {
     verification: "قيد المراجعة",
     product_search: "مقبولة",
@@ -203,6 +209,16 @@ const DealsPage = () => {
                           </Button>
                           <Button size="icon" variant="ghost" className="text-destructive" onClick={() => updateStatus(deal.id, "cancelled")} title="رفض">
                             <XCircle className="w-4 h-4" />
+                          </Button>
+                        </>
+                      )}
+                      {deal.status === "cancelled" && (
+                        <>
+                          <Button size="icon" variant="ghost" className="text-blue-600" onClick={() => restoreDeal(deal.id)} title="إرجاع للمراجعة">
+                            <RotateCcw className="w-4 h-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="text-green-600" onClick={() => updateStatus(deal.id, "active")} title="قبول مباشر">
+                            <CheckCircle className="w-4 h-4" />
                           </Button>
                         </>
                       )}
