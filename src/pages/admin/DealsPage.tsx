@@ -144,6 +144,8 @@ const DealsPage = () => {
     negotiation: "بدء التفاوض",
     negotiating: "جاري التفاوض",
     negotiation_complete: "اكتمل التفاوض",
+    negotiating_phase2: "جاري التفاوض النهائي",
+    negotiation_phase2_complete: "العرض النهائي جاهز",
   };
 
   const getPhaseName = (phase: string | null) =>
@@ -172,6 +174,7 @@ const DealsPage = () => {
   const acceptedDeals = filtered.filter(d => d.status === "active" && d.current_phase === "product_search");
   const waitingResultsDeals = filtered.filter(d => d.status === "active" && (d.current_phase === "searching_products" || d.current_phase === "results_ready" || d.current_phase === "product_selection"));
   const negotiationDeals = filtered.filter(d => d.status === "active" && (d.current_phase === "negotiation" || d.current_phase === "negotiating" || d.current_phase === "negotiation_complete"));
+  const negotiation2Deals = filtered.filter(d => d.status === "active" && (d.current_phase === "negotiating_phase2" || d.current_phase === "negotiation_phase2_complete"));
   const rejectedDeals = filtered.filter(d => d.status === "cancelled");
 
   const renderDealsTable = (dealsList: Deal[]) => (
@@ -214,11 +217,16 @@ const DealsPage = () => {
                           <FileSearch className="w-4 h-4" />
                         </Button>
                       )}
-                      {(deal.current_phase === "negotiation" || deal.current_phase === "negotiating" || deal.current_phase === "negotiation_complete") && (
+      {(deal.current_phase === "negotiation" || deal.current_phase === "negotiating" || deal.current_phase === "negotiation_complete") && (
                         <Button size="icon" variant="ghost" className="text-amber-600" onClick={() => navigate(`/admin/deal-negotiations?deal_id=${deal.id}`)} title="نتائج التفاوض">
-                          <Handshake className="w-4 h-4" />
-                        </Button>
-                      )}
+                           <Handshake className="w-4 h-4" />
+                         </Button>
+                       )}
+                       {(deal.current_phase === "negotiating_phase2" || deal.current_phase === "negotiation_phase2_complete") && (
+                        <Button size="icon" variant="ghost" className="text-emerald-600" onClick={() => navigate(`/admin/deal-negotiations?deal_id=${deal.id}&phase=2`)} title="التفاوض النهائي">
+                           <Handshake className="w-4 h-4" />
+                         </Button>
+                       )}
                       {deal.status === "pending_review" && (
                         <>
                           <Button size="icon" variant="ghost" className="text-green-600" onClick={() => updateStatus(deal.id, "active")} title="موافقة">
@@ -340,6 +348,7 @@ const DealsPage = () => {
           <TabsTrigger value="accepted">مقبولة ({acceptedDeals.length})</TabsTrigger>
           <TabsTrigger value="waiting">انتظار نتائج البحث ({waitingResultsDeals.length})</TabsTrigger>
           <TabsTrigger value="negotiation">التفاوض ({negotiationDeals.length})</TabsTrigger>
+          <TabsTrigger value="negotiation2">التفاوض النهائي ({negotiation2Deals.length})</TabsTrigger>
           <TabsTrigger value="rejected">مرفوضة ({rejectedDeals.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="all">{renderDealsTable(filtered)}</TabsContent>
@@ -347,6 +356,7 @@ const DealsPage = () => {
         <TabsContent value="accepted">{renderDealsTable(acceptedDeals)}</TabsContent>
         <TabsContent value="waiting">{renderDealsTable(waitingResultsDeals)}</TabsContent>
         <TabsContent value="negotiation">{renderDealsTable(negotiationDeals)}</TabsContent>
+        <TabsContent value="negotiation2">{renderDealsTable(negotiation2Deals)}</TabsContent>
         <TabsContent value="rejected">{renderDealsTable(rejectedDeals)}</TabsContent>
       </Tabs>
 
