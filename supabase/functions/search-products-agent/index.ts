@@ -38,11 +38,17 @@ serve(async (req) => {
     // تحديث المرحلة
     await supabase.from("deals").update({ current_phase: "searching_products" }).eq("id", deal_id);
 
-    // بحث متعدد باستخدام Tavily للحصول على أكبر عدد من النتائج
+    // بحث عميق متعدد باستخدام Tavily - 5 استعلامات مختلفة لنتائج أدق
+    const country = deal.import_country || "China";
+    const product = deal.product_type || "";
+    const desc = deal.product_description || "";
+
     const searchQueries = [
-      `${deal.product_type} ${deal.product_description || ""} manufacturers suppliers factories in ${deal.import_country || "China"} contact email website high rated`,
-      `best ${deal.product_type} factory supplier ${deal.import_country || "China"} wholesale export contact information email`,
-      `top rated ${deal.product_type} manufacturer ${deal.import_country || "China"} verified supplier email phone website`,
+      `"${product}" manufacturer supplier factory ${country} email contact wholesale export`,
+      `"${product}" factory ${country} email phone website verified high rating alibaba`,
+      `best "${product}" manufacturer ${country} contact email address export supplier`,
+      `"${product}" industrial company ${country} gmail yahoo hotmail email supplier`,
+      `top rated "${product}" factory exporter ${country} phone number email wholesale`,
     ];
 
     let allResults: any[] = [];
@@ -57,8 +63,9 @@ serve(async (req) => {
             api_key: tavilyKey,
             query,
             search_depth: "advanced",
-            max_results: 10,
+            max_results: 15,
             include_answer: true,
+            include_raw_content: true,
           }),
         });
 
@@ -93,43 +100,54 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-pro",
         messages: [
           {
             role: "system",
-            content: `أنت وكيل بحث متخصص في إيجاد المصانع والموردين الموثوقين. مهمتك:
-1. استخراج أكبر عدد ممكن من المصانع (10 نتائج أو أكثر)
-2. التركيز على المصانع ذات التقييم العالي والسمعة الجيدة
-3. جلب معلومات التواصل الكاملة (إيميل، هاتف، موقع)
-4. أعد النتائج كـ JSON array فقط بدون أي نص إضافي أو markdown أو backticks`,
+            content: `أنت خبير في التجارة الدولية والمصانع العالمية. لديك قاعدة بيانات ضخمة من المصانع الحقيقية مع بيانات تواصلهم.
+
+مهمتك الأساسية: إيجاد 15-20 مصنع حقيقي مع بريد إلكتروني أو هاتف حقيقي.
+
+الطريقة:
+1. استخرج المصانع من نتائج البحث المرفقة مع بيانات تواصلهم
+2. الأهم: أضف مصانع حقيقية ومعروفة من معرفتك الخاصة بالسوق - مصانع فعلية تعرفها مع إيميلاتها وأرقامها الحقيقية
+3. ابحث في ذاكرتك عن مصانع في Alibaba, Made-in-China, GlobalSources, IndiaMART وغيرها
+
+⛔ شروط:
+- كل مصنع يجب أن يكون لديه إيميل حقيقي (يحتوي @) أو هاتف حقيقي (6+ أرقام)
+- لا تكتب "N/A" أو "غير متوفر" - إذا لا تعرفه اكتب ""
+- يجب أن تعطيني 15 نتيجة على الأقل
+- JSON array فقط بدون نص إضافي أو markdown`,
           },
           {
             role: "user",
-            content: `ابحث في النتائج التالية عن مصانع وموردين لمنتج: "${deal.product_type}"
-وصف المنتج: "${deal.product_description || "غير متوفر"}"
-الدولة المطلوبة: "${deal.import_country || "الصين"}"
+            content: `أريد قائمة مصانع وموردين لمنتج: "${product}"
+وصف المنتج: "${desc}"
+الدولة: "${country}"
 
-نتائج البحث:
+نتائج البحث من الإنترنت:
 ${resultsText}
 
-استخرج على الأقل 10 مصانع/موردين بالصيغة التالية (JSON array فقط):
+المطلوب:
+1. استخرج المصانع من النتائج أعلاه
+2. أضف من معرفتك مصانع موثوقة ومعروفة في ${country} تنتج "${product}" مع بيانات تواصلهم الحقيقية
+3. كل مصنع يجب أن يكون لديه إيميل حقيقي أو رقم هاتف حقيقي على الأقل
+
+الصيغة (JSON array فقط):
 [{
   "factory_name": "اسم المصنع بالإنجليزية",
-  "factory_name_ar": "اسم المصنع بالعربية إن وجد",
+  "factory_name_ar": "ترجمة الاسم",
   "country": "البلد",
   "city": "المدينة",
-  "email": "البريد الإلكتروني",
-  "phone": "رقم الهاتف",
-  "website": "الموقع الإلكتروني",
-  "products": "المنتجات الرئيسية",
-  "rating": "تقييم المصنع (ممتاز/جيد جداً/جيد)",
-  "certifications": "الشهادات والمعايير",
+  "email": "بريد إلكتروني حقيقي أو فارغ",
+  "phone": "رقم هاتف حقيقي بصيغة دولية أو فارغ",
+  "website": "الموقع",
+  "products": "المنتجات",
+  "rating": "ممتاز/جيد جداً/جيد",
+  "certifications": "شهادات ISO وغيرها",
   "min_order": "الحد الأدنى للطلب",
-  "notes": "ملاحظات إضافية"
-}]
-
-إذا لم تجد 10 نتائج من البيانات المتاحة، أضف مصانع معروفة ذات صلة بهذا المنتج في ${deal.import_country || "الصين"} من معرفتك العامة.
-أعد JSON array فقط.`,
+  "notes": "ملاحظات"
+}]`,
           },
         ],
         temperature: 0.3,
@@ -156,7 +174,14 @@ ${resultsText}
       factories = [];
     }
 
-    console.log(`[Search Agent] Extracted ${factories.length} factories for deal #${deal.deal_number}`);
+    // تصفية صارمة: فقط المصانع التي لديها إيميل حقيقي أو رقم هاتف حقيقي
+    const invalidValues = ["", "n/a", "غير متوفر", "غير معروف", "لا يوجد", "-", "none", "null", "undefined"];
+    const hasRealEmail = (email: string) => email && !invalidValues.includes(email.toLowerCase().trim()) && email.includes("@");
+    const hasRealPhone = (phone: string) => phone && !invalidValues.includes(phone.toLowerCase().trim()) && /\d{6,}/.test(phone.replace(/[\s\-\+\(\)]/g, ""));
+
+    factories = factories.filter((f: any) => hasRealEmail(f.email || "") || hasRealPhone(f.phone || ""));
+
+    console.log(`[Search Agent] After filtering (email/phone required): ${factories.length} factories for deal #${deal.deal_number}`);
 
     if (factories.length === 0) {
       // إرجاع المرحلة في حال عدم وجود نتائج
