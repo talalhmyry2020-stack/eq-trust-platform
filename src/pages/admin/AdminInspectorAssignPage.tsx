@@ -22,6 +22,7 @@ const AdminInspectorAssignPage = () => {
   const [factoryCountry, setFactoryCountry] = useState("");
   const [galleryMission, setGalleryMission] = useState<any>(null);
   const [geoLoading, setGeoLoading] = useState(false);
+  const [assignMode, setAssignMode] = useState<"test" | "official">("official");
 
   // بحث تلقائي عن الإحداثيات من العنوان
   const lookupCoordinates = async () => {
@@ -104,7 +105,7 @@ const AdminInspectorAssignPage = () => {
     },
   });
 
-  // جلب المهام
+  // جلب المهام مع اسم المفتش
   const { data: missions = [] } = useQuery({
     queryKey: ["all-missions"],
     queryFn: async () => {
@@ -112,7 +113,18 @@ const AdminInspectorAssignPage = () => {
         .from("deal_inspection_missions")
         .select("*, deals(title, deal_number, client_full_name)")
         .order("created_at", { ascending: false });
-      return data || [];
+
+      if (!data?.length) return [];
+      const inspectorIds = [...new Set(data.map(m => m.inspector_id))];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .in("user_id", inspectorIds);
+
+      return data.map(m => ({
+        ...m,
+        inspector_name: profiles?.find(p => p.user_id === m.inspector_id)?.full_name || "غير معروف",
+      }));
     },
   });
 
@@ -223,13 +235,15 @@ const AdminInspectorAssignPage = () => {
         <TabsContent value="active" className="space-y-3 mt-4">
           {activeMissions.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">لا توجد مهام نشطة</p>
-          ) : activeMissions.map((m: any) => (
+           ) : activeMissions.map((m: any) => (
             <div key={m.id} className="p-4 border rounded-lg">
               <div className="flex justify-between items-start">
                 <div className="space-y-1">
                   <p className="font-medium">صفقة #{m.deals?.deal_number} — {m.deals?.title}</p>
+                  <p className="text-sm text-primary">👤 المفتش: <span className="font-bold">{m.inspector_name}</span></p>
                   <p className="text-sm text-muted-foreground">📍 {m.factory_address || "—"} ({m.factory_country})</p>
                   <p className="text-sm text-muted-foreground">📸 الحد الأقصى: {m.max_photos} صور</p>
+                  <p className="text-xs text-muted-foreground">🌐 {m.factory_latitude?.toFixed(4)}, {m.factory_longitude?.toFixed(4)}</p>
                 </div>
                 <Badge variant={m.status === "in_progress" ? "default" : "secondary"}>
                   {m.status === "in_progress" ? "قيد التنفيذ" : "معيّن"}
@@ -284,6 +298,41 @@ const AdminInspectorAssignPage = () => {
             <DialogTitle>تعيين مفتش ميداني — صفقة #{assignDialog?.deal_number}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {/* وضع التعيين */}
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={assignMode === "official" ? "default" : "outline"}
+                size="sm"
+                className="flex-1"
+                onClick={() => setAssignMode("official")}
+              >
+                🏢 رسمي
+              </Button>
+              <Button
+                type="button"
+                variant={assignMode === "test" ? "default" : "outline"}
+                size="sm"
+                className="flex-1"
+                onClick={() => {
+                  setAssignMode("test");
+                  // تعبئة تلقائية بموقع تجريبي (دمياط)
+                  setFactoryCountry("مصر");
+                  setFactoryAddress("دمياط، مصر");
+                  setFactoryLat("31.4175");
+                  setFactoryLng("31.8144");
+                }}
+              >
+                🧪 تجريبي
+              </Button>
+            </div>
+
+            {assignMode === "test" && (
+              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-sm text-amber-700 dark:text-amber-400">
+                ⚠️ وضع تجريبي — الموقع: دمياط، مصر (31.4175, 31.8144). اختر مفتشاً فقط.
+              </div>
+            )}
+
             <div>
               <Label>اختيار المفتش</Label>
               <Select value={selectedInspector} onValueChange={setSelectedInspector}>
@@ -299,28 +348,41 @@ const AdminInspectorAssignPage = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>دولة المصنع</Label>
-              <Input value={factoryCountry} onChange={(e) => setFactoryCountry(e.target.value)} placeholder="مثال: الصين" className="mt-1" />
-            </div>
-            <div>
-              <Label>عنوان المصنع</Label>
-              <Input value={factoryAddress} onChange={(e) => setFactoryAddress(e.target.value)} placeholder="العنوان الكامل..." className="mt-1" />
-            </div>
-            <Button type="button" variant="outline" size="sm" onClick={lookupCoordinates} disabled={geoLoading} className="w-full">
-              {geoLoading ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Search className="w-4 h-4 ml-2" />}
-              بحث تلقائي عن الإحداثيات
-            </Button>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>خط العرض (Latitude)</Label>
-                <Input value={factoryLat} onChange={(e) => setFactoryLat(e.target.value)} placeholder="31.2304" className="mt-1" />
+
+            {assignMode === "official" && (
+              <>
+                <div>
+                  <Label>دولة المصنع</Label>
+                  <Input value={factoryCountry} onChange={(e) => setFactoryCountry(e.target.value)} placeholder="مثال: الصين" className="mt-1" />
+                </div>
+                <div>
+                  <Label>عنوان المصنع</Label>
+                  <Input value={factoryAddress} onChange={(e) => setFactoryAddress(e.target.value)} placeholder="العنوان الكامل..." className="mt-1" />
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={lookupCoordinates} disabled={geoLoading} className="w-full">
+                  {geoLoading ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Search className="w-4 h-4 ml-2" />}
+                  بحث تلقائي عن الإحداثيات
+                </Button>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>خط العرض (Latitude)</Label>
+                    <Input value={factoryLat} onChange={(e) => setFactoryLat(e.target.value)} placeholder="31.2304" className="mt-1" />
+                  </div>
+                  <div>
+                    <Label>خط الطول (Longitude)</Label>
+                    <Input value={factoryLng} onChange={(e) => setFactoryLng(e.target.value)} placeholder="121.4737" className="mt-1" />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {assignMode === "test" && (
+              <div className="p-3 bg-muted rounded-lg text-sm space-y-1">
+                <p>🌍 الدولة: <span className="font-bold">{factoryCountry}</span></p>
+                <p>📍 العنوان: <span className="font-bold">{factoryAddress}</span></p>
+                <p>🗺️ الإحداثيات: <span className="font-mono">{factoryLat}, {factoryLng}</span></p>
               </div>
-              <div>
-                <Label>خط الطول (Longitude)</Label>
-                <Input value={factoryLng} onChange={(e) => setFactoryLng(e.target.value)} placeholder="121.4737" className="mt-1" />
-              </div>
-            </div>
+            )}
           </div>
           <DialogFooter>
             <Button onClick={() => assignMission.mutate()} disabled={!selectedInspector || !factoryLat || !factoryLng || assignMission.isPending}>
