@@ -63,18 +63,67 @@ serve(async (req) => {
       }
     }
 
-    // التحقق: هل هناك صفقة حالياً في انتظار نتائج البحث أو جاري التفاوض؟
+    // التحقق: هل هناك صفقة حالياً في انتظار نتائج البحث أو جاري التفاوض أو صياغة عقد؟
     const { count: searchingCount } = await supabase
       .from("deals")
       .select("id", { count: "exact", head: true })
       .eq("status", "active")
-      .in("current_phase", ["searching_products", "negotiating", "negotiating_phase2", "negotiating_phase3"]);
+      .in("current_phase", ["searching_products", "negotiating", "negotiating_phase2", "negotiating_phase3", "contract_drafting"]);
 
     if ((searchingCount || 0) > 0) {
       return new Response(JSON.stringify({ 
         success: true, 
         message: "هناك صفقة قيد المعالجة حالياً.",
         waiting_count: searchingCount,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // التحقق: هل هناك صفقات بحاجة لصياغة العقد؟
+    const { data: readyForContract } = await supabase
+      .from("deals")
+      .select("*")
+      .eq("status", "active")
+      .in("current_phase", ["negotiation_phase3_complete", "contract_revision"])
+      .order("created_at", { ascending: true })
+      .limit(1);
+
+    if (readyForContract && readyForContract.length > 0) {
+      const cDeal = readyForContract[0];
+      console.log(`[Auto-Process] Running contract drafting agent for deal #${cDeal.deal_number}`);
+      
+      // Update phase to drafting
+      await supabase.from("deals").update({ current_phase: "contract_drafting" }).eq("id", cDeal.id);
+
+      try {
+        const cRes = await fetch(`${supabaseUrl}/functions/v1/draft-contract`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${anonKey}`,
+          },
+          body: JSON.stringify({ 
+            deal_id: cDeal.id,
+            admin_notes: cDeal.current_phase === "contract_revision" ? undefined : undefined,
+          }),
+        });
+        const cData = await cRes.json();
+        console.log(`[Auto-Process] Contract draft result:`, JSON.stringify(cData));
+      } catch (cError) {
+        console.error(`[Auto-Process] Contract draft error:`, cError);
+      }
+
+      await supabase.from("system_settings").upsert({
+        key: "last_auto_process_time",
+        value: { timestamp: new Date().toISOString() },
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "key" });
+
+      return new Response(JSON.stringify({ 
+        success: true,
+        deal_id: cDeal.id,
+        message: `تم تشغيل وكيل صياغة العقود للصفقة #${cDeal.deal_number}`,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

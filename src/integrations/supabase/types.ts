@@ -44,6 +44,92 @@ export type Database = {
         }
         Relationships: []
       }
+      deal_contracts: {
+        Row: {
+          admin_notes: string | null
+          buffer_days: number
+          client_country: string | null
+          client_name: string | null
+          client_signed: boolean
+          contract_html: string
+          contract_text: string
+          created_at: string
+          currency: string
+          deal_id: string
+          factory_country: string | null
+          factory_name: string | null
+          id: string
+          platform_fee_percentage: number
+          platform_name: string
+          revision_count: number
+          shipping_type: string
+          signature_code: string | null
+          signature_code_expires_at: string | null
+          signed_at: string | null
+          status: string
+          total_amount: number | null
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          buffer_days?: number
+          client_country?: string | null
+          client_name?: string | null
+          client_signed?: boolean
+          contract_html?: string
+          contract_text?: string
+          created_at?: string
+          currency?: string
+          deal_id: string
+          factory_country?: string | null
+          factory_name?: string | null
+          id?: string
+          platform_fee_percentage?: number
+          platform_name?: string
+          revision_count?: number
+          shipping_type?: string
+          signature_code?: string | null
+          signature_code_expires_at?: string | null
+          signed_at?: string | null
+          status?: string
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          buffer_days?: number
+          client_country?: string | null
+          client_name?: string | null
+          client_signed?: boolean
+          contract_html?: string
+          contract_text?: string
+          created_at?: string
+          currency?: string
+          deal_id?: string
+          factory_country?: string | null
+          factory_name?: string | null
+          id?: string
+          platform_fee_percentage?: number
+          platform_name?: string
+          revision_count?: number
+          shipping_type?: string
+          signature_code?: string | null
+          signature_code_expires_at?: string | null
+          signed_at?: string | null
+          status?: string
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_contracts_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_negotiations: {
         Row: {
           created_at: string
