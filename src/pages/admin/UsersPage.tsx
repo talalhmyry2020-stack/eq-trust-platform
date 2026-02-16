@@ -55,7 +55,7 @@ const INSPECTOR_PERMISSIONS = [
   "submit_report",
 ];
 
-type EmployeeType = "general" | "inspector";
+type EmployeeType = "general" | "inspector" | "logistics" | "customs";
 
 const PHASE_LABELS: Record<string, string> = {
   verification: "قيد المراجعة",
@@ -146,7 +146,11 @@ const UsersPage = () => {
     }
 
     const isInspector = employeeType === "inspector";
-    const permissions = isInspector ? INSPECTOR_PERMISSIONS : newEmployee.permissions;
+    const isLogistics = employeeType === "logistics";
+    const isCustoms = employeeType === "customs";
+    const permissions = isInspector ? INSPECTOR_PERMISSIONS : 
+                       (isLogistics || isCustoms) ? ["view_deals", "manage_deals"] : 
+                       newEmployee.permissions;
 
     const body: Record<string, unknown> = {
       action: "create_employee",
@@ -161,6 +165,16 @@ const UsersPage = () => {
       body.job_code = "agent_06";
       body.motto = "العين التي لا ترمش.. واليد المقيدة بالحقيقة";
       body.description = "كيان بشري يعمل بعقل رقمي.";
+    } else if (isLogistics) {
+      body.job_title = "موظف اللوجستيك";
+      body.job_code = "logistics";
+      body.motto = "نوثّق كل شحنة بعين الثقة";
+      body.description = "مسؤول توثيق الشحنات وتأكيد السلامة وإرسال رابط التتبع.";
+    } else if (isCustoms) {
+      body.job_title = "مخلّص الميناء";
+      body.job_code = "customs_agent";
+      body.motto = "البوابة الأخيرة قبل العداد السيادي";
+      body.description = "مسؤول استلام البضاعة في الميناء والتأكد من سلامتها وتقديم التقرير النهائي الذي يُطلق العداد السيادي.";
     }
 
     const { error } = await supabase.functions.invoke("manage-users", { body });
@@ -170,7 +184,12 @@ const UsersPage = () => {
       return;
     }
 
-    toast.success(isInspector ? "تم إنشاء حساب المفتش الميداني بنجاح" : "تم إنشاء حساب الموظف بنجاح");
+    toast.success(
+      isInspector ? "تم إنشاء حساب المفتش الميداني بنجاح" : 
+      isLogistics ? "تم إنشاء حساب موظف اللوجستيك بنجاح" :
+      isCustoms ? "تم إنشاء حساب مخلّص الميناء بنجاح" :
+      "تم إنشاء حساب الموظف بنجاح"
+    );
     setShowEmployeeDialog(false);
     setNewEmployee({ name: "", email: "", password: "", permissions: [] });
     setEmployeeType("general");
@@ -251,6 +270,12 @@ const UsersPage = () => {
         </Badge>
       );
     }
+    if (jobCode === "logistics") {
+      return <Badge className="bg-purple-500/10 text-purple-600 border-purple-500/20 gap-1">🚛 موظف لوجستيك</Badge>;
+    }
+    if (jobCode === "customs_agent") {
+      return <Badge className="bg-cyan-500/10 text-cyan-600 border-cyan-500/20 gap-1">⚓ مخلّص ميناء</Badge>;
+    }
     if (jobTitle) return <Badge variant="secondary">{jobTitle}</Badge>;
     return <Badge variant="outline">موظف عام</Badge>;
   };
@@ -275,6 +300,8 @@ const UsersPage = () => {
                   <SelectContent>
                     <SelectItem value="general">موظف عام</SelectItem>
                     <SelectItem value="inspector">مفتش ميداني — الوكيل 06</SelectItem>
+                    <SelectItem value="logistics">موظف لوجستيك — توثيق الشحنات</SelectItem>
+                    <SelectItem value="customs">مخلّص ميناء — فحص الوصول</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -317,8 +344,34 @@ const UsersPage = () => {
                   </CardContent>
                 </Card>
               )}
+              {employeeType === "logistics" && (
+                <Card className="border-purple-500/20 bg-purple-500/5">
+                  <CardContent className="p-4">
+                    <p className="text-sm font-semibold mb-2">🚛 مهام موظف اللوجستيك:</p>
+                    <ul className="text-xs text-muted-foreground space-y-1">
+                      <li>✓ تصوير البضاعة مع ختم الشحنة</li>
+                      <li>✓ تأكيد سلامة البضاعة بتقرير</li>
+                      <li>✓ إرسال رمز تتبع السفينة</li>
+                      <li>✓ توثيق الشحنة وتأكيد الإرسال</li>
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}
+              {employeeType === "customs" && (
+                <Card className="border-cyan-500/20 bg-cyan-500/5">
+                  <CardContent className="p-4">
+                    <p className="text-sm font-semibold mb-2">⚓ مهام مخلّص الميناء:</p>
+                    <ul className="text-xs text-muted-foreground space-y-1">
+                      <li>✓ استلام البضاعة عند وصولها للميناء</li>
+                      <li>✓ التأكد من سلامة البضاعة وتصويرها</li>
+                      <li>✓ تقديم تقرير الوصول النهائي</li>
+                      <li>✓ على تقريره يُطلق العداد السيادي 168 ساعة</li>
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}
               <Button onClick={createEmployee} className="w-full">
-                {employeeType === "inspector" ? "إنشاء المفتش الميداني" : "إنشاء الموظف"}
+                {employeeType === "inspector" ? "إنشاء المفتش الميداني" : employeeType === "logistics" ? "إنشاء موظف اللوجستيك" : employeeType === "customs" ? "إنشاء مخلّص الميناء" : "إنشاء الموظف"}
               </Button>
             </div>
           </DialogContent>
