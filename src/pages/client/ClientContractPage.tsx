@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { FileText, Send, CheckCircle, Loader2, ShieldCheck, KeyRound, MessageSquareWarning } from "lucide-react";
+import { FileText, Send, CheckCircle, Loader2, ShieldCheck, KeyRound, MessageSquareWarning, Download } from "lucide-react";
 
 interface Contract {
   id: string;
@@ -160,6 +160,20 @@ const ClientContractPage = () => {
     setActionLoading(false);
   };
 
+  const handleExportPDF = () => {
+    if (!contract) return;
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8" /><title>عقد الصفقة #${dealNumber}</title>
+      <style>@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+      *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Cairo',sans-serif;color:#000;padding:40px;line-height:1.8;font-size:14px;background:#fff}
+      h1,h2,h3{color:#000;margin-bottom:10px}table{width:100%;border-collapse:collapse;margin:16px 0}th,td{border:1px solid #333;padding:8px 12px;text-align:right}th{background:#f0f0f0;font-weight:700}
+      @media print{body{padding:20px}}</style></head><body>${contract.contract_html}</body></html>`);
+    printWindow.document.close();
+    setTimeout(() => printWindow.print(), 500);
+  };
+
   if (!dealId) return <div className="text-center py-8 text-muted-foreground">لم يتم تحديد صفقة</div>;
 
   if (loading) return (
@@ -193,6 +207,11 @@ const ClientContractPage = () => {
         <Badge variant={contract.client_signed ? "default" : "outline"} className={contract.client_signed ? "bg-green-600" : ""}>
           {contract.client_signed ? "تم التوقيع ✅" : statusLabel}
         </Badge>
+        {contract.client_signed && (
+          <Button variant="outline" size="sm" onClick={handleExportPDF} className="gap-1">
+            <Download className="w-4 h-4" /> تصدير PDF
+          </Button>
+        )}
       </div>
 
       {/* Contract document */}
