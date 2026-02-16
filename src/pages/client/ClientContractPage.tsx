@@ -82,33 +82,51 @@ function clearStoredOTP() {
   sessionStorage.removeItem(OTP_STORAGE_KEY);
 }
 
+// Extract body content from full HTML document
+function extractBodyContent(html: string): string {
+  // If it contains <body>, extract only body content
+  const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  let content = bodyMatch ? bodyMatch[1] : html;
+  
+  // Remove any remaining <html>, <head>, <style>, <meta>, <title>, <!DOCTYPE> tags
+  content = content.replace(/<head[\s\S]*?<\/head>/gi, "");
+  content = content.replace(/<\/?html[^>]*>/gi, "");
+  content = content.replace(/<\/?body[^>]*>/gi, "");
+  content = content.replace(/<!DOCTYPE[^>]*>/gi, "");
+  
+  // Remove signature blocks
+  content = content.replace(/<div[^>]*class="signature-block"[^>]*>[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/gi, "");
+  content = content.replace(/<(div|section|table)[^>]*>[\s\S]*?(التوقيعات|التواقيع|توقيع الأطراف|Signatures?)[\s\S]*?<\/\1>/gi, "");
+  content = content.replace(/<div[^>]*class="signature[^"]*"[^>]*>[\s\S]*?<\/div>/gi, "");
+  
+  return content.trim();
+}
+
 // Split HTML contract into pages
 function splitContractPages(html: string): string[] {
-  // Remove signature/توقيع sections from the HTML
-  let cleaned = html;
-  // Remove signature blocks (divs/sections containing توقيع/التوقيعات/Signature)
-  cleaned = cleaned.replace(/<(div|section|table)[^>]*>[\s\S]*?(التوقيعات|التواقيع|توقيع الأطراف|Signatures?)[\s\S]*?<\/\1>/gi, "");
-  // Also remove standalone signature paragraphs
-  cleaned = cleaned.replace(/<p[^>]*>[\s\S]*?(توقيع|التوقيع|الطرف الأول.*التوقيع|الطرف الثاني.*التوقيع|الطرف الثالث.*التوقيع)[\s\S]*?<\/p>/gi, "");
+  const cleaned = extractBodyContent(html);
 
-  // Split by <hr> or <h2> tags as natural page breaks
-  const parts: string[] = [];
-  // Split by hr first
-  const hrSections = cleaned.split(/<hr\s*\/?>/gi);
+  // Try splitting by page-break divs
+  const pageBreakParts = cleaned.split(/<div[^>]*class="page-break"[^>]*>/gi)
+    .filter(p => p.replace(/<[^>]*>/g, "").trim().length > 20);
+  if (pageBreakParts.length > 1) return pageBreakParts;
 
-  for (const section of hrSections) {
-    const trimmed = section.trim();
-    if (!trimmed || trimmed.replace(/<[^>]*>/g, "").trim().length < 20) continue;
-    parts.push(trimmed);
-  }
+  // Try splitting by <hr>
+  const hrParts = cleaned.split(/<hr\s*\/?>/gi)
+    .filter(p => p.replace(/<[^>]*>/g, "").trim().length > 20);
+  if (hrParts.length > 1) return hrParts;
 
-  // If no good splits, try h2
-  if (parts.length <= 1) {
-    const h2Parts = cleaned.split(/(?=<h2)/gi).filter(p => p.trim().replace(/<[^>]*>/g, "").trim().length > 20);
-    if (h2Parts.length > 1) return h2Parts;
-  }
+  // Try splitting by <h2>
+  const h2Parts = cleaned.split(/(?=<h2)/gi)
+    .filter(p => p.replace(/<[^>]*>/g, "").trim().length > 20);
+  if (h2Parts.length > 1) return h2Parts;
 
-  return parts.length > 0 ? parts : [cleaned];
+  // Try splitting by section divs
+  const sectionParts = cleaned.split(/(?=<div[^>]*class="section")/gi)
+    .filter(p => p.replace(/<[^>]*>/g, "").trim().length > 20);
+  if (sectionParts.length > 1) return sectionParts;
+
+  return [cleaned];
 }
 
 const ClientContractPage = () => {
@@ -256,10 +274,8 @@ const ClientContractPage = () => {
         </div>`
       : "";
 
-    // Remove old signature sections from HTML
-    let cleanHtml = contract.contract_html;
-    cleanHtml = cleanHtml.replace(/<(div|section|table)[^>]*>[\s\S]*?(التوقيعات|التواقيع|توقيع الأطراف|Signatures?)[\s\S]*?<\/\1>/gi, "");
-    cleanHtml = cleanHtml.replace(/<p[^>]*>[\s\S]*?(توقيع|التوقيع)[\s\S]*?<\/p>/gi, "");
+    // Clean the HTML for PDF
+    let cleanHtml = extractBodyContent(contract.contract_html);
 
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
