@@ -5,10 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { FileText, Send, Edit, CheckCircle, RotateCcw, Loader2 } from "lucide-react";
+import { FileText, CheckCircle, RotateCcw, Loader2, Factory } from "lucide-react";
 
 interface Contract {
   id: string;
@@ -33,10 +32,18 @@ interface Contract {
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   drafting: { label: "جاري الصياغة", variant: "outline" },
+  client_review: { label: "بانتظار اختيار العميل للشحن", variant: "secondary" },
   admin_review: { label: "قيد مراجعة المدير", variant: "secondary" },
   revision: { label: "قيد التعديل", variant: "outline" },
+  factory_review: { label: "قيد موافقة المصنع", variant: "secondary" },
   client_signing: { label: "بانتظار توقيع العميل", variant: "default" },
   signed: { label: "تم التوقيع", variant: "default" },
+};
+
+const SHIPPING_LABELS: Record<string, string> = {
+  CIF: "CIF - ميناء المستورد (3%)",
+  FOB: "FOB - ميناء المورّد (5%)",
+  DOOR_TO_DOOR: "Door to Door - باب لباب (7%)",
 };
 
 const ContractReviewPage = () => {
@@ -45,7 +52,6 @@ const ContractReviewPage = () => {
   const [contract, setContract] = useState<Contract | null>(null);
   const [loading, setLoading] = useState(true);
   const [adminNotes, setAdminNotes] = useState("");
-  const [shippingType, setShippingType] = useState("FOB");
   const [actionLoading, setActionLoading] = useState(false);
   const [dealNumber, setDealNumber] = useState<number | null>(null);
 
@@ -61,7 +67,7 @@ const ContractReviewPage = () => {
     
     if (deal) setDealNumber(deal.deal_number);
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("deal_contracts")
       .select("*")
       .eq("deal_id", dealId)
@@ -69,19 +75,38 @@ const ContractReviewPage = () => {
       .limit(1);
 
     if (data && data.length > 0) {
-      const c = data[0] as unknown as Contract;
-      setContract(c);
-      setShippingType(c.shipping_type);
+      setContract(data[0] as unknown as Contract);
     }
     setLoading(false);
   };
 
   useEffect(() => { fetchContract(); }, [dealId]);
 
-  const handleApproveForSigning = async () => {
+  // Admin approves → send to factory
+  const handleApproveForFactory = async () => {
     if (!contract) return;
     setActionLoading(true);
     
+    await supabase
+      .from("deal_contracts")
+      .update({ status: "factory_review" })
+      .eq("id", contract.id);
+
+    await supabase
+      .from("deals")
+      .update({ current_phase: "contract_factory_review" })
+      .eq("id", contract.deal_id);
+
+    toast.success("تم اعتماد العقد وإرساله للمصنع للموافقة");
+    setActionLoading(false);
+    fetchContract();
+  };
+
+  // Simulate factory approval → send to client for signing
+  const handleFactoryApproval = async () => {
+    if (!contract) return;
+    setActionLoading(true);
+
     await supabase
       .from("deal_contracts")
       .update({ status: "client_signing" })
@@ -92,7 +117,7 @@ const ContractReviewPage = () => {
       .update({ current_phase: "contract_signing" })
       .eq("id", contract.deal_id);
 
-    toast.success("تم اعتماد العقد وإرساله للعميل للتوقيع");
+    toast.success("وافق المصنع على العقد - تم إرساله للعميل للتوقيع");
     setActionLoading(false);
     fetchContract();
   };
@@ -104,13 +129,11 @@ const ContractReviewPage = () => {
     }
     setActionLoading(true);
 
-    // Update contract shipping type if changed
     await supabase
       .from("deal_contracts")
       .update({ 
         status: "revision", 
         admin_notes: adminNotes,
-        shipping_type: shippingType,
       })
       .eq("id", contract.id);
 
@@ -119,7 +142,6 @@ const ContractReviewPage = () => {
       .update({ current_phase: "contract_revision" })
       .eq("id", contract.deal_id);
 
-    // Trigger AI revision
     try {
       const res = await supabase.functions.invoke("draft-contract", {
         body: { deal_id: contract.deal_id, admin_notes: adminNotes },
@@ -154,12 +176,13 @@ const ContractReviewPage = () => {
   const st = STATUS_LABELS[contract.status] || { label: contract.status, variant: "secondary" as const };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-5xl mx-auto">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-heading text-2xl font-bold">مراجعة العقد - الصفقة #{dealNumber}</h1>
           <p className="text-muted-foreground">
-            {contract.client_name} ↔ {contract.factory_name} | {contract.shipping_type} | ربح المنصة: {contract.platform_fee_percentage}%
+            {contract.client_name} ↔ {contract.factory_name} | {SHIPPING_LABELS[contract.shipping_type] || contract.shipping_type}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -170,7 +193,7 @@ const ContractReviewPage = () => {
         </div>
       </div>
 
-      {/* Contract financial summary */}
+      {/* Financial summary */}
       <div className="grid grid-cols-4 gap-4">
         <Card><CardContent className="pt-4 text-center">
           <p className="text-sm text-muted-foreground">المبلغ الإجمالي</p>
@@ -181,8 +204,8 @@ const ContractReviewPage = () => {
           <p className="text-xl font-bold">{contract.platform_fee_percentage}%</p>
         </CardContent></Card>
         <Card><CardContent className="pt-4 text-center">
-          <p className="text-sm text-muted-foreground">نوع الشحن</p>
-          <p className="text-xl font-bold">{contract.shipping_type}</p>
+          <p className="text-sm text-muted-foreground">نوع الشحن (اختاره العميل)</p>
+          <p className="text-lg font-bold">{contract.shipping_type}</p>
         </CardContent></Card>
         <Card><CardContent className="pt-4 text-center">
           <p className="text-sm text-muted-foreground">الحالة</p>
@@ -190,7 +213,7 @@ const ContractReviewPage = () => {
         </CardContent></Card>
       </div>
 
-      {/* Contract content */}
+      {/* Contract document - styled like a real paper */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -199,55 +222,73 @@ const ContractReviewPage = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div 
-            className="prose prose-sm max-w-none bg-white dark:bg-gray-900 p-6 rounded-lg border min-h-[400px] overflow-auto"
-            dir="rtl"
-            dangerouslySetInnerHTML={{ __html: contract.contract_html }}
-          />
+          <div className="bg-white rounded-lg border shadow-inner overflow-auto">
+            <div
+              className="p-8 md:p-12 min-h-[500px]"
+              dir="rtl"
+              style={{
+                fontFamily: "'Cairo', 'Tajawal', sans-serif",
+                color: "#000",
+                lineHeight: "1.8",
+                fontSize: "14px",
+              }}
+              dangerouslySetInnerHTML={{ __html: contract.contract_html }}
+            />
+          </div>
         </CardContent>
       </Card>
 
-      {/* Admin actions */}
+      {/* Admin actions - approve or revise */}
       {contract.status === "admin_review" && (
         <Card>
           <CardHeader>
             <CardTitle>إجراءات المدير</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <Label>نوع الشحن (يؤثر على نسبة الربح)</Label>
-                <Select value={shippingType} onValueChange={setShippingType}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="CIF">CIF - من ميناء المستورد (3%)</SelectItem>
-                    <SelectItem value="FOB">FOB - من ميناء المورد (5%)</SelectItem>
-                    <SelectItem value="DOOR_TO_DOOR">Door to Door - باب لباب (7%)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
             <div>
               <Label>ملاحظات التعديل (اختياري - لإعادة الصياغة)</Label>
               <Textarea
                 value={adminNotes}
                 onChange={(e) => setAdminNotes(e.target.value)}
-                placeholder="اكتب ملاحظاتك هنا لإعادة صياغة العقد بواسطة الوكيل..."
+                placeholder="اكتب ملاحظاتك هنا لإعادة صياغة العقد..."
                 rows={3}
               />
             </div>
 
             <div className="flex gap-3">
-              <Button onClick={handleApproveForSigning} disabled={actionLoading} className="flex-1">
+              <Button onClick={handleApproveForFactory} disabled={actionLoading} className="flex-1">
                 {actionLoading ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <CheckCircle className="w-4 h-4 ml-2" />}
-                اعتماد العقد وإرساله للتوقيع
+                اعتماد العقد وإرساله للمصنع
               </Button>
               <Button variant="outline" onClick={handleRequestRevision} disabled={actionLoading || !adminNotes.trim()}>
                 {actionLoading ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <RotateCcw className="w-4 h-4 ml-2" />}
                 إعادة صياغة
               </Button>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Factory approval action */}
+      {contract.status === "factory_review" && (
+        <Card className="border-amber-500">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Factory className="w-5 h-5 text-amber-500" />
+              موافقة المصنع
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              العقد بانتظار موافقة المصنع. بعد الموافقة سيُرسل للعميل للتوقيع الإلكتروني.
+            </p>
+            <p className="text-sm text-muted-foreground font-bold">
+              ⚠️ شرط العقد: لا يبدأ العمل حتى تأكيد المبلغ في حساب الوسيط الذكي وتفعيل التوكنات.
+            </p>
+            <Button onClick={handleFactoryApproval} disabled={actionLoading} className="w-full">
+              {actionLoading ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <CheckCircle className="w-4 h-4 ml-2" />}
+              تأكيد موافقة المصنع وإرسال للتوقيع
+            </Button>
           </CardContent>
         </Card>
       )}

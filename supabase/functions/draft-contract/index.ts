@@ -15,7 +15,7 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    const { deal_id, admin_notes } = await req.json();
+    const { deal_id, admin_notes, shipping_type: requestedShippingType } = await req.json();
     if (!deal_id) throw new Error("deal_id is required");
 
     // Fetch deal data
@@ -66,8 +66,8 @@ serve(async (req) => {
     const isRevision = existingContract && existingContract.length > 0 && admin_notes;
     const revisionCount = isRevision ? (existingContract[0].revision_count || 0) + 1 : 0;
 
-    // Determine shipping type from existing contract or default
-    const shippingType = existingContract?.[0]?.shipping_type || "FOB";
+    // Use requested shipping type, or existing, or default
+    const shippingType = requestedShippingType || existingContract?.[0]?.shipping_type || "FOB";
     const feeMap: Record<string, number> = { CIF: 3, FOB: 5, DOOR_TO_DOOR: 7 };
     const platformFee = feeMap[shippingType] || 7;
 
@@ -82,15 +82,39 @@ serve(async (req) => {
     const clientCountry = deal.country || deal.import_country || "غير محدد";
     const factoryCountry = phase3?.factory_country || phase2?.factory_country || "غير محدد";
 
+    const shippingLabel = shippingType === "CIF" ? "CIF - التسليم في ميناء المستورد" 
+      : shippingType === "FOB" ? "FOB - التسليم في ميناء المورّد" 
+      : "Door to Door - التسليم من الباب للباب";
+
     // Build AI prompt
     const systemPrompt = `أنت وكيل صياغة عقود خبير في "منصة EQ للوساطة التجارية". تصيغ عقوداً تجارية دولية احترافية باللغة العربية.
+
+** تعليمات التنسيق الإلزامية: **
+- أنشئ العقد بتنسيق HTML نظيف واحترافي يشبه ورقة رسمية حقيقية
+- استخدم خط أسود فقط على خلفية بيضاء
+- العناوين الرئيسية بحجم كبير وخط عريض (bold) ومحاذاة للوسط
+- العناوين الفرعية بخط عريض وحجم متوسط
+- ترقيم المواد والبنود بشكل واضح (المادة الأولى، المادة الثانية...)
+- فقرات مرتبة مع مسافات بينها
+- استخدم جداول HTML منظمة للبيانات المالية
+- لا تستخدم ألواناً أو خلفيات ملونة، فقط أسود وأبيض
+- أضف خطوط فاصلة بين الأقسام
+- اجعل العقد يبدو كوثيقة قانونية رسمية مطبوعة
+- استخدم <h1> لعنوان العقد الرئيسي، <h2> للمواد، <h3> للبنود الفرعية
+- استخدم <table> مع حدود واضحة للجداول المالية
+- أضف <hr> بين المواد الرئيسية
+- النص الأساسي بحجم 14px وارتفاع سطر 1.8
+- لا تستخدم أي CSS مضمن للألوان، فقط للحجم والمحاذاة والهوامش
 
 قواعد الصياغة:
 1. العقد يكون بين ثلاثة أطراف: الطرف الأول (العميل/المستورد)، الطرف الثاني (المصنع/المورد)، الطرف الثالث (منصة EQ للوساطة التجارية)
 2. يجب مراعاة النظام القانوني والضريبي لبلد العميل (${clientCountry}) وبلد المصنع (${factoryCountry})
 3. إضافة 10 أيام احتياطية على فترة التسليم المتفق عليها
-4. نسبة ربح المنصة: ${platformFee}% (حسب نوع الشحن ${shippingType})
-5. يجب تضمين بنود السيادة الرقمية التالية:
+4. نسبة ربح المنصة: ${platformFee}% (حسب نوع الشحن ${shippingLabel})
+5. يجب تضمين بنود السيادة الرقمية
+
+** شرط إلزامي في العقد: **
+"لا يبدأ تنفيذ أي عمل إنتاجي أو تصنيعي من قبل الطرف الثاني (المصنع) إلا بعد تأكيد استلام المبلغ المالي كاملاً في حساب الوسيط الذكي (Escrow Account) التابع للمنصة، وتفعيل التوكنات المالية (Token A, B, C) رسمياً من قبل النظام."
 
 بنود إلزامية في العقد:
 - بوابة العهد: التوقيع الإلزامي على ميثاق السيادة الرقمية
@@ -99,25 +123,22 @@ serve(async (req) => {
 - الملاءة المالية: إيداع 100% من قيمة الصفقة كاعتماد مستندي (LC)
 - التجميد المالي: حساب وسيط ذكي (Escrow Account)
 - التوكن A (50%): دفعة الإنتاج - تُحرر بعد فحص المفتش الميداني
-- التوكن B (30%): دفعة الشحن - تُحرر بعد المطابقة الثلاثية (رقم الحاوية + الختم الملاحي + بوليصة الشحن)
-- التوكن C (20%): الدفعة النهائية - تُحرر بعد 168 ساعة من الوصول (أو قبول حكمي)
-- آلية فض النزاعات: سيناريوهات مبرمجة (خديعة المواصفات، تأخير التصنيع، خيانة الوكيل)
+- التوكن B (30%): دفعة الشحن - تُحرر بعد المطابقة الثلاثية
+- التوكن C (20%): الدفعة النهائية - تُحرر بعد 168 ساعة من الوصول
+- آلية فض النزاعات: سيناريوهات مبرمجة
 - صلاحيات حارس البوابة: حق الرفض القطعي لأي مورد
-- المسطرة الرقمية: اعتماد معايير رقمية فقط (لا مصطلحات وصفية)
 - كشف الاحتيال: إيقاف تلقائي للأسعار المشبوهة
 - شرط التصوير المقيد: حصراً عبر كاميرا التطبيق
 
-6. رتب العقد بحسب المعايير الدولية:
-   - ديباجة العقد (الأطراف والتعريفات)
-   - موضوع العقد ونطاقه
-   - الالتزامات المالية والدفعات
-   - شروط التسليم والشحن
-   - ضمانات الجودة والمطابقة
-   - فض النزاعات والتحكيم
-   - الأحكام العامة والختامية
-
-7. استخدم تنسيق HTML نظيف مع جداول وعناوين منظمة
-8. أضف ترقيم المواد والبنود بشكل احترافي`;
+رتب العقد:
+1. ديباجة العقد (الأطراف والتعريفات)
+2. موضوع العقد ونطاقه
+3. الالتزامات المالية والدفعات
+4. شروط التسليم والشحن
+5. ضمانات الجودة والمطابقة
+6. فض النزاعات والتحكيم
+7. الأحكام العامة والختامية
+8. التوقيعات`;
 
     const userPrompt = `اصغ العقد التالي:
 
@@ -145,13 +166,13 @@ serve(async (req) => {
 - الكمية: ${quantity} ${unit}
 - المبلغ الإجمالي: ${totalAmount} ${phase2?.currency || "USD"}
 - نسبة ربح المنصة: ${platformFee}% = ${platformAmount.toFixed(2)} ${phase2?.currency || "USD"}
-- نوع الشحن: ${shippingType}
+- نوع الشحن: ${shippingLabel}
 - مدة الشحن المقدرة: ${phase3?.shipping_time || phase2?.shipping_time || "30 يوم"} + 10 أيام احتياطية
 
 ${admin_notes ? `\n\nملاحظات المدير للتعديل:\n${admin_notes}` : ""}
 ${isRevision ? `\n\nهذه مراجعة رقم ${revisionCount}. يرجى تعديل العقد بناءً على ملاحظات المدير أعلاه.` : ""}
 
-اصغ العقد بتنسيق HTML احترافي مع كل البنود والشروط. يجب أن يكون العقد شاملاً ومفصلاً.`;
+اصغ العقد بتنسيق HTML احترافي. يجب أن يبدو كورقة قانونية رسمية مطبوعة بخط أسود واضح على خلفية بيضاء.`;
 
     console.log(`[Contract Agent] Drafting contract for deal #${deal.deal_number}`);
 
@@ -187,14 +208,18 @@ ${isRevision ? `\n\nهذه مراجعة رقم ${revisionCount}. يرجى تعد
     // Plain text version
     const contractText = cleanHtml.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 
+    // New flow: draft goes to client_review first (client picks shipping)
+    // If revision from admin, go back to admin_review
+    const newStatus = isRevision ? "admin_review" : "client_review";
+    const newPhase = isRevision ? "contract_review" : "contract_client_review";
+
     if (isRevision && existingContract?.[0]) {
-      // Update existing contract
       await supabase
         .from("deal_contracts")
         .update({
           contract_html: cleanHtml,
           contract_text: contractText,
-          status: "admin_review",
+          status: newStatus,
           revision_count: revisionCount,
           admin_notes: null,
           platform_fee_percentage: platformFee,
@@ -205,13 +230,7 @@ ${isRevision ? `\n\nهذه مراجعة رقم ${revisionCount}. يرجى تعد
           factory_country: factoryCountry,
         })
         .eq("id", existingContract[0].id);
-
-      await supabase
-        .from("deals")
-        .update({ current_phase: "contract_review" })
-        .eq("id", deal_id);
     } else {
-      // Create new contract
       await supabase.from("deal_contracts").insert({
         deal_id,
         contract_html: cleanHtml,
@@ -225,24 +244,24 @@ ${isRevision ? `\n\nهذه مراجعة رقم ${revisionCount}. يرجى تعد
         client_country: clientCountry,
         factory_country: factoryCountry,
         platform_name: "منصة EQ للوساطة التجارية",
-        status: "admin_review",
+        status: newStatus,
       });
-
-      await supabase
-        .from("deals")
-        .update({ current_phase: "contract_review" })
-        .eq("id", deal_id);
     }
+
+    await supabase
+      .from("deals")
+      .update({ current_phase: newPhase })
+      .eq("id", deal_id);
 
     // Notify admin
     const { data: admins } = await supabase.rpc("get_admin_contacts");
     for (const admin of admins || []) {
       await supabase.from("notifications").insert({
         user_id: admin.user_id,
-        title: `عقد جاهز للمراجعة - الصفقة #${deal.deal_number}`,
+        title: `عقد جاهز - الصفقة #${deal.deal_number}`,
         message: isRevision
           ? `تم تعديل عقد الصفقة #${deal.deal_number} (المراجعة ${revisionCount}) وهو جاهز لمراجعتك.`
-          : `تم صياغة عقد الصفقة #${deal.deal_number} بواسطة وكيل العقود وهو جاهز لمراجعتك.`,
+          : `تم صياغة عقد الصفقة #${deal.deal_number} وأُرسل للعميل لاختيار نوع الشحن.`,
         type: "contract_ready",
         entity_type: "deal",
         entity_id: deal_id,
