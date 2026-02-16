@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Plus, Pause, Play, Trash2, Clock, Eye, CheckCircle, XCircle, RotateCcw, FileSearch, Handshake } from "lucide-react";
+import { Search, Plus, Pause, Play, Trash2, Clock, Eye, CheckCircle, XCircle, RotateCcw, FileSearch, Handshake, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import DealDetailDialog from "@/components/admin/DealDetailDialog";
@@ -148,6 +148,11 @@ const DealsPage = () => {
     negotiation_phase2_complete: "العرض النهائي جاهز",
     negotiating_phase3: "جاري موافقة المصنع",
     negotiation_phase3_complete: "المصنع وافق نهائياً",
+    contract_drafting: "جاري صياغة العقد",
+    contract_review: "العقد قيد مراجعة المدير",
+    contract_revision: "جاري تعديل العقد",
+    contract_signing: "بانتظار توقيع العميل",
+    contract_signed: "تم توقيع العقد",
   };
 
   const getPhaseName = (phase: string | null) =>
@@ -178,6 +183,7 @@ const DealsPage = () => {
   const negotiationDeals = filtered.filter(d => d.status === "active" && (d.current_phase === "negotiation" || d.current_phase === "negotiating" || d.current_phase === "negotiation_complete"));
   const negotiation2Deals = filtered.filter(d => d.status === "active" && (d.current_phase === "negotiating_phase2" || d.current_phase === "negotiation_phase2_complete"));
   const negotiation3Deals = filtered.filter(d => d.status === "active" && (d.current_phase === "negotiating_phase3" || d.current_phase === "negotiation_phase3_complete"));
+  const contractDeals = filtered.filter(d => d.status === "active" && (d.current_phase === "contract_drafting" || d.current_phase === "contract_review" || d.current_phase === "contract_revision" || d.current_phase === "contract_signing" || d.current_phase === "contract_signed"));
   const rejectedDeals = filtered.filter(d => d.status === "cancelled");
 
   const renderDealsTable = (dealsList: Deal[]) => (
@@ -234,6 +240,20 @@ const DealsPage = () => {
                         <Button size="icon" variant="ghost" className="text-blue-600" onClick={() => navigate(`/admin/deal-negotiations?deal_id=${deal.id}&phase=3`)} title="موافقة المصنع">
                            <Handshake className="w-4 h-4" />
                          </Button>
+                       )}
+                       {(deal.current_phase === "contract_review" || deal.current_phase === "contract_signing" || deal.current_phase === "contract_signed" || deal.current_phase === "contract_drafting" || deal.current_phase === "contract_revision") && (
+                         <Button size="icon" variant="ghost" className="text-violet-600" onClick={() => navigate(`/admin/contract-review?deal_id=${deal.id}`)} title="مراجعة العقد">
+                            <FileText className="w-4 h-4" />
+                          </Button>
+                        )}
+                       {deal.current_phase === "negotiation_phase3_complete" && (
+                         <Button size="icon" variant="ghost" className="text-violet-600" onClick={async () => {
+                           await supabase.from("deals").update({ current_phase: "contract_drafting" }).eq("id", deal.id);
+                           toast.success("تم إرسال الصفقة لوكيل صياغة العقود");
+                           fetchData();
+                         }} title="صياغة العقد">
+                            <FileText className="w-4 h-4" />
+                          </Button>
                        )}
                       {deal.status === "pending_review" && (
                         <>
@@ -358,6 +378,7 @@ const DealsPage = () => {
           <TabsTrigger value="negotiation">التفاوض ({negotiationDeals.length})</TabsTrigger>
           <TabsTrigger value="negotiation2">التفاوض النهائي ({negotiation2Deals.length})</TabsTrigger>
           <TabsTrigger value="negotiation3">موافقة المصنع ({negotiation3Deals.length})</TabsTrigger>
+          <TabsTrigger value="contracts">صياغة العقود ({contractDeals.length})</TabsTrigger>
           <TabsTrigger value="rejected">مرفوضة ({rejectedDeals.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="all">{renderDealsTable(filtered)}</TabsContent>
@@ -367,6 +388,7 @@ const DealsPage = () => {
         <TabsContent value="negotiation">{renderDealsTable(negotiationDeals)}</TabsContent>
         <TabsContent value="negotiation2">{renderDealsTable(negotiation2Deals)}</TabsContent>
         <TabsContent value="negotiation3">{renderDealsTable(negotiation3Deals)}</TabsContent>
+        <TabsContent value="contracts">{renderDealsTable(contractDeals)}</TabsContent>
         <TabsContent value="rejected">{renderDealsTable(rejectedDeals)}</TabsContent>
       </Tabs>
 

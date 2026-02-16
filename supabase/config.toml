@@ -44,3 +44,9 @@ verify_jwt = false
 
 [functions.negotiate-deals-phase3]
 verify_jwt = false
+
+[functions.draft-contract]
+verify_jwt = false
+
+[functions.sign-contract]
+verify_jwt = false
