@@ -397,7 +397,88 @@ const InspectorDashboard = () => {
             )}
 
             {testMode && (
-              <Badge variant="outline" className="border-yellow-500/50 text-yellow-600 text-xs">🧪 وضع تجريبي — القفل الجغرافي معطل</Badge>
+              <div className="flex items-center gap-3 flex-wrap">
+                <Badge variant="outline" className="border-yellow-500/50 text-yellow-600 text-xs">🧪 وضع تجريبي — القفل الجغرافي معطل</Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-yellow-500/50 text-yellow-600 hover:bg-yellow-500/10"
+                  disabled={uploading || photosTaken >= maxPhotos}
+                  onClick={async () => {
+                    setUploading(true);
+                    const loc = currentLocation || { lat: activeMission.factory_latitude || 31.4175, lng: activeMission.factory_longitude || 31.8144 };
+                    if (!currentLocation) setCurrentLocation(loc);
+                    const total = Math.min(maxPhotos - photosTaken, 10);
+                    
+                    for (let i = 0; i < total; i++) {
+                      try {
+                        const canvas = document.createElement("canvas");
+                        canvas.width = 800;
+                        canvas.height = 600;
+                        const ctx = canvas.getContext("2d")!;
+                        
+                        // خلفية متدرجة
+                        const grad = ctx.createLinearGradient(0, 0, 800, 600);
+                        grad.addColorStop(0, `hsl(${(i * 36) % 360}, 60%, 40%)`);
+                        grad.addColorStop(1, `hsl(${(i * 36 + 120) % 360}, 50%, 30%)`);
+                        ctx.fillStyle = grad;
+                        ctx.fillRect(0, 0, 800, 600);
+                        
+                        // نص الصورة
+                        ctx.fillStyle = "#fff";
+                        ctx.font = "bold 32px monospace";
+                        ctx.textAlign = "center";
+                        ctx.fillText(`🧪 صورة تجريبية #${photosTaken + i + 1}`, 400, 250);
+                        ctx.font = "20px monospace";
+                        ctx.fillText(`المهمة: ${activeMission.deals?.deal_number || "—"}`, 400, 300);
+                        ctx.fillText(`المصنع: ${activeMission.factory_address || "دمياط، مصر"}`, 400, 340);
+                        
+                        // ختم سيادي
+                        ctx.fillStyle = "rgba(0,0,0,0.6)";
+                        ctx.fillRect(0, 540, 800, 60);
+                        ctx.fillStyle = "#fff";
+                        ctx.font = "16px monospace";
+                        ctx.textAlign = "left";
+                        const jitter = (Math.random() - 0.5) * 0.001;
+                        ctx.fillText(`📍 ${(loc.lat + jitter).toFixed(6)}, ${(loc.lng + jitter).toFixed(6)}`, 10, 565);
+                        ctx.fillText(`🕐 ${new Date().toLocaleString("ar-SA")}`, 10, 585);
+                        
+                        const blob = await new Promise<Blob>((r) => canvas.toBlob((b) => r(b!), "image/jpeg", 0.85));
+                        const filePath = `${user!.id}/${activeMission.id}/test_${Date.now()}_${i}.jpg`;
+                        
+                        const { error } = await supabase.storage.from("inspection-photos").upload(filePath, blob);
+                        if (error) throw error;
+                        
+                        const { data: urlData } = supabase.storage.from("inspection-photos").getPublicUrl(filePath);
+                        
+                        await supabase.from("deal_inspection_photos").insert({
+                          mission_id: activeMission.id,
+                          deal_id: activeMission.deal_id,
+                          photo_url: urlData.publicUrl,
+                          latitude: loc.lat + jitter,
+                          longitude: loc.lng + jitter,
+                        });
+                        
+                        setPhotosTaken((p) => p + 1);
+                        toast({ title: `📸 صورة تجريبية ${photosTaken + i + 1}/${maxPhotos}` });
+                      } catch (err: any) {
+                        toast({ title: "خطأ", description: err.message, variant: "destructive" });
+                        break;
+                      }
+                    }
+                    
+                    setUploading(false);
+                    queryClient.invalidateQueries({ queryKey: ["mission-photos-count"] });
+                    
+                    if (photosTaken + total >= maxPhotos) {
+                      completeMission.mutate();
+                    }
+                  }}
+                >
+                  <Camera className="w-4 h-4 ml-1" />
+                  {uploading ? "جاري التوليد..." : `توليد ${Math.min(maxPhotos - photosTaken, 10)} صور تجريبية`}
+                </Button>
+              </div>
             )}
 
             {/* أزرار التحكم */}
