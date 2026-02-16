@@ -133,6 +133,225 @@ export type Database = {
           },
         ]
       }
+      deal_deposits: {
+        Row: {
+          admin_notes: string | null
+          amount: number
+          client_id: string
+          created_at: string
+          currency: string
+          deal_id: string
+          id: string
+          receipt_image_url: string | null
+          receipt_number: string
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          amount: number
+          client_id: string
+          created_at?: string
+          currency?: string
+          deal_id: string
+          id?: string
+          receipt_image_url?: string | null
+          receipt_number: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          amount?: number
+          client_id?: string
+          created_at?: string
+          currency?: string
+          deal_id?: string
+          id?: string
+          receipt_image_url?: string | null
+          receipt_number?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_deposits_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deal_escrow: {
+        Row: {
+          balance: number
+          created_at: string
+          currency: string
+          deal_id: string
+          id: string
+          status: string
+          total_deposited: number
+          total_released: number
+          updated_at: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          currency?: string
+          deal_id: string
+          id?: string
+          status?: string
+          total_deposited?: number
+          total_released?: number
+          updated_at?: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          currency?: string
+          deal_id?: string
+          id?: string
+          status?: string
+          total_deposited?: number
+          total_released?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_escrow_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: true
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deal_inspection_missions: {
+        Row: {
+          assigned_by: string | null
+          completed_at: string | null
+          created_at: string
+          deal_id: string
+          factory_address: string | null
+          factory_country: string | null
+          factory_latitude: number | null
+          factory_longitude: number | null
+          geofence_radius_meters: number
+          id: string
+          inspector_id: string
+          max_photos: number
+          notes: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          completed_at?: string | null
+          created_at?: string
+          deal_id: string
+          factory_address?: string | null
+          factory_country?: string | null
+          factory_latitude?: number | null
+          factory_longitude?: number | null
+          geofence_radius_meters?: number
+          id?: string
+          inspector_id: string
+          max_photos?: number
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_by?: string | null
+          completed_at?: string | null
+          created_at?: string
+          deal_id?: string
+          factory_address?: string | null
+          factory_country?: string | null
+          factory_latitude?: number | null
+          factory_longitude?: number | null
+          geofence_radius_meters?: number
+          id?: string
+          inspector_id?: string
+          max_photos?: number
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_inspection_missions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deal_inspection_photos: {
+        Row: {
+          ai_analysis: string | null
+          ai_status: string | null
+          captured_at: string
+          created_at: string
+          deal_id: string
+          id: string
+          latitude: number
+          longitude: number
+          mission_id: string
+          photo_url: string
+        }
+        Insert: {
+          ai_analysis?: string | null
+          ai_status?: string | null
+          captured_at?: string
+          created_at?: string
+          deal_id: string
+          id?: string
+          latitude: number
+          longitude: number
+          mission_id: string
+          photo_url: string
+        }
+        Update: {
+          ai_analysis?: string | null
+          ai_status?: string | null
+          captured_at?: string
+          created_at?: string
+          deal_id?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          mission_id?: string
+          photo_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_inspection_photos_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_inspection_photos_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "deal_inspection_missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_negotiations: {
         Row: {
           created_at: string
@@ -457,6 +676,62 @@ export type Database = {
         }
         Relationships: []
       }
+      deal_tokens: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          currency: string
+          deal_id: string
+          id: string
+          percentage: number
+          rejection_reason: string | null
+          released_at: string | null
+          status: string
+          token_type: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          currency?: string
+          deal_id: string
+          id?: string
+          percentage: number
+          rejection_reason?: string | null
+          released_at?: string | null
+          status?: string
+          token_type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          currency?: string
+          deal_id?: string
+          id?: string
+          percentage?: number
+          rejection_reason?: string | null
+          released_at?: string | null
+          status?: string
+          token_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_tokens_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deals: {
         Row: {
           city: string | null
@@ -602,6 +877,7 @@ export type Database = {
       }
       employee_details: {
         Row: {
+          country: string | null
           created_at: string
           description: string | null
           id: string
@@ -612,6 +888,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          country?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -622,6 +899,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          country?: string | null
           created_at?: string
           description?: string | null
           id?: string
