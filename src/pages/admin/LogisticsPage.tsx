@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { Truck, Package, Ship, Camera, CheckCircle, ExternalLink } from "lucide-react";
 
-const LogisticsPage = () => { // logistics page
+const LogisticsPage = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [trackingUrl, setTrackingUrl] = useState("");
@@ -38,7 +38,6 @@ const LogisticsPage = () => { // logistics page
       if (!trackingUrl.trim()) throw new Error("رابط التتبع مطلوب");
       setUploading(true);
 
-      // رفع صورة الختم إن وجدت
       let sealPhotoUrl = "";
       if (sealPhoto) {
         const filePath = `logistics/${dealId}/${Date.now()}_seal.jpg`;
@@ -49,7 +48,6 @@ const LogisticsPage = () => { // logistics page
         }
       }
 
-      // استدعاء Edge Function
       const { error } = await supabase.functions.invoke("process-post-inspection", {
         body: {
           deal_id: dealId,
@@ -95,9 +93,23 @@ const LogisticsPage = () => { // logistics page
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-6">
-        <Truck className="w-7 h-7 text-primary" />
-        <h1 className="font-heading text-2xl font-bold">إدارة اللوجستيك والشحن</h1>
+      {/* هوية الموظف */}
+      <div className="mb-6 p-4 rounded-xl border border-purple-500/30 bg-purple-500/5">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center">
+            <Truck className="w-6 h-6 text-purple-500" />
+          </div>
+          <div>
+            <h1 className="font-heading text-2xl font-bold">موظف اللوجستيك</h1>
+            <p className="text-sm text-muted-foreground italic">"نوثّق كل شحنة.. ونتابع كل رحلة حتى الميناء"</p>
+          </div>
+          <Badge className="mr-auto bg-purple-500/20 text-purple-600 border-purple-500/30">لوجستيك</Badge>
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+          <span>📦 توثيق الشحنات</span>
+          <span>📸 تصوير الأختام</span>
+          <span>🔗 إدارة روابط التتبع</span>
+        </div>
       </div>
 
       {/* إحصائيات */}
