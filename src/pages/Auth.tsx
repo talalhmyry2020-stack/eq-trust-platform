@@ -66,7 +66,21 @@ const Auth = () => {
         if (userRoles.includes("admin")) {
           navigate("/admin");
         } else if (userRoles.includes("employee")) {
-          navigate("/inspector");
+          // تحقق من نوع الموظف للتوجيه المناسب
+          const { data: empDetails } = await supabase
+            .from("employee_details")
+            .select("job_code")
+            .eq("user_id", signInData.user.id)
+            .single();
+
+          const jobCode = empDetails?.job_code || "";
+          if (jobCode === "logistics") {
+            navigate("/admin/logistics");
+          } else if (jobCode === "customs_agent") {
+            navigate("/admin/port-clearance");
+          } else {
+            navigate("/inspector");
+          }
         } else {
           navigate("/client");
         }
