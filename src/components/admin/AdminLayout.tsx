@@ -5,7 +5,7 @@ import AdminSidebar from "./AdminSidebar";
 
 const AdminLayout = () => {
   const { user, loading: authLoading } = useAuth();
-  const { isAdmin, loading: roleLoading } = useRole();
+  const { isAdmin, isEmployee, loading: roleLoading } = useRole();
 
   if (authLoading || roleLoading) {
     return (
@@ -15,7 +15,7 @@ const AdminLayout = () => {
     );
   }
 
-  if (!user || !isAdmin) {
+  if (!user || (!isAdmin && !isEmployee)) {
     return <Navigate to="/auth" replace />;
   }
 
