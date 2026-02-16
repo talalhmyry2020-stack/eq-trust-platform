@@ -219,18 +219,46 @@ const InspectorDashboard = () => {
       if (!activeMission) return;
       stopCamera();
 
+      const missionType = (activeMission as any).mission_type || "initial";
+
       await supabase.from("deal_inspection_missions").update({
         status: "completed",
         completed_at: new Date().toISOString(),
+        quality_status: "approved",
       }).eq("id", activeMission.id);
 
-      await supabase.from("deals").update({ current_phase: "inspection_completed" }).eq("id", activeMission.deal_id);
+      // تحديد المرحلة التالية حسب نوع المهمة
+      let nextPhase = "inspection_completed";
+      let notifTitle = "اكتمال مهمة الفحص";
+      let notifMsg = `أكمل المفتش مهمة الفحص للصفقة #${activeMission.deals?.deal_number}. ${photosTaken} صور تم رفعها.`;
+
+      if (missionType === "quality") {
+        nextPhase = "quality_approved";
+        notifTitle = "فحص الجودة مكتمل ✅";
+        notifMsg = `أكمل المفتش فحص جودة الإنتاج للصفقة #${activeMission.deals?.deal_number}. الجودة: معتمدة.`;
+        
+        // تشغيل إنشاء Token B آلياً
+        await supabase.functions.invoke("process-post-inspection", {
+          body: { deal_id: activeMission.deal_id, action: "quality_approved" },
+        });
+      } else if (missionType === "port") {
+        nextPhase = "port_inspection_complete";
+        notifTitle = "فحص الميناء مكتمل ✅";
+        notifMsg = `أكمل المفتش فحص البضاعة في الميناء للصفقة #${activeMission.deals?.deal_number}. البضاعة سليمة.`;
+        
+        // تشغيل العداد السيادي آلياً
+        await supabase.functions.invoke("process-post-inspection", {
+          body: { deal_id: activeMission.deal_id, action: "port_inspection_complete" },
+        });
+      } else {
+        await supabase.from("deals").update({ current_phase: nextPhase }).eq("id", activeMission.deal_id);
+      }
 
       if (activeMission.assigned_by) {
         await supabase.from("notifications").insert({
           user_id: activeMission.assigned_by,
-          title: "اكتمال مهمة الفحص",
-          message: `أكمل المفتش مهمة الفحص للصفقة #${activeMission.deals?.deal_number}. ${photosTaken} صور تم رفعها.`,
+          title: notifTitle,
+          message: notifMsg,
           type: "inspection",
           entity_type: "deal",
           entity_id: activeMission.deal_id,
@@ -295,7 +323,7 @@ const InspectorDashboard = () => {
             <CardTitle className="flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <Camera className="w-5 h-5 text-primary" />
-                صفقة #{activeMission.deals?.deal_number} — {activeMission.deals?.title}
+                {(activeMission as any).mission_type === "quality" ? "🔍 فحص جودة" : (activeMission as any).mission_type === "port" ? "⚓ فحص ميناء" : "📸 فحص أولي"} — صفقة #{activeMission.deals?.deal_number}
               </span>
               <Badge variant={missionStarted ? "default" : "secondary"}>
                 {missionStarted ? "قيد التنفيذ" : "معيّنة — اضغط بدء"}

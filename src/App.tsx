@@ -26,6 +26,7 @@ import ContractReviewPage from "./pages/admin/ContractReviewPage";
 import AdminContractsPage from "./pages/admin/AdminContractsPage";
 import AdminFinancePage from "./pages/admin/AdminFinancePage";
 import AdminInspectorAssignPage from "./pages/admin/AdminInspectorAssignPage";
+import WorkflowManagerPage from "./pages/admin/WorkflowManagerPage";
 import ClientLayout from "./components/client/ClientLayout";
 import ClientDashboard from "./pages/client/ClientDashboard";
 import ClientDeals from "./pages/client/ClientDeals";
@@ -74,6 +75,7 @@ const App = () => (
               <Route path="contracts" element={<AdminContractsPage />} />
               <Route path="finance" element={<AdminFinancePage />} />
               <Route path="inspector-assign" element={<AdminInspectorAssignPage />} />
+              <Route path="workflow" element={<WorkflowManagerPage />} />
               <Route path="notifications" element={<AdminNotificationsPage />} />
               <Route path="chat" element={<AdminChatPage />} />
               <Route path="logs" element={<LogsPage />} />
