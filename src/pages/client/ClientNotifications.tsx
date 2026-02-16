@@ -3,33 +3,57 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Handshake, AlertTriangle, MessageSquare } from "lucide-react";
+import { Bell, Handshake, AlertTriangle, MessageSquare, FileText, Loader2 } from "lucide-react";
 
 const typeConfig: Record<string, { icon: any; label: string; color: string }> = {
   deal_update: { icon: Handshake, label: "تحديث صفقة", color: "text-primary" },
   delay: { icon: AlertTriangle, label: "تأخير", color: "text-destructive" },
   admin_message: { icon: MessageSquare, label: "رسالة إدارية", color: "text-blue-500" },
+  contract_ready: { icon: FileText, label: "عقد جاهز", color: "text-primary" },
+  contract_sign_code: { icon: FileText, label: "رمز توقيع", color: "text-primary" },
+  contract_signed: { icon: FileText, label: "عقد موقّع", color: "text-green-500" },
+  negotiation_complete: { icon: Handshake, label: "تفاوض مكتمل", color: "text-primary" },
   info: { icon: Bell, label: "إشعار", color: "text-muted-foreground" },
 };
 
 const ClientNotifications = () => {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => setNotifications(data || []));
+    
+    const fetchNotifications = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+      
+      if (error) {
+        console.error("Error fetching notifications:", error);
+      }
+      setNotifications(data || []);
+      setLoading(false);
+    };
+
+    fetchNotifications();
   }, [user]);
 
   const markAsRead = async (id: string) => {
     await supabase.from("notifications").update({ is_read: true }).eq("id", id);
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div>
