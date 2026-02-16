@@ -185,9 +185,9 @@ const AdminContractsPage = () => {
                           <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
                             <span>👤 {c.client_name || "—"}</span>
                             <span>🏭 {c.factory_name || "—"}</span>
-                            <span>🚢 {c.shipping_type}</span>
-                            <span>💰 {productAmount.toLocaleString()} {c.currency}</span>
-                            <span>📊 عمولة {c.platform_fee_percentage}%</span>
+                            <span>💰 قيمة الصفقة: {productAmount.toLocaleString()} {c.currency}</span>
+                            <span>📊 عمولة المنصة ({c.platform_fee_percentage}%): {feeAmount.toLocaleString("en", { maximumFractionDigits: 0 })} {c.currency}</span>
+                            <span>💵 الإجمالي: {(productAmount + feeAmount).toLocaleString("en", { maximumFractionDigits: 0 })} {c.currency}</span>
                           </div>
                           {c.signed_at && (
                             <p className="text-xs text-green-500 mt-1">
