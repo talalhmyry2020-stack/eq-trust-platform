@@ -26,12 +26,26 @@ const AdminInspectorAssignPage = () => {
   const { data: dealsNeedingInspector = [] } = useQuery({
     queryKey: ["deals-needing-inspector"],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data: deals } = await supabase
         .from("deals")
-        .select("id, title, deal_number, client_full_name, current_phase")
+        .select("id, title, deal_number, client_full_name, current_phase, import_country, country, city")
         .eq("current_phase", "deposit_approved")
         .order("created_at", { ascending: false });
-      return data || [];
+
+      if (!deals?.length) return [];
+
+      const dealIds = deals.map(d => d.id);
+      // جلب بيانات التفاوض المقبولة لكل صفقة
+      const { data: negotiations } = await supabase
+        .from("deal_negotiations")
+        .select("deal_id, factory_name, factory_country, factory_email, factory_phone")
+        .in("deal_id", dealIds)
+        .eq("status", "accepted");
+
+      return deals.map(d => {
+        const neg = negotiations?.find(n => n.deal_id === d.id);
+        return { ...d, negotiation: neg || null };
+      });
     },
   });
 
@@ -161,8 +175,18 @@ const AdminInspectorAssignPage = () => {
               <div>
                 <p className="font-medium">صفقة #{deal.deal_number} — {deal.title}</p>
                 <p className="text-sm text-muted-foreground">{deal.client_full_name}</p>
+                {deal.negotiation && (
+                  <p className="text-sm text-primary">🏭 {deal.negotiation.factory_name} — {deal.negotiation.factory_country}</p>
+                )}
               </div>
-              <Button size="sm" onClick={() => setAssignDialog(deal)}>
+              <Button size="sm" onClick={() => {
+                  setAssignDialog(deal);
+                  setFactoryCountry(deal.negotiation?.factory_country || deal.import_country || deal.country || "");
+                  setFactoryAddress(deal.city || "");
+                  setFactoryLat("");
+                  setFactoryLng("");
+                  setSelectedInspector("");
+                }}>
                 <MapPin className="w-4 h-4 ml-2" />
                 تعيين مفتش
               </Button>
