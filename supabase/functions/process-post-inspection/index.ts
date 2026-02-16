@@ -387,6 +387,42 @@ serve(async (req) => {
         break;
       }
 
+      // === اعتراض العميل — إيقاف العداد السيادي ===
+      case "client_objection": {
+        const { reason, client_id: objClientId } = data || {};
+        if (!reason || !objClientId) throw new Error("reason and client_id required");
+
+        // إيقاف العداد
+        await supabase.from("deals").update({
+          current_phase: "objection_raised",
+          sovereignty_timer_end: null,
+        }).eq("id", deal_id);
+
+        // تسجيل الاعتراض
+        await supabase.from("deal_objections").insert({
+          deal_id,
+          client_id: objClientId,
+          reason,
+          status: "pending",
+        });
+
+        // إشعار المدير
+        const { data: admins } = await supabase.rpc("get_admin_contacts");
+        for (const admin of admins || []) {
+          await supabase.from("notifications").insert({
+            user_id: admin.user_id,
+            title: "🚨 اعتراض عميل — تم إيقاف العداد السيادي",
+            message: `الصفقة #${deal.deal_number}: اعترض العميل. السبب: ${reason.substring(0, 100)}`,
+            type: "objection",
+            entity_type: "deal",
+            entity_id: deal_id,
+          });
+        }
+
+        result.message = "تم تسجيل الاعتراض وإيقاف العداد السيادي";
+        break;
+      }
+
       default:
         throw new Error("Unknown action: " + action);
     }

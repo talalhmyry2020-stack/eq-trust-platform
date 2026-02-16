@@ -27,6 +27,7 @@ import AdminContractsPage from "./pages/admin/AdminContractsPage";
 import AdminFinancePage from "./pages/admin/AdminFinancePage";
 import AdminInspectorAssignPage from "./pages/admin/AdminInspectorAssignPage";
 import WorkflowManagerPage from "./pages/admin/WorkflowManagerPage";
+import LogisticsPage from "./pages/admin/LogisticsPage";
 import ClientLayout from "./components/client/ClientLayout";
 import ClientDashboard from "./pages/client/ClientDashboard";
 import ClientDeals from "./pages/client/ClientDeals";
@@ -39,6 +40,7 @@ import ClientNegotiationResults from "./pages/client/ClientNegotiationResults";
 import ClientContractPage from "./pages/client/ClientContractPage";
 import ClientContractsListPage from "./pages/client/ClientContractsListPage";
 import ClientTreasuryPage from "./pages/client/ClientTreasuryPage";
+import ClientTrackingPage from "./pages/client/ClientTrackingPage";
 import InspectorLayout from "./components/inspector/InspectorLayout";
 import InspectorDashboard from "./pages/inspector/InspectorDashboard";
 import BriefingPage from "./pages/inspector/BriefingPage";
@@ -76,6 +78,7 @@ const App = () => (
               <Route path="finance" element={<AdminFinancePage />} />
               <Route path="inspector-assign" element={<AdminInspectorAssignPage />} />
               <Route path="workflow" element={<WorkflowManagerPage />} />
+              <Route path="logistics" element={<LogisticsPage />} />
               <Route path="notifications" element={<AdminNotificationsPage />} />
               <Route path="chat" element={<AdminChatPage />} />
               <Route path="logs" element={<LogsPage />} />
@@ -93,6 +96,7 @@ const App = () => (
               <Route path="negotiation-results" element={<ClientNegotiationResults />} />
               <Route path="contracts" element={<ClientContractsListPage />} />
               <Route path="treasury" element={<ClientTreasuryPage />} />
+              <Route path="tracking" element={<ClientTrackingPage />} />
               <Route path="contract" element={<ClientContractPage />} />
             </Route>
             <Route path="/inspector" element={<InspectorLayout />}>
