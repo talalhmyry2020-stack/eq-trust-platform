@@ -82,24 +82,30 @@ function clearStoredOTP() {
   sessionStorage.removeItem(OTP_STORAGE_KEY);
 }
 
-// Extract body content from full HTML document
+// Extract body content from full HTML document, preserving styles
 function extractBodyContent(html: string): string {
+  // Extract <style> tags to preserve them
+  const styleMatches = html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || [];
+  const styles = styleMatches.join("\n");
+
   // If it contains <body>, extract only body content
-  const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
   let content = bodyMatch ? bodyMatch[1] : html;
   
-  // Remove any remaining <html>, <head>, <style>, <meta>, <title>, <!DOCTYPE> tags
+  // Remove any remaining structural tags
   content = content.replace(/<head[\s\S]*?<\/head>/gi, "");
   content = content.replace(/<\/?html[^>]*>/gi, "");
   content = content.replace(/<\/?body[^>]*>/gi, "");
   content = content.replace(/<!DOCTYPE[^>]*>/gi, "");
+  content = content.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "");
   
-  // Remove signature blocks
+  // Remove ONLY signature blocks - use targeted selectors, not greedy patterns
   content = content.replace(/<div[^>]*class="signature-block"[^>]*>[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/gi, "");
-  content = content.replace(/<(div|section|table)[^>]*>[\s\S]*?(التوقيعات|التواقيع|توقيع الأطراف|Signatures?)[\s\S]*?<\/\1>/gi, "");
-  content = content.replace(/<div[^>]*class="signature[^"]*"[^>]*>[\s\S]*?<\/div>/gi, "");
+  content = content.replace(/<div[^>]*class="signature-party"[^>]*>[\s\S]*?<\/div>/gi, "");
+  content = content.replace(/<div[^>]*class="signature-line"[^>]*>[\s\S]*?<\/div>/gi, "");
   
-  return content.trim();
+  // Prepend styles so CSS classes work
+  return (styles ? styles + "\n" : "") + content.trim();
 }
 
 // Split HTML contract into pages
@@ -304,7 +310,7 @@ const ClientContractPage = () => {
     </div>
   );
 
-  const isClientReview = contract.status === "client_review";
+  const isClientReview = contract.status === "client_review" || contract.status === "client_signing";
   const isSignable = contract.status === "client_signing" && !contract.client_signed;
   const statusLabel = STATUS_LABELS[contract.status] || contract.status;
   const totalPages = pages.length;
