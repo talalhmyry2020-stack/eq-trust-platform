@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { UserCheck, MapPin, Camera, CheckCircle, Image } from "lucide-react";
+import { UserCheck, MapPin, Camera, CheckCircle, Image, Search, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const AdminInspectorAssignPage = () => {
@@ -21,6 +21,32 @@ const AdminInspectorAssignPage = () => {
   const [factoryAddress, setFactoryAddress] = useState("");
   const [factoryCountry, setFactoryCountry] = useState("");
   const [galleryMission, setGalleryMission] = useState<any>(null);
+  const [geoLoading, setGeoLoading] = useState(false);
+
+  // بحث تلقائي عن الإحداثيات من العنوان
+  const lookupCoordinates = async () => {
+    const query = [factoryAddress, factoryCountry].filter(Boolean).join(", ");
+    if (!query) {
+      toast({ title: "أدخل العنوان أو الدولة أولاً", variant: "destructive" });
+      return;
+    }
+    setGeoLoading(true);
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
+      const data = await res.json();
+      if (data?.length > 0) {
+        setFactoryLat(data[0].lat);
+        setFactoryLng(data[0].lon);
+        toast({ title: "تم تحديد الموقع بنجاح", description: data[0].display_name });
+      } else {
+        toast({ title: "لم يتم العثور على الموقع", description: "حاول تعديل العنوان", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "خطأ في البحث", variant: "destructive" });
+    } finally {
+      setGeoLoading(false);
+    }
+  };
 
   // صفقات تحتاج تعيين مفتش (بعد الموافقة على الإيداع)
   const { data: dealsNeedingInspector = [] } = useQuery({
@@ -281,6 +307,10 @@ const AdminInspectorAssignPage = () => {
               <Label>عنوان المصنع</Label>
               <Input value={factoryAddress} onChange={(e) => setFactoryAddress(e.target.value)} placeholder="العنوان الكامل..." className="mt-1" />
             </div>
+            <Button type="button" variant="outline" size="sm" onClick={lookupCoordinates} disabled={geoLoading} className="w-full">
+              {geoLoading ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Search className="w-4 h-4 ml-2" />}
+              بحث تلقائي عن الإحداثيات
+            </Button>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>خط العرض (Latitude)</Label>
