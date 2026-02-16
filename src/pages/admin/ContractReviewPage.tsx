@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { FileText, CheckCircle, RotateCcw, Loader2, Factory, AlertTriangle, MessageSquareWarning } from "lucide-react";
+import { FileText, CheckCircle, RotateCcw, Loader2, Factory, AlertTriangle, MessageSquareWarning, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface Contract {
   id: string;
@@ -43,6 +43,43 @@ const STATUS_LABELS: Record<string, { label: string; variant: "default" | "secon
   signed: { label: "تم التوقيع والاعتماد", variant: "default" },
 };
 
+const contractCSS = `
+  .contract-page h1 { font-size:24px;font-weight:800;text-align:center;margin-bottom:16px;border-bottom:3px double #000;padding-bottom:12px }
+  .contract-page h2 { font-size:20px;font-weight:700;margin-top:24px;margin-bottom:12px;padding:8px 16px;background:#f5f5f5;border-right:4px solid #000;border-radius:0 4px 4px 0 }
+  .contract-page h3 { font-size:17px;font-weight:700;margin-top:16px;margin-bottom:8px }
+  .contract-page p { margin-bottom:8px;text-align:justify }
+  .contract-page table { width:100%;border-collapse:collapse;margin:16px 0 }
+  .contract-page th,.contract-page td { border:1px solid #333;padding:10px 14px;text-align:right;font-size:14px }
+  .contract-page th { background:#e8e8e8;font-weight:700 }
+  .contract-page ul,.contract-page ol { padding-right:24px;margin-bottom:12px }
+  .contract-page li { margin-bottom:6px }
+`;
+
+function extractBodyContent(html: string): string {
+  if (!html) return "";
+  let content = html;
+  const bodyMatch = content.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+  if (bodyMatch) content = bodyMatch[1];
+  content = content.replace(/<!DOCTYPE[^>]*>/gi, "");
+  content = content.replace(/<head[^>]*>[\s\S]*?<\/head>/gi, "");
+  content = content.replace(/<\/?html[^>]*>/gi, "");
+  content = content.replace(/<\/?body[^>]*>/gi, "");
+  content = content.replace(/<meta[^>]*>/gi, "");
+  content = content.replace(/<title[^>]*>[\s\S]*?<\/title>/gi, "");
+  content = content.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "");
+  return content.trim();
+}
+
+function splitContractPages(html: string): string[] {
+  const cleaned = extractBodyContent(html);
+  if (!cleaned || cleaned.replace(/<[^>]*>/g, "").trim().length < 20) return [cleaned || ""];
+  const parts = cleaned.split(/(?=<h2[\s>])/gi).filter(p => p.replace(/<[^>]*>/g, "").trim().length > 10);
+  if (parts.length > 1) return parts;
+  const hrParts = cleaned.split(/<hr\s*\/?>/gi).filter(p => p.replace(/<[^>]*>/g, "").trim().length > 10);
+  if (hrParts.length > 1) return hrParts;
+  return [cleaned];
+}
+
 const ContractReviewPage = () => {
   const [searchParams] = useSearchParams();
   const dealId = searchParams.get("deal_id");
@@ -51,6 +88,7 @@ const ContractReviewPage = () => {
   const [adminNotes, setAdminNotes] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [dealNumber, setDealNumber] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
 
   const fetchContract = async () => {
     if (!dealId) return;
@@ -266,30 +304,37 @@ const ContractReviewPage = () => {
         </CardContent></Card>
       </div>
 
-      {/* Contract document */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="w-5 h-5" />
-            نص العقد
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="bg-white rounded-lg border shadow-inner overflow-auto">
-            <div
-              className="p-8 md:p-12 min-h-[500px]"
-              dir="rtl"
-              style={{
-                fontFamily: "'Cairo', 'Tajawal', sans-serif",
-                color: "#000",
-                lineHeight: "1.8",
-                fontSize: "14px",
-              }}
-              dangerouslySetInnerHTML={{ __html: contract.contract_html }}
-            />
-          </div>
-        </CardContent>
-      </Card>
+      {/* Paginated contract document */}
+      {(() => {
+        const pages = splitContractPages(contract.contract_html);
+        const totalPages = pages.length;
+        return (
+          <>
+            <style>{contractCSS}</style>
+            <div className="bg-white rounded-xl shadow-xl border-2 border-gray-300 overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-3 bg-gray-100 border-b-2 border-gray-300">
+                <span className="text-sm font-bold text-gray-700">
+                  📄 صفحة {currentPage + 1} من {totalPages}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(0, p - 1))} disabled={currentPage === 0} className="gap-1">
+                    <ChevronRight className="w-4 h-4" /> السابق
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))} disabled={currentPage >= totalPages - 1} className="gap-1">
+                    التالي <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+              <div
+                className="contract-page p-8 md:p-14 min-h-[700px] bg-white"
+                dir="rtl"
+                style={{ fontFamily: "'Cairo','Tajawal',sans-serif", color: "#000", lineHeight: "2", fontSize: "15px" }}
+                dangerouslySetInnerHTML={{ __html: pages[currentPage] || "" }}
+              />
+            </div>
+          </>
+        );
+      })()}
 
       {/* Admin approval after client signed */}
       {contract.status === "admin_approval" && contract.client_signed && (
