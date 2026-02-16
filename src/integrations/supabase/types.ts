@@ -250,7 +250,10 @@ export type Database = {
           id: string
           inspector_id: string
           max_photos: number
+          mission_type: string
           notes: string | null
+          quality_report: string | null
+          quality_status: string | null
           status: string
           updated_at: string
         }
@@ -267,7 +270,10 @@ export type Database = {
           id?: string
           inspector_id: string
           max_photos?: number
+          mission_type?: string
           notes?: string | null
+          quality_report?: string | null
+          quality_status?: string | null
           status?: string
           updated_at?: string
         }
@@ -284,7 +290,10 @@ export type Database = {
           id?: string
           inspector_id?: string
           max_photos?: number
+          mission_type?: string
           notes?: string | null
+          quality_report?: string | null
+          quality_status?: string | null
           status?: string
           updated_at?: string
         }
@@ -752,10 +761,14 @@ export type Database = {
           id: string
           identity_doc_url: string | null
           import_country: string | null
+          logistics_employee_id: string | null
           national_id: string | null
           product_description: string | null
           product_image_url: string | null
           product_type: string | null
+          shipping_tracking_url: string | null
+          sovereignty_timer_end: string | null
+          sovereignty_timer_start: string | null
           stage_id: string | null
           status: Database["public"]["Enums"]["deal_status"]
           title: string
@@ -780,10 +793,14 @@ export type Database = {
           id?: string
           identity_doc_url?: string | null
           import_country?: string | null
+          logistics_employee_id?: string | null
           national_id?: string | null
           product_description?: string | null
           product_image_url?: string | null
           product_type?: string | null
+          shipping_tracking_url?: string | null
+          sovereignty_timer_end?: string | null
+          sovereignty_timer_start?: string | null
           stage_id?: string | null
           status?: Database["public"]["Enums"]["deal_status"]
           title?: string
@@ -808,10 +825,14 @@ export type Database = {
           id?: string
           identity_doc_url?: string | null
           import_country?: string | null
+          logistics_employee_id?: string | null
           national_id?: string | null
           product_description?: string | null
           product_image_url?: string | null
           product_type?: string | null
+          shipping_tracking_url?: string | null
+          sovereignty_timer_end?: string | null
+          sovereignty_timer_start?: string | null
           stage_id?: string | null
           status?: Database["public"]["Enums"]["deal_status"]
           title?: string
