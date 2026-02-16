@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { Truck, Package, Ship, Camera, CheckCircle, ExternalLink } from "lucide-react";
 
-const LogisticsPage = () => {
+const LogisticsPage = () => { // logistics page
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [trackingUrl, setTrackingUrl] = useState("");
