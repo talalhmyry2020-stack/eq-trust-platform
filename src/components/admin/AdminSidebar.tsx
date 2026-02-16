@@ -15,6 +15,7 @@ import {
   DollarSign,
   UserCheck,
   Workflow,
+  Anchor,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,7 @@ const navItems = [
   { to: "/admin/inspector-assign", icon: UserCheck, label: "المفتشون" },
   { to: "/admin/workflow", icon: Workflow, label: "سير العمل" },
   { to: "/admin/logistics", icon: Workflow, label: "اللوجستيك" },
+  { to: "/admin/port-clearance", icon: Anchor, label: "مخلّص الميناء" },
   { to: "/admin/archive", icon: Archive, label: "الأرشيف" },
   { to: "/admin/product-search", icon: Search, label: "نتائج البحث" },
   { to: "/admin/factory-search", icon: Search, label: "بحث المصانع" },
