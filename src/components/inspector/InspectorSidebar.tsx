@@ -18,6 +18,7 @@ const navItems = [
   { to: "/inspector/briefing", icon: FileText, label: "المسطرة الرقمية" },
   { to: "/inspector/geofence", icon: MapPin, label: "القفل الجغرافي" },
   { to: "/inspector/capture", icon: Camera, label: "التوثيق المقيد" },
+  { to: "/inspector/mission", icon: Camera, label: "مهام الفحص" },
   { to: "/inspector/validate", icon: Eye, label: "المطابقة البصرية" },
   { to: "/inspector/reports", icon: CloudUpload, label: "التقارير" },
   { to: "/inspector/settings", icon: Settings, label: "الإعدادات" },

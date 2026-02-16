@@ -9,6 +9,7 @@ import {
   LogOut,
   MessageSquare,
   FileText,
+  Vault,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,7 @@ const navItems = [
   { to: "/client", icon: LayoutDashboard, label: "الرئيسية" },
   { to: "/client/deals", icon: Handshake, label: "صفقاتي" },
   { to: "/client/contracts", icon: FileText, label: "العقود" },
+  { to: "/client/treasury", icon: Vault, label: "الخزينة" },
   { to: "/client/archive", icon: Archive, label: "الأرشيف" },
   { to: "/client/notifications", icon: Bell, label: "الإشعارات" },
   { to: "/client/chat", icon: MessageSquare, label: "الدردشة" },
