@@ -5,11 +5,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { FileText, Send, CheckCircle, Loader2, ShieldCheck, KeyRound, Truck } from "lucide-react";
+import { FileText, Send, CheckCircle, Loader2, ShieldCheck, KeyRound, MessageSquareWarning } from "lucide-react";
 
 interface Contract {
   id: string;
@@ -24,20 +24,19 @@ interface Contract {
   status: string;
   client_signed: boolean;
   signed_at: string | null;
+  client_notes: string | null;
 }
 
-const SHIPPING_OPTIONS = [
-  { value: "CIF", label: "CIF - التسليم في ميناء المستورد", fee: "3%" },
-  { value: "FOB", label: "FOB - التسليم في ميناء المورّد", fee: "5%" },
-  { value: "DOOR_TO_DOOR", label: "Door to Door - التسليم من الباب للباب", fee: "7%" },
-];
-
 const STATUS_LABELS: Record<string, string> = {
-  client_review: "بانتظار اختيارك لنوع الشحن",
+  drafting: "جاري صياغة العقد",
+  client_review: "بانتظار مراجعتك",
+  client_objection: "تم إرسال ملاحظاتك - قيد المراجعة",
   admin_review: "قيد مراجعة المدير",
-  revision: "جاري التعديل",
+  revision: "جاري تعديل العقد",
   factory_review: "قيد موافقة المصنع",
   client_signing: "جاهز للتوقيع",
+  admin_approval: "بانتظار موافقة المدير",
+  factory_approval: "بانتظار موافقة المورّد",
   signed: "تم التوقيع",
 };
 
@@ -51,7 +50,7 @@ const ClientContractPage = () => {
   const [verifyCode, setVerifyCode] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [dealNumber, setDealNumber] = useState<number | null>(null);
-  const [selectedShipping, setSelectedShipping] = useState("FOB");
+  const [clientNotes, setClientNotes] = useState("");
 
   const fetchContract = async () => {
     if (!dealId) return;
@@ -73,38 +72,53 @@ const ClientContractPage = () => {
       .limit(1);
 
     if (data && data.length > 0) {
-      const c = data[0] as unknown as Contract;
-      setContract(c);
-      setSelectedShipping(c.shipping_type);
+      setContract(data[0] as unknown as Contract);
     }
     setLoading(false);
   };
 
   useEffect(() => { fetchContract(); }, [dealId]);
 
-  const handleSubmitShipping = async () => {
+  // Client approves contract → move to signing
+  const handleApproveContract = async () => {
     if (!contract) return;
     setActionLoading(true);
 
-    // Update contract with selected shipping type and recalculate fee
-    const feeMap: Record<string, number> = { CIF: 3, FOB: 5, DOOR_TO_DOOR: 7 };
-    const newFee = feeMap[selectedShipping] || 7;
-
     await supabase
       .from("deal_contracts")
-      .update({
-        shipping_type: selectedShipping,
-        platform_fee_percentage: newFee,
-        status: "admin_review",
-      })
+      .update({ status: "client_signing", client_notes: null })
       .eq("id", contract.id);
 
     await supabase
       .from("deals")
-      .update({ current_phase: "contract_review" })
+      .update({ current_phase: "contract_signing" })
       .eq("id", contract.deal_id);
 
-    toast.success("تم إرسال اختيارك للمدير للموافقة");
+    toast.success("تمت الموافقة على العقد. يمكنك الآن التوقيع الإلكتروني.");
+    setActionLoading(false);
+    fetchContract();
+  };
+
+  // Client sends notes/objections back
+  const handleSendNotes = async () => {
+    if (!contract || !clientNotes.trim()) {
+      toast.error("يرجى كتابة ملاحظاتك على العقد");
+      return;
+    }
+    setActionLoading(true);
+
+    await supabase
+      .from("deal_contracts")
+      .update({ status: "client_objection", client_notes: clientNotes.trim() })
+      .eq("id", contract.id);
+
+    await supabase
+      .from("deals")
+      .update({ current_phase: "contract_objection" })
+      .eq("id", contract.deal_id);
+
+    toast.success("تم إرسال ملاحظاتك للمدير ووكيل العقود");
+    setClientNotes("");
     setActionLoading(false);
     fetchContract();
   };
@@ -113,7 +127,7 @@ const ClientContractPage = () => {
     if (!contract) return;
     setActionLoading(true);
 
-    const { data, error } = await supabase.functions.invoke("sign-contract", {
+    const { error } = await supabase.functions.invoke("sign-contract", {
       body: { action: "send_code", contract_id: contract.id },
     });
 
@@ -133,13 +147,12 @@ const ClientContractPage = () => {
     }
     setActionLoading(true);
 
-    const { data, error } = await supabase.functions.invoke("sign-contract", {
+    const { error } = await supabase.functions.invoke("sign-contract", {
       body: { action: "verify_and_sign", contract_id: contract.id, code: verifyCode.trim() },
     });
 
     if (error) {
-      const errMsg = (error as any)?.message || "خطأ في التوقيع";
-      toast.error(errMsg);
+      toast.error("رمز التوقيع غير صحيح أو منتهي الصلاحية");
     } else {
       toast.success("تم توقيع العقد بنجاح! 🎉");
       fetchContract();
@@ -163,8 +176,8 @@ const ClientContractPage = () => {
     </div>
   );
 
-  const isSignable = contract.status === "client_signing" && !contract.client_signed;
   const isClientReview = contract.status === "client_review";
+  const isSignable = contract.status === "client_signing" && !contract.client_signed;
   const statusLabel = STATUS_LABELS[contract.status] || contract.status;
 
   return (
@@ -182,40 +195,7 @@ const ClientContractPage = () => {
         </Badge>
       </div>
 
-      {/* Shipping type selection - only when client_review */}
-      {isClientReview && (
-        <Card className="border-primary">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Truck className="w-5 h-5 text-primary" />
-              اختر نوع الشحن
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              يرجى اختيار نوع الشحن المناسب لك. تختلف نسبة عمولة المنصة حسب نوع الشحن المختار.
-            </p>
-            <Select value={selectedShipping} onValueChange={setSelectedShipping}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SHIPPING_OPTIONS.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label} (عمولة {opt.fee})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button onClick={handleSubmitShipping} disabled={actionLoading} className="w-full">
-              {actionLoading ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <Send className="w-4 h-4 ml-2" />}
-              تأكيد نوع الشحن وإرسال للموافقة
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Contract document - styled like a real paper */}
+      {/* Contract document */}
       <div className="bg-white rounded-lg shadow-lg border overflow-hidden">
         <div
           className="p-8 md:p-12 min-h-[600px]"
@@ -245,6 +225,63 @@ const ClientContractPage = () => {
           <p className="text-xl font-bold">{contract.shipping_type}</p>
         </CardContent></Card>
       </div>
+
+      {/* Client review: approve or send notes */}
+      {isClientReview && (
+        <Card className="border-primary">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-primary" />
+              مراجعة العقد
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              يرجى مراجعة العقد بعناية. إذا كنت موافقاً اضغط "موافق على العقد". إذا لديك ملاحظات اكتبها وأرسلها.
+            </p>
+
+            <div>
+              <Label className="flex items-center gap-2 mb-2">
+                <MessageSquareWarning className="w-4 h-4" />
+                ملاحظاتك على العقد (اختياري)
+              </Label>
+              <Textarea
+                value={clientNotes}
+                onChange={(e) => setClientNotes(e.target.value)}
+                placeholder="مثال: أريد تعديل بند الشحن... أو حذف الفقرة المتعلقة بـ..."
+                rows={3}
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <Button onClick={handleApproveContract} disabled={actionLoading} className="flex-1">
+                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <CheckCircle className="w-4 h-4 ml-2" />}
+                موافق على العقد
+              </Button>
+              <Button variant="outline" onClick={handleSendNotes} disabled={actionLoading || !clientNotes.trim()}>
+                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <Send className="w-4 h-4 ml-2" />}
+                إرسال الملاحظات
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Client objection sent - waiting */}
+      {contract.status === "client_objection" && (
+        <Card className="border-amber-500">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3 text-amber-600">
+              <MessageSquareWarning className="w-6 h-6" />
+              <div>
+                <p className="font-bold">تم إرسال ملاحظاتك</p>
+                <p className="text-sm text-muted-foreground">ملاحظاتك: {contract.client_notes}</p>
+                <p className="text-sm mt-1">سيتم مراجعة ملاحظاتك من المدير وإعادة صياغة العقد.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Signing section */}
       {isSignable && (
@@ -295,13 +332,28 @@ const ClientContractPage = () => {
         </Card>
       )}
 
-      {contract.client_signed && contract.signed_at && (
+      {/* Waiting for admin/factory approval after signing */}
+      {(contract.status === "admin_approval" || contract.status === "factory_approval") && contract.client_signed && (
+        <Card className="border-blue-500">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3 text-blue-600">
+              <Loader2 className="w-6 h-6 animate-spin" />
+              <div>
+                <p className="font-bold">{STATUS_LABELS[contract.status]}</p>
+                <p className="text-sm">تم توقيعك بنجاح. بانتظار الاعتمادات النهائية.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {contract.client_signed && contract.status === "signed" && contract.signed_at && (
         <Card className="border-green-500 bg-green-50 dark:bg-green-950/20">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3 text-green-600">
               <CheckCircle className="w-6 h-6" />
               <div>
-                <p className="font-bold text-lg">تم توقيع العقد بنجاح</p>
+                <p className="font-bold text-lg">تم توقيع العقد واعتماده نهائياً</p>
                 <p className="text-sm">تاريخ التوقيع: {new Date(contract.signed_at).toLocaleString("ar-SA")}</p>
               </div>
             </div>

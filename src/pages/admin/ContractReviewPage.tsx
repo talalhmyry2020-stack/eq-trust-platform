@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { FileText, CheckCircle, RotateCcw, Loader2, Factory } from "lucide-react";
+import { FileText, CheckCircle, RotateCcw, Loader2, Factory, AlertTriangle, MessageSquareWarning } from "lucide-react";
 
 interface Contract {
   id: string;
@@ -24,6 +24,7 @@ interface Contract {
   factory_country: string;
   status: string;
   admin_notes: string | null;
+  client_notes: string | null;
   revision_count: number;
   client_signed: boolean;
   signed_at: string | null;
@@ -32,18 +33,14 @@ interface Contract {
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   drafting: { label: "جاري الصياغة", variant: "outline" },
-  client_review: { label: "بانتظار اختيار العميل للشحن", variant: "secondary" },
+  client_review: { label: "بانتظار مراجعة العميل", variant: "secondary" },
+  client_objection: { label: "⚠️ العميل لديه ملاحظات", variant: "destructive" },
   admin_review: { label: "قيد مراجعة المدير", variant: "secondary" },
-  revision: { label: "قيد التعديل", variant: "outline" },
-  factory_review: { label: "قيد موافقة المصنع", variant: "secondary" },
+  revision: { label: "قيد التعديل بواسطة الوكيل", variant: "outline" },
   client_signing: { label: "بانتظار توقيع العميل", variant: "default" },
-  signed: { label: "تم التوقيع", variant: "default" },
-};
-
-const SHIPPING_LABELS: Record<string, string> = {
-  CIF: "CIF - ميناء المستورد (3%)",
-  FOB: "FOB - ميناء المورّد (5%)",
-  DOOR_TO_DOOR: "Door to Door - باب لباب (7%)",
+  admin_approval: { label: "بانتظار موافقتك", variant: "default" },
+  factory_approval: { label: "بانتظار موافقة المورّد", variant: "secondary" },
+  signed: { label: "تم التوقيع والاعتماد", variant: "default" },
 };
 
 const ContractReviewPage = () => {
@@ -82,59 +79,25 @@ const ContractReviewPage = () => {
 
   useEffect(() => { fetchContract(); }, [dealId]);
 
-  // Admin approves → send to factory
-  const handleApproveForFactory = async () => {
-    if (!contract) return;
-    setActionLoading(true);
-    
-    await supabase
-      .from("deal_contracts")
-      .update({ status: "factory_review" })
-      .eq("id", contract.id);
-
-    await supabase
-      .from("deals")
-      .update({ current_phase: "contract_factory_review" })
-      .eq("id", contract.deal_id);
-
-    toast.success("تم اعتماد العقد وإرساله للمصنع للموافقة");
-    setActionLoading(false);
-    fetchContract();
-  };
-
-  // Simulate factory approval → send to client for signing
-  const handleFactoryApproval = async () => {
+  // Admin sends client objection + own notes to agent for revision
+  const handleSendToAgent = async () => {
     if (!contract) return;
     setActionLoading(true);
 
-    await supabase
-      .from("deal_contracts")
-      .update({ status: "client_signing" })
-      .eq("id", contract.id);
+    const combinedNotes = [
+      contract.client_notes ? `ملاحظات العميل: ${contract.client_notes}` : "",
+      adminNotes.trim() ? `تعليمات المدير: ${adminNotes.trim()}` : "",
+    ].filter(Boolean).join("\n\n");
 
-    await supabase
-      .from("deals")
-      .update({ current_phase: "contract_signing" })
-      .eq("id", contract.deal_id);
-
-    toast.success("وافق المصنع على العقد - تم إرساله للعميل للتوقيع");
-    setActionLoading(false);
-    fetchContract();
-  };
-
-  const handleRequestRevision = async () => {
-    if (!contract || !adminNotes.trim()) {
-      toast.error("يرجى كتابة ملاحظات التعديل");
+    if (!combinedNotes) {
+      toast.error("لا توجد ملاحظات لإرسالها للوكيل");
+      setActionLoading(false);
       return;
     }
-    setActionLoading(true);
 
     await supabase
       .from("deal_contracts")
-      .update({ 
-        status: "revision", 
-        admin_notes: adminNotes,
-      })
+      .update({ status: "revision", admin_notes: adminNotes.trim() || null })
       .eq("id", contract.id);
 
     await supabase
@@ -144,10 +107,10 @@ const ContractReviewPage = () => {
 
     try {
       const res = await supabase.functions.invoke("draft-contract", {
-        body: { deal_id: contract.deal_id, admin_notes: adminNotes },
+        body: { deal_id: contract.deal_id, admin_notes: combinedNotes },
       });
       if (res.error) throw res.error;
-      toast.success("تم إرسال التعديلات لوكيل العقود");
+      toast.success("تم إرسال التعديلات لوكيل العقود - سيعاد إرسال العقد المعدّل للعميل");
     } catch (e) {
       toast.error("خطأ في إعادة الصياغة");
     }
@@ -155,6 +118,64 @@ const ContractReviewPage = () => {
     setAdminNotes("");
     setActionLoading(false);
     setTimeout(fetchContract, 3000);
+  };
+
+  // Admin approves after client signed
+  const handleAdminApproval = async () => {
+    if (!contract) return;
+    setActionLoading(true);
+
+    await supabase
+      .from("deal_contracts")
+      .update({ status: "factory_approval" })
+      .eq("id", contract.id);
+
+    await supabase
+      .from("deals")
+      .update({ current_phase: "contract_factory_approval" })
+      .eq("id", contract.deal_id);
+
+    toast.success("تم اعتماد العقد. بانتظار موافقة المورّد.");
+    setActionLoading(false);
+    fetchContract();
+  };
+
+  // Admin confirms factory approval → signed
+  const handleFactoryApproval = async () => {
+    if (!contract) return;
+    setActionLoading(true);
+
+    await supabase
+      .from("deal_contracts")
+      .update({ status: "signed" })
+      .eq("id", contract.id);
+
+    await supabase
+      .from("deals")
+      .update({ current_phase: "contract_signed" })
+      .eq("id", contract.deal_id);
+
+    // Notify client
+    const { data: deal } = await supabase
+      .from("deals")
+      .select("client_id")
+      .eq("id", contract.deal_id)
+      .single();
+
+    if (deal?.client_id) {
+      await supabase.from("notifications").insert({
+        user_id: deal.client_id,
+        title: `تم اعتماد العقد نهائياً - الصفقة #${dealNumber}`,
+        message: "تم اعتماد العقد من جميع الأطراف. يمكنك الاطلاع على النسخة النهائية.",
+        type: "contract_signed",
+        entity_type: "deal",
+        entity_id: contract.deal_id,
+      });
+    }
+
+    toast.success("تم اعتماد العقد نهائياً من جميع الأطراف! 🎉");
+    setActionLoading(false);
+    fetchContract();
   };
 
   if (!dealId) return <div className="text-center py-8 text-muted-foreground">لم يتم تحديد صفقة</div>;
@@ -182,7 +203,7 @@ const ContractReviewPage = () => {
         <div>
           <h1 className="font-heading text-2xl font-bold">مراجعة العقد - الصفقة #{dealNumber}</h1>
           <p className="text-muted-foreground">
-            {contract.client_name} ↔ {contract.factory_name} | {SHIPPING_LABELS[contract.shipping_type] || contract.shipping_type}
+            {contract.client_name} ↔ {contract.factory_name}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -192,6 +213,38 @@ const ContractReviewPage = () => {
           )}
         </div>
       </div>
+
+      {/* Client objection alert */}
+      {contract.status === "client_objection" && contract.client_notes && (
+        <Card className="border-destructive bg-destructive/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="w-5 h-5" />
+              ملاحظات العميل على العقد
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-background rounded-lg p-4 border">
+              <p className="font-medium">{contract.client_notes}</p>
+            </div>
+
+            <div>
+              <Label>تعليمات إضافية لوكيل العقود (اختياري)</Label>
+              <Textarea
+                value={adminNotes}
+                onChange={(e) => setAdminNotes(e.target.value)}
+                placeholder="أضف تعليماتك للوكيل: عدّل البند الثالث... احذف الفقرة... أضف شرطاً..."
+                rows={3}
+              />
+            </div>
+
+            <Button onClick={handleSendToAgent} disabled={actionLoading} className="w-full">
+              {actionLoading ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <RotateCcw className="w-4 h-4 ml-2" />}
+              إرسال للوكيل لإعادة الصياغة
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Financial summary */}
       <div className="grid grid-cols-4 gap-4">
@@ -204,7 +257,7 @@ const ContractReviewPage = () => {
           <p className="text-xl font-bold">{contract.platform_fee_percentage}%</p>
         </CardContent></Card>
         <Card><CardContent className="pt-4 text-center">
-          <p className="text-sm text-muted-foreground">نوع الشحن (اختاره العميل)</p>
+          <p className="text-sm text-muted-foreground">نوع الشحن</p>
           <p className="text-lg font-bold">{contract.shipping_type}</p>
         </CardContent></Card>
         <Card><CardContent className="pt-4 text-center">
@@ -213,7 +266,7 @@ const ContractReviewPage = () => {
         </CardContent></Card>
       </div>
 
-      {/* Contract document - styled like a real paper */}
+      {/* Contract document */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -238,67 +291,57 @@ const ContractReviewPage = () => {
         </CardContent>
       </Card>
 
-      {/* Admin actions - approve or revise */}
-      {contract.status === "admin_review" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>إجراءات المدير</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label>ملاحظات التعديل (اختياري - لإعادة الصياغة)</Label>
-              <Textarea
-                value={adminNotes}
-                onChange={(e) => setAdminNotes(e.target.value)}
-                placeholder="اكتب ملاحظاتك هنا لإعادة صياغة العقد..."
-                rows={3}
-              />
-            </div>
-
-            <div className="flex gap-3">
-              <Button onClick={handleApproveForFactory} disabled={actionLoading} className="flex-1">
-                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <CheckCircle className="w-4 h-4 ml-2" />}
-                اعتماد العقد وإرساله للمصنع
-              </Button>
-              <Button variant="outline" onClick={handleRequestRevision} disabled={actionLoading || !adminNotes.trim()}>
-                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <RotateCcw className="w-4 h-4 ml-2" />}
-                إعادة صياغة
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Factory approval action */}
-      {contract.status === "factory_review" && (
-        <Card className="border-amber-500">
+      {/* Admin approval after client signed */}
+      {contract.status === "admin_approval" && contract.client_signed && (
+        <Card className="border-primary">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Factory className="w-5 h-5 text-amber-500" />
-              موافقة المصنع
+              <CheckCircle className="w-5 h-5 text-primary" />
+              اعتماد العقد
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              العقد بانتظار موافقة المصنع. بعد الموافقة سيُرسل للعميل للتوقيع الإلكتروني.
+              العميل وقّع على العقد. اضغط "موافق" لاعتماد العقد والانتقال لموافقة المورّد.
             </p>
-            <p className="text-sm text-muted-foreground font-bold">
-              ⚠️ شرط العقد: لا يبدأ العمل حتى تأكيد المبلغ في حساب الوسيط الذكي وتفعيل التوكنات.
-            </p>
-            <Button onClick={handleFactoryApproval} disabled={actionLoading} className="w-full">
+            <Button onClick={handleAdminApproval} disabled={actionLoading} className="w-full">
               {actionLoading ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <CheckCircle className="w-4 h-4 ml-2" />}
-              تأكيد موافقة المصنع وإرسال للتوقيع
+              موافق - اعتماد العقد
             </Button>
           </CardContent>
         </Card>
       )}
 
-      {contract.client_signed && contract.signed_at && (
+      {/* Factory approval */}
+      {contract.status === "factory_approval" && (
+        <Card className="border-amber-500">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Factory className="w-5 h-5 text-amber-500" />
+              موافقة المورّد
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              بانتظار موافقة المورّد على العقد. بعد الموافقة يتم اعتماد العقد نهائياً وتبدأ المرحلة التالية.
+            </p>
+            <p className="text-sm text-muted-foreground font-bold">
+              ⚠️ لا يبدأ العمل حتى تأكيد المبلغ في حساب الوسيط الذكي وتفعيل التوكنات.
+            </p>
+            <Button onClick={handleFactoryApproval} disabled={actionLoading} className="w-full">
+              {actionLoading ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <CheckCircle className="w-4 h-4 ml-2" />}
+              تأكيد موافقة المورّد - اعتماد نهائي
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {contract.status === "signed" && contract.signed_at && (
         <Card className="border-green-500">
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 text-green-600">
               <CheckCircle className="w-5 h-5" />
-              <span className="font-bold">تم التوقيع الإلكتروني بتاريخ: {new Date(contract.signed_at).toLocaleString("ar-SA")}</span>
+              <span className="font-bold">تم التوقيع والاعتماد النهائي بتاريخ: {new Date(contract.signed_at).toLocaleString("ar-SA")}</span>
             </div>
           </CardContent>
         </Card>

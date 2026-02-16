@@ -1,0 +1,1 @@
+ALTER TABLE public.deal_contracts ADD COLUMN IF NOT EXISTS client_notes text DEFAULT NULL;

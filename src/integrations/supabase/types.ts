@@ -50,6 +50,7 @@ export type Database = {
           buffer_days: number
           client_country: string | null
           client_name: string | null
+          client_notes: string | null
           client_signed: boolean
           contract_html: string
           contract_text: string
@@ -75,6 +76,7 @@ export type Database = {
           buffer_days?: number
           client_country?: string | null
           client_name?: string | null
+          client_notes?: string | null
           client_signed?: boolean
           contract_html?: string
           contract_text?: string
@@ -100,6 +102,7 @@ export type Database = {
           buffer_days?: number
           client_country?: string | null
           client_name?: string | null
+          client_notes?: string | null
           client_signed?: boolean
           contract_html?: string
           contract_text?: string
