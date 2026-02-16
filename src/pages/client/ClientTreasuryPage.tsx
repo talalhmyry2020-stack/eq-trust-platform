@@ -33,7 +33,7 @@ const ClientTreasuryPage = () => {
     queryFn: async () => {
       const { data: contracts } = await supabase
         .from("deal_contracts")
-        .select("deal_id, total_amount, currency, status")
+        .select("deal_id, total_amount, currency, status, platform_fee_percentage")
         .eq("status", "signed");
 
       if (!contracts?.length) return [];
@@ -47,7 +47,18 @@ const ClientTreasuryPage = () => {
 
       return (deals || []).map((d) => {
         const contract = contracts.find((c) => c.deal_id === d.id);
-        return { ...d, total_amount: contract?.total_amount, currency: contract?.currency };
+        const productAmount = contract?.total_amount || 0;
+        const feePercent = contract?.platform_fee_percentage || 7;
+        const feeAmount = productAmount * feePercent / 100;
+        const grandTotal = productAmount + feeAmount;
+        return {
+          ...d,
+          product_amount: productAmount,
+          fee_percentage: feePercent,
+          fee_amount: feeAmount,
+          grand_total: grandTotal,
+          currency: contract?.currency,
+        };
       });
     },
     enabled: !!user,
@@ -90,7 +101,7 @@ const ClientTreasuryPage = () => {
       const { error } = await supabase.from("deal_deposits").insert({
         deal_id: selectedDealId,
         client_id: user!.id,
-        amount: deal.total_amount || 0,
+        amount: deal.grand_total || 0,
         currency: deal.currency || "USD",
         receipt_image_url: urlData.publicUrl,
         receipt_number: receiptNumber,
@@ -137,7 +148,13 @@ const ClientTreasuryPage = () => {
                 <div>
                   <p className="font-medium">صفقة #{deal.deal_number} — {deal.title}</p>
                   <p className="text-sm text-muted-foreground">
-                    المبلغ المطلوب: <span className="font-bold text-primary">{deal.total_amount?.toLocaleString()} {deal.currency}</span>
+                    💰 قيمة الصفقة: {deal.product_amount?.toLocaleString()} {deal.currency}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    📊 عمولة المنصة ({deal.fee_percentage}%): {deal.fee_amount?.toLocaleString()} {deal.currency}
+                  </p>
+                  <p className="text-sm font-bold text-primary">
+                    💵 الإجمالي المطلوب: {deal.grand_total?.toLocaleString()} {deal.currency}
                   </p>
                 </div>
                 <Button onClick={() => setSelectedDealId(deal.id)} size="sm">
