@@ -169,8 +169,8 @@ serve(async (req) => {
 - نوع الشحن: ${shippingLabel}
 - مدة الشحن المقدرة: ${phase3?.shipping_time || phase2?.shipping_time || "30 يوم"} + 10 أيام احتياطية
 
-${admin_notes ? `\n\nملاحظات المدير للتعديل:\n${admin_notes}` : ""}
-${isRevision ? `\n\nهذه مراجعة رقم ${revisionCount}. يرجى تعديل العقد بناءً على ملاحظات المدير أعلاه.` : ""}
+${admin_notes ? `\n\nملاحظات للتعديل:\n${admin_notes}` : ""}
+${isRevision ? `\n\nهذه مراجعة رقم ${revisionCount}. يرجى تعديل العقد بناءً على الملاحظات أعلاه.` : ""}
 
 اصغ العقد بتنسيق HTML احترافي. يجب أن يبدو كورقة قانونية رسمية مطبوعة بخط أسود واضح على خلفية بيضاء.`;
 
@@ -208,10 +208,10 @@ ${isRevision ? `\n\nهذه مراجعة رقم ${revisionCount}. يرجى تعد
     // Plain text version
     const contractText = cleanHtml.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 
-    // New flow: draft goes to client_review first (client picks shipping)
-    // If revision from admin, go back to admin_review
-    const newStatus = isRevision ? "admin_review" : "client_review";
-    const newPhase = isRevision ? "contract_review" : "contract_client_review";
+    // After revision → send back to client_review
+    // New contract → also goes to client_review
+    const newStatus = "client_review";
+    const newPhase = "contract_client_review";
 
     if (isRevision && existingContract?.[0]) {
       await supabase

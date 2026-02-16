@@ -83,14 +83,14 @@ serve(async (req) => {
         throw new Error("رمز التوقيع غير صحيح");
       }
 
-      // Sign the contract
+      // Sign the contract → move to admin_approval (not signed yet)
       const signedAt = new Date().toISOString();
       await supabase
         .from("deal_contracts")
         .update({
           client_signed: true,
           signed_at: signedAt,
-          status: "signed",
+          status: "admin_approval",
           signature_code: null,
           signature_code_expires_at: null,
         })
@@ -100,7 +100,7 @@ serve(async (req) => {
       const deal = contract.deals as any;
       await supabase
         .from("deals")
-        .update({ current_phase: "contract_signed" })
+        .update({ current_phase: "contract_admin_approval" })
         .eq("id", contract.deal_id);
 
       // Notify admin
