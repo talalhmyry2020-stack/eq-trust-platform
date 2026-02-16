@@ -23,6 +23,7 @@ import AdminNotificationsPage from "./pages/admin/AdminNotificationsPage";
 import AdminChatPage from "./pages/admin/AdminChatPage";
 import DealNegotiationsPage from "./pages/admin/DealNegotiationsPage";
 import ContractReviewPage from "./pages/admin/ContractReviewPage";
+import AdminContractsPage from "./pages/admin/AdminContractsPage";
 import ClientLayout from "./components/client/ClientLayout";
 import ClientDashboard from "./pages/client/ClientDashboard";
 import ClientDeals from "./pages/client/ClientDeals";
@@ -66,6 +67,7 @@ const App = () => (
               <Route path="factory-search" element={<FactorySearchPage />} />
               <Route path="deal-negotiations" element={<DealNegotiationsPage />} />
               <Route path="contract-review" element={<ContractReviewPage />} />
+              <Route path="contracts" element={<AdminContractsPage />} />
               <Route path="notifications" element={<AdminNotificationsPage />} />
               <Route path="chat" element={<AdminChatPage />} />
               <Route path="logs" element={<LogsPage />} />

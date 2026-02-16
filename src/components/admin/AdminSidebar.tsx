@@ -11,6 +11,7 @@ import {
   Search,
   Bell,
   MessageSquare,
+  FileText,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ const navItems = [
   { to: "/admin/deals", icon: Handshake, label: "الصفقات" },
   { to: "/admin/notifications", icon: Bell, label: "الإشعارات" },
   { to: "/admin/chat", icon: MessageSquare, label: "الدردشة" },
+  { to: "/admin/contracts", icon: FileText, label: "لوحة العقود" },
   { to: "/admin/archive", icon: Archive, label: "الأرشيف" },
   { to: "/admin/product-search", icon: Search, label: "نتائج البحث" },
   { to: "/admin/factory-search", icon: Search, label: "بحث المصانع" },
