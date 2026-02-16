@@ -24,6 +24,7 @@ const InspectorDashboard = () => {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [photosTaken, setPhotosTaken] = useState(0);
   const [uploading, setUploading] = useState(false);
+  const [testMode, setTestMode] = useState(false);
   const watchIdRef = useRef<number | null>(null);
 
   // جلب المهام النشطة
@@ -101,7 +102,7 @@ const InspectorDashboard = () => {
 
         if (activeMission?.factory_latitude && activeMission?.factory_longitude) {
           const dist = getDistance(loc.lat, loc.lng, activeMission.factory_latitude, activeMission.factory_longitude);
-          setIsInRange(dist <= (activeMission.geofence_radius_meters || 200));
+          setIsInRange(testMode || dist <= (activeMission.geofence_radius_meters || 200));
         }
       },
       (err) => setLocationError("فشل تحديد الموقع: " + err.message),
@@ -365,6 +366,38 @@ const InspectorDashboard = () => {
                 </div>
                 <Progress value={(photosTaken / maxPhotos) * 100} />
               </div>
+            )}
+
+            {/* زر الوضع التجريبي */}
+            {missionStarted && !isInRange && !cameraActive && (
+              <div className="p-3 rounded-lg border border-dashed border-yellow-500/50 bg-yellow-500/5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-yellow-600">🧪 الوضع التجريبي</p>
+                    <p className="text-xs text-muted-foreground">تخطي القفل الجغرافي لأغراض الاختبار</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-yellow-500/50 text-yellow-600 hover:bg-yellow-500/10"
+                    onClick={() => {
+                      setTestMode(true);
+                      setIsInRange(true);
+                      if (!currentLocation) {
+                        setCurrentLocation({ lat: activeMission.factory_latitude || 31.4175, lng: activeMission.factory_longitude || 31.8144 });
+                      }
+                      toast({ title: "🧪 تم تفعيل الوضع التجريبي — الكاميرا مفتوحة الآن" });
+                    }}
+                  >
+                    <MapPin className="w-4 h-4 ml-1" />
+                    محاكاة الوصول
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {testMode && (
+              <Badge variant="outline" className="border-yellow-500/50 text-yellow-600 text-xs">🧪 وضع تجريبي — القفل الجغرافي معطل</Badge>
             )}
 
             {/* أزرار التحكم */}
