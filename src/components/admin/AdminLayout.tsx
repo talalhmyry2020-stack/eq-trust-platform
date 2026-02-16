@@ -1,13 +1,35 @@
-import { Outlet, Navigate } from "react-router-dom";
+import { Outlet, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useRole } from "@/hooks/useRole";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import AdminSidebar from "./AdminSidebar";
 
 const AdminLayout = () => {
   const { user, loading: authLoading } = useAuth();
   const { isAdmin, isEmployee, loading: roleLoading } = useRole();
+  const location = useLocation();
+  const [jobCode, setJobCode] = useState<string | null>(null);
+  const [jobLoading, setJobLoading] = useState(true);
 
-  if (authLoading || roleLoading) {
+  useEffect(() => {
+    if (!user || !isEmployee || isAdmin) {
+      setJobLoading(false);
+      return;
+    }
+    const fetchJob = async () => {
+      const { data } = await supabase
+        .from("employee_details")
+        .select("job_code")
+        .eq("user_id", user.id)
+        .single();
+      setJobCode(data?.job_code || "");
+      setJobLoading(false);
+    };
+    fetchJob();
+  }, [user, isEmployee, isAdmin]);
+
+  if (authLoading || roleLoading || jobLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -17,6 +39,25 @@ const AdminLayout = () => {
 
   if (!user || (!isAdmin && !isEmployee)) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Redirect non-admin employees away from admin-only pages
+  if (isEmployee && !isAdmin) {
+    const path = location.pathname;
+    const isLogistics = jobCode === "logistics" || jobCode === "agent_07";
+    const isCustoms = jobCode === "customs_agent";
+
+    // Allow only their specific page
+    if (isLogistics && !path.startsWith("/admin/logistics")) {
+      return <Navigate to="/admin/logistics" replace />;
+    }
+    if (isCustoms && !path.startsWith("/admin/port-clearance")) {
+      return <Navigate to="/admin/port-clearance" replace />;
+    }
+    // If unknown employee type, redirect to auth
+    if (!isLogistics && !isCustoms) {
+      return <Navigate to="/inspector" replace />;
+    }
   }
 
   return (
