@@ -465,6 +465,79 @@ serve(async (req) => {
         break;
       }
 
+      // === محاكاة تجريبية: فحص → توكن A → إيداع للمصنع بخطوة واحدة ===
+      case "test_auto_token_a": {
+        // 1) جلب مبلغ العقد
+        const { data: contract } = await supabase
+          .from("deal_contracts")
+          .select("total_amount, currency, platform_fee_percentage")
+          .eq("deal_id", deal_id)
+          .single();
+
+        const totalAmount = contract?.total_amount || deal.estimated_amount || 0;
+        const currency = contract?.currency || "USD";
+        const feePercent = contract?.platform_fee_percentage || 7;
+        const netAmount = totalAmount * (1 - feePercent / 100);
+        const tokenAAmount = netAmount * 0.3;
+
+        // 2) إنشاء التوكن
+        await supabase.from("deal_tokens").insert({
+          deal_id,
+          token_type: "token_a",
+          amount: tokenAAmount,
+          percentage: 30,
+          currency,
+          status: "approved",
+          approved_at: new Date().toISOString(),
+        });
+
+        // 3) تحديث الضمان — خصم المبلغ
+        const { data: escrow } = await supabase
+          .from("deal_escrow")
+          .select("*")
+          .eq("deal_id", deal_id)
+          .single();
+
+        if (escrow) {
+          await supabase.from("deal_escrow").update({
+            total_released: Number(escrow.total_released) + tokenAAmount,
+            balance: Number(escrow.balance) - tokenAAmount,
+          }).eq("deal_id", deal_id);
+        }
+
+        // 4) تحديث المرحلة
+        await supabase.from("deals").update({ current_phase: "token_a_released" }).eq("id", deal_id);
+
+        // 5) إشعارات
+        if (deal.client_id) {
+          await supabase.from("notifications").insert({
+            user_id: deal.client_id,
+            title: "🧪 [تجريبي] تم صرف توكن A — 30%",
+            message: `تم خصم ${tokenAAmount.toFixed(2)} ${currency} من حساب الضمان وإيداعه لحساب المصنع — الصفقة #${deal.deal_number}.`,
+            type: "token_released",
+            entity_type: "deal",
+            entity_id: deal_id,
+          });
+        }
+
+        const { data: admins } = await supabase.rpc("get_admin_contacts");
+        for (const admin of admins || []) {
+          await supabase.from("notifications").insert({
+            user_id: admin.user_id,
+            title: "🧪 [تجريبي] صرف توكن A تلقائي",
+            message: `الصفقة #${deal.deal_number}: تم صرف ${tokenAAmount.toFixed(2)} ${currency} (30%) تلقائياً للمصنع. الرصيد المتبقي: ${escrow ? (Number(escrow.balance) - tokenAAmount).toFixed(2) : "—"} ${currency}`,
+            type: "token_released",
+            entity_type: "deal",
+            entity_id: deal_id,
+          });
+        }
+
+        result.token_amount = tokenAAmount;
+        result.remaining_balance = escrow ? Number(escrow.balance) - tokenAAmount : null;
+        result.message = `🧪 تجريبي: تم خصم ${tokenAAmount.toFixed(2)} ${currency} وإيداعه للمصنع`;
+        break;
+      }
+
       default:
         throw new Error("Unknown action: " + action);
     }

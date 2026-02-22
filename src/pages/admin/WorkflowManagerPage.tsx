@@ -144,19 +144,22 @@ const WorkflowManagerPage = () => {
     return `${hours} ساعة ${minutes} دقيقة`;
   };
 
-  const getNextAction = (phase: string): { label: string; action: string; data?: any } | null => {
+  const getNextAction = (phase: string): { label: string; action: string; isTest?: boolean; data?: any }[] => {
     switch (phase) {
-      case "inspection_completed": return { label: "إنشاء توكن A (30%)", action: "create_token_a" };
-      case "token_a_pending": return { label: "اعتماد توكن A", action: "approve_token_a" };
-      case "factory_production": return { label: "المصنع أكمل الإنتاج", action: "factory_completed" };
-      case "factory_completed": return { label: "تعيين مفتش جودة", action: "assign_quality_inspector" };
-      case "quality_approved": return { label: "إنشاء توكن B (50%)", action: "quality_approved" };
-      case "token_b_pending": return { label: "اعتماد توكن B", action: "approve_token_b" };
-      case "logistics_handoff": return { label: "توثيق الشحنة", action: "logistics_documented" };
-      case "shipping_documented": return { label: "البضاعة في البحر", action: "in_transit" };
-      case "in_transit": return { label: "تعيين مفتش ميناء", action: "assign_port_inspector" };
-      case "sovereignty_timer": return { label: "إغلاق الصفقة (انتهى العداد)", action: "complete_deal" };
-      default: return null;
+      case "inspection_completed": return [
+        { label: "🧪 تجريبي: خصم 30% وإيداع للمصنع", action: "test_auto_token_a", isTest: true },
+        { label: "رسمي: إنشاء توكن A (30%)", action: "create_token_a" },
+      ];
+      case "token_a_pending": return [{ label: "اعتماد توكن A", action: "approve_token_a" }];
+      case "factory_production": return [{ label: "المصنع أكمل الإنتاج", action: "factory_completed" }];
+      case "factory_completed": return [{ label: "تعيين مفتش جودة", action: "assign_quality_inspector" }];
+      case "quality_approved": return [{ label: "إنشاء توكن B (50%)", action: "quality_approved" }];
+      case "token_b_pending": return [{ label: "اعتماد توكن B", action: "approve_token_b" }];
+      case "logistics_handoff": return [{ label: "توثيق الشحنة", action: "logistics_documented" }];
+      case "shipping_documented": return [{ label: "البضاعة في البحر", action: "in_transit" }];
+      case "in_transit": return [{ label: "تعيين مفتش ميناء", action: "assign_port_inspector" }];
+      case "sovereignty_timer": return [{ label: "إغلاق الصفقة (انتهى العداد)", action: "complete_deal" }];
+      default: return [];
     }
   };
 
@@ -284,57 +287,63 @@ const WorkflowManagerPage = () => {
               <div className="flex gap-3 flex-wrap">
                 {/* الإجراء التالي */}
                 {(() => {
-                  const next = getNextAction(activeDeal.current_phase);
-                  if (!next) return null;
+                  const actions = getNextAction(activeDeal.current_phase);
+                  if (!actions.length) return null;
 
-                  // إذا كان الإجراء يحتاج اختيار مفتش
-                  if (next.action === "assign_quality_inspector" || next.action === "assign_port_inspector") {
+                  return actions.map((next, idx) => {
+                    // إذا كان الإجراء يحتاج اختيار مفتش
+                    if (next.action === "assign_quality_inspector" || next.action === "assign_port_inspector") {
+                      return (
+                        <Button
+                          key={idx}
+                          onClick={() => setInspectorDialog({ type: next.action, dealId: activeDeal.id })}
+                          disabled={callWorkflow.isPending}
+                        >
+                          <Play className="w-4 h-4 ml-2" />
+                          {next.label}
+                        </Button>
+                      );
+                    }
+
+                    // إذا كان توثيق الشحنة
+                    if (next.action === "logistics_documented") {
+                      return (
+                        <div key={idx} className="flex gap-2 items-end flex-1">
+                          <div className="flex-1">
+                            <Input
+                              placeholder="رابط تتبع الشحنة..."
+                              value={trackingUrl}
+                              onChange={(e) => setTrackingUrl(e.target.value)}
+                            />
+                          </div>
+                          <Button
+                            onClick={() => callWorkflow.mutate({
+                              dealId: activeDeal.id,
+                              action: "logistics_documented",
+                              data: { tracking_url: trackingUrl, seal_confirmed: true },
+                            })}
+                            disabled={callWorkflow.isPending}
+                          >
+                            <Truck className="w-4 h-4 ml-2" />
+                            توثيق الشحنة
+                          </Button>
+                        </div>
+                      );
+                    }
+
                     return (
                       <Button
-                        onClick={() => setInspectorDialog({ type: next.action, dealId: activeDeal.id })}
+                        key={idx}
+                        variant={next.isTest ? "outline" : "default"}
+                        className={next.isTest ? "border-yellow-500/50 text-yellow-600 hover:bg-yellow-500/10" : ""}
+                        onClick={() => callWorkflow.mutate({ dealId: activeDeal.id, action: next.action })}
                         disabled={callWorkflow.isPending}
                       >
-                        <Play className="w-4 h-4 ml-2" />
+                        {next.isTest ? <TestTube className="w-4 h-4 ml-2" /> : <Play className="w-4 h-4 ml-2" />}
                         {next.label}
                       </Button>
                     );
-                  }
-
-                  // إذا كان توثيق الشحنة
-                  if (next.action === "logistics_documented") {
-                    return (
-                      <div className="flex gap-2 items-end flex-1">
-                        <div className="flex-1">
-                          <Input
-                            placeholder="رابط تتبع الشحنة..."
-                            value={trackingUrl}
-                            onChange={(e) => setTrackingUrl(e.target.value)}
-                          />
-                        </div>
-                        <Button
-                          onClick={() => callWorkflow.mutate({
-                            dealId: activeDeal.id,
-                            action: "logistics_documented",
-                            data: { tracking_url: trackingUrl, seal_confirmed: true },
-                          })}
-                          disabled={callWorkflow.isPending}
-                        >
-                          <Truck className="w-4 h-4 ml-2" />
-                          توثيق الشحنة
-                        </Button>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <Button
-                      onClick={() => callWorkflow.mutate({ dealId: activeDeal.id, action: next.action })}
-                      disabled={callWorkflow.isPending}
-                    >
-                      <Play className="w-4 h-4 ml-2" />
-                      {next.label}
-                    </Button>
-                  );
+                  });
                 })()}
 
                 {/* زر المحاكاة الكاملة */}
