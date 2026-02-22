@@ -16,12 +16,13 @@ const LogisticsPage = () => {
   const [testMode, setTestMode] = useState(true);
 
   const { data: deals = [] } = useQuery({
-    queryKey: ["logistics-deals"],
+    queryKey: ["logistics-deals", user?.id],
     queryFn: async () => {
+      if (!user) return [];
       const { data } = await supabase
         .from("deals")
         .select("id, deal_number, title, current_phase, client_full_name, estimated_amount, shipping_tracking_url")
-        .eq("status", "active")
+        .eq("logistics_employee_id", user.id)
         .in("current_phase", [
           "loading_goods", "leaving_factory", "at_source_port", "in_transit", "at_destination_port",
           "logistics_handoff", "shipping_documented", "token_b_released",
@@ -29,16 +30,18 @@ const LogisticsPage = () => {
         .order("updated_at", { ascending: false });
       return data || [];
     },
+    enabled: !!user,
     refetchInterval: 10000,
   });
 
   const { data: stats } = useQuery({
-    queryKey: ["logistics-stats"],
+    queryKey: ["logistics-stats", user?.id],
     queryFn: async () => {
+      if (!user) return { reports: 0, photos: 0, completed: 0 };
       const [reportsRes, photosRes, completedRes] = await Promise.all([
-        supabase.from("logistics_reports").select("id", { count: "exact", head: true }).eq("status", "submitted"),
+        supabase.from("logistics_reports").select("id", { count: "exact", head: true }).eq("employee_id", user.id).eq("status", "submitted"),
         supabase.from("logistics_photos").select("id", { count: "exact", head: true }),
-        supabase.from("deals").select("id", { count: "exact", head: true }).eq("current_phase", "at_destination_port"),
+        supabase.from("deals").select("id", { count: "exact", head: true }).eq("logistics_employee_id", user.id).eq("current_phase", "at_destination_port"),
       ]);
       return {
         reports: reportsRes.count || 0,
@@ -46,6 +49,7 @@ const LogisticsPage = () => {
         completed: completedRes.count || 0,
       };
     },
+    enabled: !!user,
   });
 
   const phaseCounts: Record<string, number> = {};
