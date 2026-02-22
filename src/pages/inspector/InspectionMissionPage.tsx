@@ -202,9 +202,20 @@ const InspectionMissionPage = () => {
           entity_id: activeMission.deal_id,
         });
       }
+
+      // 🧪 تجريبي: صرف Token A تلقائياً (30%) عند اكتمال الفحص الأولي
+      if (activeMission.mission_type === "initial") {
+        try {
+          await supabase.functions.invoke("process-post-inspection", {
+            body: { deal_id: activeMission.deal_id, action: "test_auto_token_a" },
+          });
+        } catch (e) {
+          console.error("Auto Token A failed:", e);
+        }
+      }
     },
     onSuccess: () => {
-      toast({ title: "تم إنهاء المهمة بنجاح! تم رفع جميع الصور." });
+      toast({ title: "تم إنهاء المهمة بنجاح! تم رفع جميع الصور وصرف 30% للمورد تلقائياً 🧪" });
       refetch();
     },
   });
