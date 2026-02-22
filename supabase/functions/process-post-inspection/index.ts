@@ -665,6 +665,112 @@ serve(async (req) => {
         break;
       }
 
+      // === محاكاة تجريبية شاملة: كل المراحل اللوجستية بخطوة واحدة ===
+      case "test_full_logistics_simulation": {
+        const testTrackingUrl = `https://www.searates.com/container/tracking/?number=TEST${deal.deal_number}`;
+        const testContainerNumber = `TSTU${String(deal.deal_number).padStart(7, "0")}`;
+        const testSealNumber = `SEAL-${Date.now().toString(36).toUpperCase()}`;
+        const testBolNumber = `BOL-${deal.deal_number}-${Date.now().toString(36).toUpperCase()}`;
+        const logisticsEmployeeId = deal.logistics_employee_id;
+
+        const phases = [
+          { phase: "loading_goods", label: "📦 تحميل البضاعة" },
+          { phase: "leaving_factory", label: "🚛 مغادرة المصنع" },
+          { phase: "at_source_port", label: "⚓ ميناء التصدير" },
+          { phase: "in_transit", label: "🚢 في البحر" },
+          { phase: "at_destination_port", label: "🏁 ميناء الوجهة" },
+        ];
+
+        for (const p of phases) {
+          // إنشاء تقرير لكل مرحلة
+          const reportData: any = {
+            deal_id,
+            phase: p.phase,
+            employee_id: logisticsEmployeeId || deal.employee_id,
+            status: "submitted",
+            report_text: `🧪 [تقرير تجريبي] ${p.label} — الصفقة #${deal.deal_number}. كل شيء تمام. تم التحقق من البضاعة والمستندات.`,
+            checklist_completed: JSON.stringify(["report"]),
+            notes: "تقرير محاكاة تجريبية",
+          };
+
+          if (p.phase === "loading_goods") {
+            reportData.container_number = testContainerNumber;
+            reportData.seal_number = testSealNumber;
+          }
+          if (p.phase === "leaving_factory") {
+            reportData.bol_number = testBolNumber;
+          }
+          if (p.phase === "at_source_port" || p.phase === "in_transit") {
+            reportData.tracking_url = testTrackingUrl;
+          }
+
+          await supabase.from("logistics_reports").insert(reportData);
+
+          // تحديث المرحلة
+          const updateData: any = { current_phase: p.phase };
+          if (p.phase === "at_source_port" || p.phase === "in_transit") {
+            updateData.shipping_tracking_url = testTrackingUrl;
+          }
+          await supabase.from("deals").update(updateData).eq("id", deal_id);
+
+          // إشعار العميل
+          if (deal.client_id) {
+            const msg = p.phase === "in_transit"
+              ? `الصفقة #${deal.deal_number}: البضاعة في البحر 🚢. رابط التتبع: ${testTrackingUrl}`
+              : `الصفقة #${deal.deal_number}: ${p.label}`;
+            await supabase.from("notifications").insert({
+              user_id: deal.client_id,
+              title: `🧪 ${p.label}`,
+              message: msg,
+              type: "shipping_update",
+              entity_type: "deal",
+              entity_id: deal_id,
+            });
+          }
+        }
+
+        // بعد الوصول لميناء الوجهة → بدء العداد السيادي
+        const now = new Date();
+        const timerEnd = new Date(now.getTime() + 168 * 60 * 60 * 1000);
+        await supabase.from("deals").update({
+          current_phase: "sovereignty_timer",
+          sovereignty_timer_start: now.toISOString(),
+          sovereignty_timer_end: timerEnd.toISOString(),
+          shipping_tracking_url: testTrackingUrl,
+        }).eq("id", deal_id);
+
+        // إشعار العميل ببدء العداد السيادي
+        if (deal.client_id) {
+          await supabase.from("notifications").insert({
+            user_id: deal.client_id,
+            title: "🧪 بدء العداد السيادي — 168 ساعة",
+            message: `الصفقة #${deal.deal_number}: البضاعة وصلت وتم فحصها. لديك 168 ساعة للاعتراض. رقم الحاوية: ${testContainerNumber}. رقم التتبع: ${testTrackingUrl}`,
+            type: "sovereignty_timer",
+            entity_type: "deal",
+            entity_id: deal_id,
+          });
+        }
+
+        // إشعار المدير
+        const { data: admins } = await supabase.rpc("get_admin_contacts");
+        for (const admin of admins || []) {
+          await supabase.from("notifications").insert({
+            user_id: admin.user_id,
+            title: "🧪 محاكاة لوجستية كاملة",
+            message: `الصفقة #${deal.deal_number}: تمت محاكاة كل المراحل اللوجستية. حاوية: ${testContainerNumber}، ختم: ${testSealNumber}، BOL: ${testBolNumber}. العداد السيادي بدأ.`,
+            type: "sovereignty_timer",
+            entity_type: "deal",
+            entity_id: deal_id,
+          });
+        }
+
+        result.message = `🧪 تمت محاكاة كل المراحل اللوجستية وبدأ العداد السيادي`;
+        result.tracking_url = testTrackingUrl;
+        result.container_number = testContainerNumber;
+        result.timer_end = timerEnd.toISOString();
+        break;
+      }
+
       default:
         throw new Error("Unknown action: " + action);
     }

@@ -134,16 +134,19 @@ const LogisticsDealCard = ({ deal, phaseKey, testMode }: Props) => {
 
   const simulateAll = useMutation({
     mutationFn: async () => {
-      for (const phase of SHIPPING_PHASES) {
-        await supabase.functions.invoke("process-post-inspection", {
-          body: { deal_id: deal.id, action: phase.key },
-        });
-        await new Promise(r => setTimeout(r, 500));
-      }
+      const { data, error } = await supabase.functions.invoke("process-post-inspection", {
+        body: { deal_id: deal.id, action: "test_full_logistics_simulation" },
+      });
+      if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
-      toast({ title: "🧪 تم محاكاة جميع المراحل!" });
+    onSuccess: (data: any) => {
+      toast({ 
+        title: "🧪 تمت المحاكاة الشاملة!",
+        description: `حاوية: ${data?.container_number || "—"} | تتبع: تم الإرسال للعميل | العداد السيادي بدأ ⏱️`,
+      });
       queryClient.invalidateQueries({ queryKey: ["logistics-deals"] });
+      queryClient.invalidateQueries({ queryKey: ["logistics-stats"] });
     },
   });
 
