@@ -10,8 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Plus, Ban, MessageSquare, Shield, Eye, Trash2 } from "lucide-react";
+import { Search, Plus, Ban, MessageSquare, Shield, Eye, Trash2, Truck } from "lucide-react";
 import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface UserProfile {
   id: string;
@@ -22,10 +23,8 @@ interface UserProfile {
   created_at: string;
   email?: string;
   roles?: string[];
-  // Client deal info
   deal_count?: number;
   deal_statuses?: Record<string, number>;
-  // Employee info
   job_title?: string;
   job_code?: string;
   last_sign_in_at?: string;
@@ -37,8 +36,7 @@ interface AuthUser {
   last_sign_in_at: string | null;
 }
 
-
-
+type EmployeeType = "inspector" | "logistics";
 
 const INSPECTOR_PERMISSIONS = [
   "receive_briefing",
@@ -46,6 +44,11 @@ const INSPECTOR_PERMISSIONS = [
   "capture_evidence",
   "visual_validation",
   "submit_report",
+];
+
+const LOGISTICS_PERMISSIONS = [
+  "view_deals",
+  "manage_deals",
 ];
 
 const PHASE_LABELS: Record<string, string> = {
@@ -62,6 +65,7 @@ const UsersPage = () => {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [showEmployeeDialog, setShowEmployeeDialog] = useState(false);
+  const [employeeType, setEmployeeType] = useState<EmployeeType>("inspector");
   const [newEmployee, setNewEmployee] = useState({ name: "", email: "", password: "" });
   const [msgDialog, setMsgDialog] = useState<{ open: boolean; userId: string; userName: string }>({ open: false, userId: "", userName: "" });
   const [msgTitle, setMsgTitle] = useState("");
@@ -135,16 +139,22 @@ const UsersPage = () => {
       return;
     }
 
+    const isInspector = employeeType === "inspector";
+
     const body: Record<string, unknown> = {
       action: "create_employee",
       email: newEmployee.email,
       password: newEmployee.password,
       full_name: newEmployee.name,
-      permissions: INSPECTOR_PERMISSIONS,
-      job_title: "المفتش الميداني",
-      job_code: "agent_06",
-      motto: "العين التي لا ترمش.. واليد المقيدة بالحقيقة",
-      description: "كيان بشري يعمل بعقل رقمي.",
+      permissions: isInspector ? INSPECTOR_PERMISSIONS : LOGISTICS_PERMISSIONS,
+      job_title: isInspector ? "المفتش الميداني" : "موظف اللوجستيك",
+      job_code: isInspector ? "agent_06" : "agent_07",
+      motto: isInspector
+        ? "العين التي لا ترمش.. واليد المقيدة بالحقيقة"
+        : "نوثّق كل شحنة.. ونتابع كل رحلة حتى الميناء",
+      description: isInspector
+        ? "كيان بشري يعمل بعقل رقمي."
+        : "مسؤول توثيق ومتابعة الشحنات اللوجستية.",
     };
 
     const { error } = await supabase.functions.invoke("manage-users", { body });
@@ -154,9 +164,10 @@ const UsersPage = () => {
       return;
     }
 
-    toast.success("تم إنشاء حساب المفتش الميداني بنجاح");
+    toast.success(isInspector ? "تم إنشاء حساب المفتش الميداني بنجاح" : "تم إنشاء حساب موظف اللوجستيك بنجاح");
     setShowEmployeeDialog(false);
     setNewEmployee({ name: "", email: "", password: "" });
+    setEmployeeType("inspector");
     fetchUsers();
   };
 
@@ -240,6 +251,14 @@ const UsersPage = () => {
         </Badge>
       );
     }
+    if (jobCode === "agent_07" || jobCode === "logistics") {
+      return (
+        <Badge className="bg-purple-500/10 text-purple-600 border-purple-500/20 gap-1">
+          <Truck className="w-3 h-3" />
+          موظف لوجستيك
+        </Badge>
+      );
+    }
     if (jobTitle) return <Badge variant="secondary">{jobTitle}</Badge>;
     return <Badge variant="outline">موظف</Badge>;
   };
@@ -250,13 +269,29 @@ const UsersPage = () => {
         <h1 className="font-heading text-2xl font-bold">إدارة المستخدمين</h1>
         <Dialog open={showEmployeeDialog} onOpenChange={setShowEmployeeDialog}>
           <DialogTrigger asChild>
-            <Button><Plus className="w-4 h-4 ml-2" />إضافة مفتش ميداني</Button>
+            <Button><Plus className="w-4 h-4 ml-2" />إضافة موظف</Button>
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>إنشاء حساب مفتش ميداني</DialogTitle>
+              <DialogTitle>إنشاء حساب موظف</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
+              <div>
+                <Label>نوع الموظف</Label>
+                <Select value={employeeType} onValueChange={(v) => setEmployeeType(v as EmployeeType)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="inspector">
+                      <div className="flex items-center gap-2"><Shield className="w-4 h-4 text-primary" />مفتش ميداني</div>
+                    </SelectItem>
+                    <SelectItem value="logistics">
+                      <div className="flex items-center gap-2"><Truck className="w-4 h-4 text-purple-500" />موظف لوجستيك</div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div>
                 <Label>الاسم الكامل</Label>
                 <Input value={newEmployee.name} onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })} />
@@ -269,19 +304,37 @@ const UsersPage = () => {
                 <Label>كلمة المرور المؤقتة</Label>
                 <Input type="password" value={newEmployee.password} onChange={(e) => setNewEmployee({ ...newEmployee, password: e.target.value })} />
               </div>
-              <Card className="border-primary/20 bg-primary/5">
-                <CardContent className="p-4">
-                  <p className="text-sm font-semibold mb-2">صلاحيات المفتش الميداني (تلقائية):</p>
-                  <ul className="text-xs text-muted-foreground space-y-1">
-                    <li>✓ استلام المواصفات المشفرة</li>
-                    <li>✓ القفل الجغرافي</li>
-                    <li>✓ التوثيق المقيد بالكاميرا</li>
-                    <li>✓ المطابقة البصرية وإطلاق التوكن</li>
-                    <li>✓ رفع التقارير للسحابة الآمنة</li>
-                  </ul>
-                </CardContent>
-              </Card>
-              <Button onClick={createEmployee} className="w-full">إنشاء المفتش الميداني</Button>
+              {employeeType === "inspector" ? (
+                <Card className="border-primary/20 bg-primary/5">
+                  <CardContent className="p-4">
+                    <p className="text-sm font-semibold mb-2">صلاحيات المفتش الميداني:</p>
+                    <ul className="text-xs text-muted-foreground space-y-1">
+                      <li>✓ استلام المواصفات المشفرة</li>
+                      <li>✓ القفل الجغرافي</li>
+                      <li>✓ التوثيق المقيد بالكاميرا</li>
+                      <li>✓ المطابقة البصرية وإطلاق التوكن</li>
+                      <li>✓ رفع التقارير للسحابة الآمنة</li>
+                    </ul>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="border-purple-500/20 bg-purple-500/5">
+                  <CardContent className="p-4">
+                    <p className="text-sm font-semibold mb-2">مهام موظف اللوجستيك:</p>
+                    <ul className="text-xs text-muted-foreground space-y-1">
+                      <li>✓ توثيق تحميل البضاعة</li>
+                      <li>✓ متابعة مغادرة المصنع</li>
+                      <li>✓ توثيق ميناء التصدير</li>
+                      <li>✓ تتبع الشحنة في البحر</li>
+                      <li>✓ توثيق الوصول لميناء الوجهة</li>
+                      <li>✓ رفع الصور والتقارير لكل مرحلة</li>
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}
+              <Button onClick={createEmployee} className="w-full">
+                {employeeType === "inspector" ? "إنشاء المفتش الميداني" : "إنشاء موظف اللوجستيك"}
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
