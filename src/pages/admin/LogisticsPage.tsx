@@ -1,32 +1,18 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { toast } from "@/hooks/use-toast";
-import { Truck, Package, Ship, Camera, CheckCircle, ExternalLink, Anchor, Factory, MapPin, FlaskConical, Shield } from "lucide-react";
-
-const SHIPPING_PHASES = [
-  { key: "loading_goods", label: "📦 قيد التحميل", icon: Package, color: "text-yellow-500", next: "leaving_factory" },
-  { key: "leaving_factory", label: "🚛 مغادرة المصنع", icon: Truck, color: "text-orange-500", next: "at_source_port" },
-  { key: "at_source_port", label: "⚓ ميناء التصدير", icon: Anchor, color: "text-blue-500", next: "in_transit" },
-  { key: "in_transit", label: "🚢 في البحر", icon: Ship, color: "text-cyan-500", next: "at_destination_port" },
-  { key: "at_destination_port", label: "🏁 ميناء الوجهة", icon: MapPin, color: "text-green-500", next: null },
-];
+import { Truck, FlaskConical, Shield } from "lucide-react";
+import LogisticsPhaseMap, { SHIPPING_PHASES } from "@/components/admin/logistics/LogisticsPhaseMap";
+import LogisticsStats from "@/components/admin/logistics/LogisticsStats";
+import LogisticsDealCard from "@/components/admin/logistics/LogisticsDealCard";
 
 const LogisticsPage = () => {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const [trackingUrl, setTrackingUrl] = useState("");
-  const [notes, setNotes] = useState("");
-  const [sealPhoto, setSealPhoto] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
   const [testMode, setTestMode] = useState(true);
 
   const { data: deals = [] } = useQuery({
@@ -46,83 +32,26 @@ const LogisticsPage = () => {
     refetchInterval: 10000,
   });
 
-  const advancePhase = useMutation({
-    mutationFn: async ({ dealId, action, extraData }: { dealId: string; action: string; extraData?: any }) => {
-      const { error } = await supabase.functions.invoke("process-post-inspection", {
-        body: { deal_id: dealId, action, data: extraData },
-      });
-      if (error) throw error;
-    },
-    onSuccess: (_, vars) => {
-      const phase = SHIPPING_PHASES.find(p => p.key === vars.action);
-      toast({ title: `✅ ${phase?.label || "تم التحديث بنجاح"}` });
-      queryClient.invalidateQueries({ queryKey: ["logistics-deals"] });
-    },
-    onError: (err: any) => {
-      toast({ title: "خطأ", description: err.message, variant: "destructive" });
-    },
-  });
-
-  const documentShipment = useMutation({
-    mutationFn: async ({ dealId, nextAction }: { dealId: string; nextAction: string }) => {
-      setUploading(true);
-      let sealPhotoUrl = "";
-      if (sealPhoto) {
-        const filePath = `logistics/${dealId}/${Date.now()}_seal.jpg`;
-        const { error } = await supabase.storage.from("inspection-photos").upload(filePath, sealPhoto);
-        if (!error) {
-          const { data: urlData } = supabase.storage.from("inspection-photos").getPublicUrl(filePath);
-          sealPhotoUrl = urlData.publicUrl;
-        }
-      }
-      // حفظ التوثيق
-      await supabase.functions.invoke("process-post-inspection", {
-        body: {
-          deal_id: dealId,
-          action: "logistics_documented",
-          data: { tracking_url: trackingUrl, seal_photo_url: sealPhotoUrl, notes },
-        },
-      });
-      // الانتقال للمرحلة التالية
-      const { error } = await supabase.functions.invoke("process-post-inspection", {
-        body: { deal_id: dealId, action: nextAction, data: { tracking_url: trackingUrl } },
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast({ title: "✅ تم توثيق الشحنة والانتقال للمرحلة التالية" });
-      setTrackingUrl("");
-      setNotes("");
-      setSealPhoto(null);
-      setUploading(false);
-      queryClient.invalidateQueries({ queryKey: ["logistics-deals"] });
-    },
-    onError: (err: any) => {
-      setUploading(false);
-      toast({ title: "خطأ", description: err.message, variant: "destructive" });
+  const { data: stats } = useQuery({
+    queryKey: ["logistics-stats"],
+    queryFn: async () => {
+      const [reportsRes, photosRes, completedRes] = await Promise.all([
+        supabase.from("logistics_reports").select("id", { count: "exact", head: true }).eq("status", "submitted"),
+        supabase.from("logistics_photos").select("id", { count: "exact", head: true }),
+        supabase.from("deals").select("id", { count: "exact", head: true }).eq("current_phase", "at_destination_port"),
+      ]);
+      return {
+        reports: reportsRes.count || 0,
+        photos: photosRes.count || 0,
+        completed: completedRes.count || 0,
+      };
     },
   });
 
-  // تشغيل تلقائي — ينقل جميع المراحل دفعة واحدة
-  const simulateAllPhases = useMutation({
-    mutationFn: async (dealId: string) => {
-      for (const phase of SHIPPING_PHASES) {
-        await supabase.functions.invoke("process-post-inspection", {
-          body: { deal_id: dealId, action: phase.key },
-        });
-        await new Promise(r => setTimeout(r, 500));
-      }
-    },
-    onSuccess: () => {
-      toast({ title: "🧪 تم محاكاة جميع مراحل الشحن تلقائياً!" });
-      queryClient.invalidateQueries({ queryKey: ["logistics-deals"] });
-    },
-    onError: (err: any) => {
-      toast({ title: "خطأ", description: err.message, variant: "destructive" });
-    },
+  const phaseCounts: Record<string, number> = {};
+  SHIPPING_PHASES.forEach(p => {
+    phaseCounts[p.key] = deals.filter((d: any) => d.current_phase === p.key).length;
   });
-
-  const getPhaseIndex = (phase: string) => SHIPPING_PHASES.findIndex(p => p.key === phase);
 
   const groupedDeals = SHIPPING_PHASES.map(phase => ({
     ...phase,
@@ -154,23 +83,16 @@ const LogisticsPage = () => {
         </div>
       </div>
 
+      {/* الإحصائيات */}
+      <LogisticsStats
+        totalActive={deals.length}
+        totalCompleted={stats?.completed || 0}
+        totalReports={stats?.reports || 0}
+        totalPhotos={stats?.photos || 0}
+      />
+
       {/* خريطة المراحل */}
-      <div className="flex items-center justify-between mb-6 p-3 rounded-lg border bg-card overflow-x-auto">
-        {SHIPPING_PHASES.map((phase, i) => {
-          const count = groupedDeals[i].deals.length;
-          const Icon = phase.icon;
-          return (
-            <div key={phase.key} className="flex items-center gap-1">
-              <div className="flex flex-col items-center text-center min-w-[80px]">
-                <Icon className={`w-5 h-5 ${phase.color}`} />
-                <span className="text-xs mt-1">{phase.label.replace(/^.+\s/, "")}</span>
-                <Badge variant="secondary" className="text-xs mt-1">{count}</Badge>
-              </div>
-              {i < SHIPPING_PHASES.length - 1 && <span className="text-muted-foreground mx-1">→</span>}
-            </div>
-          );
-        })}
-      </div>
+      <LogisticsPhaseMap phaseCounts={phaseCounts} />
 
       {/* المراحل */}
       {groupedDeals.map((group) => {
@@ -187,66 +109,7 @@ const LogisticsPage = () => {
             </CardHeader>
             <CardContent className="space-y-3">
               {group.deals.map((deal: any) => (
-                <div key={deal.id} className="p-4 border rounded-lg space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">#{deal.deal_number} — {deal.title}</p>
-                      <p className="text-sm text-muted-foreground">العميل: {deal.client_full_name}</p>
-                    </div>
-                    {deal.shipping_tracking_url && (
-                      <a href={deal.shipping_tracking_url} target="_blank" className="text-primary text-sm flex items-center gap-1">
-                        تتبع <ExternalLink className="w-3 h-3" />
-                      </a>
-                    )}
-                  </div>
-
-                  {/* إدخال رابط التتبع عند مرحلة التحميل أو ميناء التصدير */}
-                  {(group.key === "loading_goods" || group.key === "at_source_port") && !deal.shipping_tracking_url && (
-                    <div className="grid gap-2">
-                      <Input
-                        value={trackingUrl}
-                        onChange={(e) => setTrackingUrl(e.target.value)}
-                        placeholder="رابط تتبع الشحنة (اختياري)"
-                      />
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setSealPhoto(e.target.files?.[0] || null)}
-                      />
-                    </div>
-                  )}
-
-                  {/* أزرار الانتقال */}
-                  <div className="flex gap-2">
-                    {group.next && (
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          if (trackingUrl || sealPhoto) {
-                            documentShipment.mutate({ dealId: deal.id, nextAction: group.next! });
-                          } else {
-                            advancePhase.mutate({ dealId: deal.id, action: group.next!, extraData: { tracking_url: deal.shipping_tracking_url } });
-                          }
-                        }}
-                        disabled={advancePhase.isPending || documentShipment.isPending}
-                      >
-                        <CheckCircle className="w-4 h-4 ml-2" />
-                        انتقال → {SHIPPING_PHASES.find(p => p.key === group.next)?.label}
-                      </Button>
-                    )}
-                    {testMode && group.key === "loading_goods" && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => simulateAllPhases.mutate(deal.id)}
-                        disabled={simulateAllPhases.isPending}
-                      >
-                        <FlaskConical className="w-4 h-4 ml-2" />
-                        🧪 محاكاة كل المراحل
-                      </Button>
-                    )}
-                  </div>
-                </div>
+                <LogisticsDealCard key={deal.id} deal={deal} phaseKey={group.key} testMode={testMode} />
               ))}
             </CardContent>
           </Card>
