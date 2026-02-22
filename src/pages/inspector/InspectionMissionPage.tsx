@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { MapPin, Camera, CheckCircle, Lock, Navigation, AlertTriangle } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { MapPin, Camera, CheckCircle, Lock, Navigation, AlertTriangle, FileText } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 const InspectionMissionPage = () => {
@@ -21,7 +22,8 @@ const InspectionMissionPage = () => {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [photosTaken, setPhotosTaken] = useState(0);
   const [uploading, setUploading] = useState(false);
-
+  const [inspectionReport, setInspectionReport] = useState("");
+  const [showReportForm, setShowReportForm] = useState(false);
   // جلب المهام المسندة للمفتش
   const { data: missions = [], refetch } = useQuery({
     queryKey: ["my-missions", user?.id],
@@ -164,9 +166,13 @@ const InspectionMissionPage = () => {
       toast({ title: `تم التقاط الصورة (${photosTaken + 1}/${activeMission?.max_photos || 10})` });
       queryClient.invalidateQueries({ queryKey: ["mission-photos-count"] });
 
-      // إنهاء المهمة تلقائياً عند بلوغ الحد
+      // عند بلوغ الحد الأقصى، أظهر نموذج التقرير
       if (photosTaken + 1 >= (activeMission?.max_photos || 10)) {
-        completeMission.mutate();
+        setShowReportForm(true);
+        stream?.getTracks().forEach((t) => t.stop());
+        setStream(null);
+        setCameraActive(false);
+        toast({ title: "تم بلوغ الحد الأقصى للصور — اكتب التقرير لإنهاء المهمة" });
       }
     },
     onError: (err: any) => {
@@ -179,6 +185,8 @@ const InspectionMissionPage = () => {
   const completeMission = useMutation({
     mutationFn: async () => {
       if (!activeMission) return;
+      if (!inspectionReport.trim()) throw new Error("يرجى كتابة تقرير الفحص قبل الإنهاء");
+
       // إيقاف الكاميرا
       stream?.getTracks().forEach((t) => t.stop());
       setStream(null);
@@ -187,6 +195,8 @@ const InspectionMissionPage = () => {
       await supabase.from("deal_inspection_missions").update({
         status: "completed",
         completed_at: new Date().toISOString(),
+        quality_report: inspectionReport,
+        quality_status: "reviewed",
       }).eq("id", activeMission.id);
 
       await supabase.from("deals").update({ current_phase: "inspection_completed" }).eq("id", activeMission.deal_id);
@@ -195,8 +205,8 @@ const InspectionMissionPage = () => {
       if (activeMission.assigned_by) {
         await supabase.from("notifications").insert({
           user_id: activeMission.assigned_by,
-          title: "اكتمال مهمة الفحص",
-          message: `أكمل المفتش مهمة الفحص للصفقة #${activeMission.deals?.deal_number}. ${photosTaken + 1} صور تم رفعها.`,
+          title: "اكتمال مهمة الفحص + تقرير",
+          message: `أكمل المفتش مهمة الفحص للصفقة #${activeMission.deals?.deal_number}. ${photosTaken + 1} صور + تقرير مرفق.`,
           type: "inspection",
           entity_type: "deal",
           entity_id: activeMission.deal_id,
@@ -215,8 +225,13 @@ const InspectionMissionPage = () => {
       }
     },
     onSuccess: () => {
-      toast({ title: "تم إنهاء المهمة بنجاح! تم رفع جميع الصور وصرف 30% للمورد تلقائياً 🧪" });
+      toast({ title: "تم إنهاء المهمة بنجاح! تم رفع الصور والتقرير وصرف 30% للمورد تلقائياً 🧪" });
+      setShowReportForm(false);
+      setInspectionReport("");
       refetch();
+    },
+    onError: (err: any) => {
+      toast({ title: "خطأ", description: err.message, variant: "destructive" });
     },
   });
 
@@ -346,12 +361,51 @@ const InspectionMissionPage = () => {
                 <Camera className="w-4 h-4 ml-2" />
                 {uploading ? "جاري الرفع..." : `التقاط صورة (${photosTaken}/${maxPhotos})`}
               </Button>
-              {photosTaken > 0 && (
-                <Button variant="outline" onClick={() => completeMission.mutate()}>
-                  <CheckCircle className="w-4 h-4 ml-2" />
-                  إنهاء المهمة
+              {photosTaken > 0 && !showReportForm && (
+                <Button variant="outline" onClick={() => { setShowReportForm(true); stream?.getTracks().forEach((t) => t.stop()); setStream(null); setCameraActive(false); }}>
+                  <FileText className="w-4 h-4 ml-2" />
+                  كتابة التقرير
                 </Button>
               )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* نموذج التقرير */}
+      {showReportForm && (
+        <Card className="border-primary/30">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <FileText className="w-5 h-5 text-primary" />
+              تقرير الفحص الميداني
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">اكتب تقريراً مفصلاً عن حالة المنتج والملاحظات الميدانية</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Textarea
+              value={inspectionReport}
+              onChange={(e) => setInspectionReport(e.target.value)}
+              placeholder="اكتب تقرير الفحص هنا...&#10;مثال:&#10;- حالة المنتج: جيدة / متوسطة / سيئة&#10;- التغليف: سليم / متضرر&#10;- الكمية المطابقة: نعم / لا&#10;- ملاحظات إضافية..."
+              className="min-h-[150px]"
+              dir="rtl"
+            />
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                📷 {photosTaken} صور مرفقة
+              </p>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setShowReportForm(false)}>
+                  رجوع للكاميرا
+                </Button>
+                <Button
+                  onClick={() => completeMission.mutate()}
+                  disabled={completeMission.isPending || !inspectionReport.trim()}
+                >
+                  <CheckCircle className="w-4 h-4 ml-2" />
+                  {completeMission.isPending ? "جاري الإرسال..." : "إرسال التقرير وإنهاء المهمة"}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
