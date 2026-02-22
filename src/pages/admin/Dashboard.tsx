@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Handshake, Archive, ScrollText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import SuppliersSection from "@/components/admin/SuppliersSection";
 
 const Dashboard = () => {
   const [stats, setStats] = useState({ clients: 0, employees: 0, deals: 0, logs: 0 });
@@ -47,6 +48,8 @@ const Dashboard = () => {
           </Card>
         ))}
       </div>
+
+      <SuppliersSection />
     </div>
   );
 };
