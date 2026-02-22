@@ -953,6 +953,113 @@ export type Database = {
         }
         Relationships: []
       }
+      logistics_photos: {
+        Row: {
+          caption: string | null
+          created_at: string
+          deal_id: string
+          id: string
+          phase: string
+          photo_type: string
+          photo_url: string
+          report_id: string
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          deal_id: string
+          id?: string
+          phase: string
+          photo_type: string
+          photo_url: string
+          report_id: string
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          deal_id?: string
+          id?: string
+          phase?: string
+          photo_type?: string
+          photo_url?: string
+          report_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "logistics_photos_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "logistics_photos_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "logistics_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      logistics_reports: {
+        Row: {
+          bol_number: string | null
+          checklist_completed: Json
+          container_number: string | null
+          created_at: string
+          deal_id: string
+          employee_id: string
+          id: string
+          notes: string | null
+          phase: string
+          report_text: string | null
+          seal_number: string | null
+          status: string
+          tracking_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          bol_number?: string | null
+          checklist_completed?: Json
+          container_number?: string | null
+          created_at?: string
+          deal_id: string
+          employee_id: string
+          id?: string
+          notes?: string | null
+          phase: string
+          report_text?: string | null
+          seal_number?: string | null
+          status?: string
+          tracking_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bol_number?: string | null
+          checklist_completed?: Json
+          container_number?: string | null
+          created_at?: string
+          deal_id?: string
+          employee_id?: string
+          id?: string
+          notes?: string | null
+          phase?: string
+          report_text?: string | null
+          seal_number?: string | null
+          status?: string
+          tracking_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "logistics_reports_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
