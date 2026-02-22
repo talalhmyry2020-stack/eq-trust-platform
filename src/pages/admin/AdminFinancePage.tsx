@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { DollarSign, CheckCircle, XCircle, Eye, Clock, Banknote, TrendingUp, Coins } from "lucide-react";
+import { DollarSign, CheckCircle, XCircle, Eye, Clock, Banknote, TrendingUp, Coins, Factory, TestTube, Play } from "lucide-react";
 
 const AdminFinancePage = () => {
   const queryClient = useQueryClient();
@@ -50,6 +50,44 @@ const AdminFinancePage = () => {
         .select("*, deals(title, deal_number, client_full_name)")
         .order("created_at", { ascending: false });
       return data || [];
+    },
+  });
+
+  // جلب الموردين مع بياناتهم المالية
+  const { data: suppliers = [] } = useQuery({
+    queryKey: ["admin-supplier-tokens"],
+    queryFn: async () => {
+      const { data: negotiations } = await supabase
+        .from("deal_negotiations")
+        .select("deal_id, factory_name, factory_country, factory_email, factory_phone")
+        .eq("status", "accepted");
+      if (!negotiations?.length) return [];
+
+      const dealIds = [...new Set(negotiations.map(n => n.deal_id))];
+      const [dealsRes, tokensRes, escrowRes] = await Promise.all([
+        supabase.from("deals").select("id, deal_number, title, current_phase, estimated_amount").in("id", dealIds),
+        supabase.from("deal_tokens").select("*").in("deal_id", dealIds).order("created_at"),
+        supabase.from("deal_escrow").select("*").in("deal_id", dealIds),
+      ]);
+
+      return dealIds.map(dealId => {
+        const deal = dealsRes.data?.find(d => d.id === dealId);
+        const neg = negotiations.find(n => n.deal_id === dealId);
+        const dealTokens = (tokensRes.data || []).filter(t => t.deal_id === dealId);
+        const escrow = escrowRes.data?.find(e => e.deal_id === dealId);
+        return {
+          dealId,
+          dealNumber: deal?.deal_number || 0,
+          dealTitle: deal?.title || "",
+          currentPhase: deal?.current_phase || "",
+          factoryName: neg?.factory_name || "",
+          factoryCountry: neg?.factory_country || "",
+          tokens: dealTokens,
+          escrow,
+          canCreateTokenA: deal?.current_phase === "inspection_completed" && !dealTokens.some(t => t.token_type === "token_a"),
+          canCreateTokenB: deal?.current_phase === "quality_approved" && !dealTokens.some(t => t.token_type === "token_b"),
+        };
+      }).filter(s => s.factoryName);
     },
   });
 
@@ -185,6 +223,26 @@ const AdminFinancePage = () => {
   const totalReleased = escrows.reduce((s: number, e: any) => s + (e.total_released || 0), 0);
   const totalBalance = escrows.reduce((s: number, e: any) => s + (e.balance || 0), 0);
 
+  // صرف توكن تلقائي (تجريبي)
+  const autoDisburse = useMutation({
+    mutationFn: async ({ dealId, action }: { dealId: string; action: string }) => {
+      const { data: res, error } = await supabase.functions.invoke("process-post-inspection", {
+        body: { deal_id: dealId, action },
+      });
+      if (error) throw error;
+      return res;
+    },
+    onSuccess: (res) => {
+      toast({ title: "✅ " + (res?.message || "تم بنجاح") });
+      queryClient.invalidateQueries({ queryKey: ["admin-tokens"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-escrows"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-supplier-tokens"] });
+    },
+    onError: (err: any) => {
+      toast({ title: "خطأ", description: err.message, variant: "destructive" });
+    },
+  });
+
   const renderDepositCard = (dep: any) => (
     <div key={dep.id} className="flex items-center justify-between p-4 border rounded-lg">
       <div className="space-y-1">
@@ -249,14 +307,125 @@ const AdminFinancePage = () => {
         </Card>
       </div>
 
-      <Tabs defaultValue="pending" dir="rtl">
-        <TabsList>
+      <Tabs defaultValue="suppliers" dir="rtl">
+        <TabsList className="flex-wrap">
+          <TabsTrigger value="suppliers">الموردون ({suppliers.length})</TabsTrigger>
           <TabsTrigger value="pending">معلقة ({pendingDeposits.length})</TabsTrigger>
           <TabsTrigger value="approved">موافق عليها ({approvedDeposits.length})</TabsTrigger>
           <TabsTrigger value="rejected">مرفوضة ({rejectedDeposits.length})</TabsTrigger>
           <TabsTrigger value="tokens">التوكنات ({tokens.length})</TabsTrigger>
           <TabsTrigger value="escrow">الخزينة ({escrows.length})</TabsTrigger>
         </TabsList>
+
+        {/* تبويب الموردون — صرف التوكنات */}
+        <TabsContent value="suppliers" className="space-y-4 mt-4">
+          {suppliers.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">لا يوجد موردون بعقود مفعّلة</p>
+          ) : suppliers.map((s: any) => (
+            <Card key={s.dealId}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Factory className="w-5 h-5 text-primary" />
+                    <div>
+                      <CardTitle className="text-base">{s.factoryName}</CardTitle>
+                      <p className="text-xs text-muted-foreground">{s.factoryCountry} · صفقة #{s.dealNumber} — {s.dealTitle}</p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="text-xs">{s.currentPhase}</Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {/* التوكنات الحالية */}
+                {s.tokens.length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    {s.tokens.map((t: any) => (
+                      <div key={t.id} className="border rounded-lg p-3 text-sm">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="font-medium">
+                            {t.token_type === "token_a" ? "توكن A — 30%" : t.token_type === "token_b" ? "توكن B — 50%" : t.token_type === "token_c" ? "توكن C — 20%" : t.token_type}
+                          </span>
+                          <Badge variant={t.status === "released" || t.status === "approved" ? "default" : t.status === "rejected" ? "destructive" : "secondary"} className="text-xs">
+                            {t.status === "released" ? "مصروف ✓" : t.status === "approved" ? "معتمد ✓" : t.status === "pending" ? "معلّق" : t.status}
+                          </Badge>
+                        </div>
+                        <p className="text-lg font-bold text-primary">{Number(t.amount).toLocaleString()} {t.currency}</p>
+                        {t.status === "pending" && (
+                          <div className="flex gap-2 mt-2">
+                            <Button size="sm" className="flex-1" onClick={() => setTokenReview(t)}>
+                              <CheckCircle className="w-3 h-3 ml-1" />
+                              رسمي: اعتماد
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* رصيد الخزينة */}
+                {s.escrow && (
+                  <div className="border rounded-lg p-3 bg-muted/20">
+                    <div className="grid grid-cols-3 gap-2 text-sm text-center">
+                      <div>
+                        <p className="text-muted-foreground text-xs">المودع</p>
+                        <p className="font-bold">{Number(s.escrow.total_deposited).toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs">المصروف للمورد</p>
+                        <p className="font-bold text-destructive">{Number(s.escrow.total_released).toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs">المتبقي</p>
+                        <p className="font-bold text-primary">{Number(s.escrow.balance).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* أزرار الصرف */}
+                <div className="flex gap-2 flex-wrap">
+                  {s.canCreateTokenA && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-yellow-500/50 text-yellow-600 hover:bg-yellow-500/10"
+                        onClick={() => autoDisburse.mutate({ dealId: s.dealId, action: "test_auto_token_a" })}
+                        disabled={autoDisburse.isPending}
+                      >
+                        <TestTube className="w-3 h-3 ml-1" />
+                        🧪 تجريبي: صرف 30% للمورد
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => autoDisburse.mutate({ dealId: s.dealId, action: "create_token_a" })}
+                        disabled={autoDisburse.isPending}
+                      >
+                        <Play className="w-3 h-3 ml-1" />
+                        رسمي: إنشاء توكن A
+                      </Button>
+                    </>
+                  )}
+                  {s.canCreateTokenB && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-yellow-500/50 text-yellow-600 hover:bg-yellow-500/10"
+                        onClick={() => autoDisburse.mutate({ dealId: s.dealId, action: "quality_approved" })}
+                        disabled={autoDisburse.isPending}
+                      >
+                        <TestTube className="w-3 h-3 ml-1" />
+                        🧪 تجريبي: صرف 50% للمورد
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </TabsContent>
 
         <TabsContent value="pending" className="space-y-3 mt-4">
           {pendingDeposits.length === 0 ? (
