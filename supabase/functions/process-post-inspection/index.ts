@@ -294,41 +294,168 @@ serve(async (req) => {
           });
         }
 
-        // الانتقال للوجستيك
-        await supabase.from("deals").update({ current_phase: "logistics_handoff" }).eq("id", deal_id);
+        // الانتقال لمرحلة التحميل
+        await supabase.from("deals").update({ current_phase: "loading_goods" }).eq("id", deal_id);
 
-        result.message = "تم اعتماد Token B والانتقال للوجستيك";
+        result.message = "تم اعتماد Token B — البضاعة قيد التحميل";
         break;
       }
 
-      // === موظف اللوجستيك وثّق الشحنة ===
-      case "logistics_documented": {
-        const { tracking_url, seal_confirmed } = data || {};
-        
-        await supabase.from("deals").update({
-          current_phase: "shipping_documented",
-          shipping_tracking_url: tracking_url || "",
-        }).eq("id", deal_id);
+      // === محاكاة تجريبية: فحص جودة → توكن B → تحميل بخطوة واحدة ===
+      case "test_auto_token_b": {
+        const { data: contract } = await supabase
+          .from("deal_contracts")
+          .select("total_amount, currency, platform_fee_percentage")
+          .eq("deal_id", deal_id)
+          .single();
+
+        const totalAmount = contract?.total_amount || deal.estimated_amount || 0;
+        const currency = contract?.currency || "USD";
+        const feePercent = contract?.platform_fee_percentage || 7;
+        const netAmount = totalAmount * (1 - feePercent / 100);
+        const tokenBAmount = netAmount * 0.5;
+
+        await supabase.from("deal_tokens").insert({
+          deal_id,
+          token_type: "token_b",
+          amount: tokenBAmount,
+          percentage: 50,
+          currency,
+          status: "approved",
+          approved_at: new Date().toISOString(),
+        });
+
+        const { data: escrow } = await supabase
+          .from("deal_escrow")
+          .select("*")
+          .eq("deal_id", deal_id)
+          .single();
+
+        if (escrow) {
+          await supabase.from("deal_escrow").update({
+            total_released: Number(escrow.total_released) + tokenBAmount,
+            balance: Number(escrow.balance) - tokenBAmount,
+          }).eq("deal_id", deal_id);
+        }
+
+        await supabase.from("deals").update({ current_phase: "loading_goods" }).eq("id", deal_id);
 
         if (deal.client_id) {
           await supabase.from("notifications").insert({
             user_id: deal.client_id,
-            title: "تم شحن بضاعتك!",
-            message: `تم توثيق شحن بضاعة الصفقة #${deal.deal_number}. يمكنك تتبع الشحنة من لوحتك.`,
-            type: "shipping_update",
+            title: "🧪 [تجريبي] تم صرف توكن B — 50%",
+            message: `تم خصم ${tokenBAmount.toFixed(2)} ${currency} من حساب الضمان — الصفقة #${deal.deal_number}. البضاعة قيد التحميل.`,
+            type: "token_released",
             entity_type: "deal",
             entity_id: deal_id,
           });
         }
 
-        result.message = "تم توثيق الشحنة";
+        const { data: admins } = await supabase.rpc("get_admin_contacts");
+        for (const admin of admins || []) {
+          await supabase.from("notifications").insert({
+            user_id: admin.user_id,
+            title: "🧪 [تجريبي] صرف توكن B تلقائي",
+            message: `الصفقة #${deal.deal_number}: تم صرف ${tokenBAmount.toFixed(2)} ${currency} (50%) تلقائياً. الرصيد: ${escrow ? (Number(escrow.balance) - tokenBAmount).toFixed(2) : "—"} ${currency}`,
+            type: "token_released",
+            entity_type: "deal",
+            entity_id: deal_id,
+          });
+        }
+
+        result.token_amount = tokenBAmount;
+        result.message = `🧪 تجريبي: تم صرف Token B وانتقال البضاعة لمرحلة التحميل`;
         break;
       }
 
-      // === البضاعة في البحر ===
+      // === المرحلة 1: تحميل البضاعة ===
+      case "loading_goods": {
+        await supabase.from("deals").update({ current_phase: "loading_goods" }).eq("id", deal_id);
+        if (deal.client_id) {
+          await supabase.from("notifications").insert({
+            user_id: deal.client_id,
+            title: "📦 بضاعتك قيد التحميل",
+            message: `الصفقة #${deal.deal_number}: يتم الآن تحميل بضاعتك استعداداً للشحن.`,
+            type: "shipping_update", entity_type: "deal", entity_id: deal_id,
+          });
+        }
+        result.message = "البضاعة قيد التحميل";
+        break;
+      }
+
+      // === المرحلة 2: مغادرة المصنع ===
+      case "leaving_factory": {
+        await supabase.from("deals").update({ current_phase: "leaving_factory" }).eq("id", deal_id);
+        if (deal.client_id) {
+          await supabase.from("notifications").insert({
+            user_id: deal.client_id,
+            title: "🚛 البضاعة غادرت المصنع",
+            message: `الصفقة #${deal.deal_number}: البضاعة في الطريق إلى ميناء التصدير.`,
+            type: "shipping_update", entity_type: "deal", entity_id: deal_id,
+          });
+        }
+        result.message = "البضاعة غادرت المصنع";
+        break;
+      }
+
+      // === المرحلة 3: وصلت ميناء المصدر ===
+      case "at_source_port": {
+        await supabase.from("deals").update({ current_phase: "at_source_port" }).eq("id", deal_id);
+        if (deal.client_id) {
+          await supabase.from("notifications").insert({
+            user_id: deal.client_id,
+            title: "⚓ البضاعة في ميناء التصدير",
+            message: `الصفقة #${deal.deal_number}: البضاعة وصلت ميناء التصدير وجاري إجراءات الشحن البحري.`,
+            type: "shipping_update", entity_type: "deal", entity_id: deal_id,
+          });
+        }
+        result.message = "البضاعة في ميناء التصدير";
+        break;
+      }
+
+      // === المرحلة 4: شحن بحري — في البحر ===
       case "in_transit": {
-        await supabase.from("deals").update({ current_phase: "in_transit" }).eq("id", deal_id);
-        result.message = "البضاعة في الطريق";
+        const { tracking_url } = data || {};
+        await supabase.from("deals").update({ 
+          current_phase: "in_transit",
+          shipping_tracking_url: tracking_url || deal.shipping_tracking_url || "",
+        }).eq("id", deal_id);
+        if (deal.client_id) {
+          await supabase.from("notifications").insert({
+            user_id: deal.client_id,
+            title: "🚢 البضاعة في البحر",
+            message: `الصفقة #${deal.deal_number}: البضاعة تبحر الآن نحو ميناء الوجهة.${tracking_url ? " يمكنك تتبعها من لوحتك." : ""}`,
+            type: "shipping_update", entity_type: "deal", entity_id: deal_id,
+          });
+        }
+        result.message = "البضاعة في البحر";
+        break;
+      }
+
+      // === المرحلة 5: وصلت ميناء الوجهة ===
+      case "at_destination_port": {
+        await supabase.from("deals").update({ current_phase: "at_destination_port" }).eq("id", deal_id);
+        if (deal.client_id) {
+          await supabase.from("notifications").insert({
+            user_id: deal.client_id,
+            title: "🏁 البضاعة وصلت ميناء الوجهة",
+            message: `الصفقة #${deal.deal_number}: البضاعة وصلت الميناء. سيتم فحصها قبل بدء العداد السيادي.`,
+            type: "shipping_update", entity_type: "deal", entity_id: deal_id,
+          });
+        }
+        result.message = "البضاعة وصلت ميناء الوجهة";
+        break;
+      }
+
+      // === توثيق لوجستي (رابط تتبع + صور أختام) ===
+      case "logistics_documented": {
+        const { tracking_url, seal_confirmed, seal_photo_url, notes: logNotes } = data || {};
+        
+        await supabase.from("deals").update({
+          shipping_tracking_url: tracking_url || deal.shipping_tracking_url || "",
+        }).eq("id", deal_id);
+
+        result.message = "تم توثيق بيانات الشحنة";
         break;
       }
 
