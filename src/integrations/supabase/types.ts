@@ -1022,6 +1022,50 @@ export type Database = {
         }
         Relationships: []
       }
+      supplier_messages: {
+        Row: {
+          auto_action_taken: string | null
+          created_at: string
+          deal_id: string
+          detection_confidence: number | null
+          factory_name: string
+          id: string
+          is_completion_signal: boolean
+          message: string
+          sender_type: string
+        }
+        Insert: {
+          auto_action_taken?: string | null
+          created_at?: string
+          deal_id: string
+          detection_confidence?: number | null
+          factory_name?: string
+          id?: string
+          is_completion_signal?: boolean
+          message: string
+          sender_type?: string
+        }
+        Update: {
+          auto_action_taken?: string | null
+          created_at?: string
+          deal_id?: string
+          detection_confidence?: number | null
+          factory_name?: string
+          id?: string
+          is_completion_signal?: boolean
+          message?: string
+          sender_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_messages_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       support_messages: {
         Row: {
           created_at: string
