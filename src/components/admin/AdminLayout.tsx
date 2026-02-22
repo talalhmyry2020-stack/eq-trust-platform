@@ -48,8 +48,8 @@ const AdminLayout = () => {
     const isCustoms = jobCode === "customs_agent";
 
     // Allow only their specific page
-    if (isLogistics && !path.startsWith("/admin/logistics")) {
-      return <Navigate to="/admin/logistics" replace />;
+    if (isLogistics) {
+      return <Navigate to="/logistics" replace />;
     }
     if (isCustoms && !path.startsWith("/admin/port-clearance")) {
       return <Navigate to="/admin/port-clearance" replace />;

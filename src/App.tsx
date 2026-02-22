@@ -51,6 +51,8 @@ import ValidatePage from "./pages/inspector/ValidatePage";
 import ReportsPage from "./pages/inspector/ReportsPage";
 import InspectorSettings from "./pages/inspector/InspectorSettings";
 import InspectionMissionPage from "./pages/inspector/InspectionMissionPage";
+import LogisticsLayout from "./components/logistics/LogisticsLayout";
+import LogisticsDashboard from "./pages/logistics/LogisticsDashboard";
 
 const queryClient = new QueryClient();
 
@@ -110,6 +112,9 @@ const App = () => (
               <Route path="reports" element={<ReportsPage />} />
               <Route path="mission" element={<InspectionMissionPage />} />
               <Route path="settings" element={<InspectorSettings />} />
+            </Route>
+            <Route path="/logistics" element={<LogisticsLayout />}>
+              <Route index element={<LogisticsDashboard />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
