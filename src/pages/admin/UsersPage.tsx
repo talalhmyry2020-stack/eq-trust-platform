@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Plus, Ban, MessageSquare, Shield, Eye } from "lucide-react";
+import { Search, Plus, Ban, MessageSquare, Shield, Eye, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface UserProfile {
@@ -178,6 +178,18 @@ const UsersPage = () => {
     setMsgDialog({ open: false, userId: "", userName: "" });
     setMsgTitle("");
     setMsgBody("");
+  };
+  const deleteEmployee = async (userId: string, userName: string) => {
+    if (!confirm(`هل أنت متأكد من حذف الموظف "${userName}"؟ لا يمكن التراجع عن هذا الإجراء.`)) return;
+    const { error } = await supabase.functions.invoke("manage-users", {
+      body: { action: "delete_employee", user_id: userId },
+    });
+    if (error) {
+      toast.error("فشل حذف الموظف");
+      return;
+    }
+    toast.success("تم حذف الموظف بنجاح");
+    fetchUsers();
   };
 
 
@@ -385,6 +397,9 @@ const UsersPage = () => {
                           )}
                           <Button size="sm" variant="ghost" onClick={() => setMsgDialog({ open: true, userId: emp.user_id, userName: emp.full_name || emp.email || "" })}>
                             <MessageSquare className="w-3 h-3" />
+                          </Button>
+                          <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => deleteEmployee(emp.user_id, emp.full_name || emp.email || "")}>
+                            <Trash2 className="w-3 h-3" />
                           </Button>
                         </div>
                       </TableCell>
