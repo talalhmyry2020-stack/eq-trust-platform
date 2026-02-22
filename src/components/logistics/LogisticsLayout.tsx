@@ -12,10 +12,15 @@ const LogisticsLayout = () => {
   const [jobLoading, setJobLoading] = useState(true);
 
   useEffect(() => {
-    if (!user || !isEmployee) {
+    if (!user) {
       setJobLoading(false);
       return;
     }
+    if (!isEmployee) {
+      // Don't set jobLoading=false yet - roles may still be loading
+      return;
+    }
+    setJobLoading(true);
     const fetchJob = async () => {
       const { data } = await supabase
         .from("employee_details")
