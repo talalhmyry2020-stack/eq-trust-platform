@@ -9,8 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Search, Plus, Ban, MessageSquare, Shield, Eye } from "lucide-react";
 import { toast } from "sonner";
@@ -39,13 +37,8 @@ interface AuthUser {
   last_sign_in_at: string | null;
 }
 
-const PERMISSIONS = [
-  { value: "view_deals", label: "مشاهدة الصفقات" },
-  { value: "manage_deals", label: "إدارة الصفقات" },
-  { value: "contact_clients", label: "التواصل مع العملاء" },
-  { value: "view_clients", label: "مشاهدة العملاء" },
-  { value: "manage_clients", label: "إدارة العملاء" },
-];
+
+
 
 const INSPECTOR_PERMISSIONS = [
   "receive_briefing",
@@ -54,8 +47,6 @@ const INSPECTOR_PERMISSIONS = [
   "visual_validation",
   "submit_report",
 ];
-
-type EmployeeType = "general" | "inspector" | "logistics" | "customs";
 
 const PHASE_LABELS: Record<string, string> = {
   verification: "قيد المراجعة",
@@ -71,8 +62,7 @@ const UsersPage = () => {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [showEmployeeDialog, setShowEmployeeDialog] = useState(false);
-  const [employeeType, setEmployeeType] = useState<EmployeeType>("general");
-  const [newEmployee, setNewEmployee] = useState({ name: "", email: "", password: "", permissions: [] as string[] });
+  const [newEmployee, setNewEmployee] = useState({ name: "", email: "", password: "" });
   const [msgDialog, setMsgDialog] = useState<{ open: boolean; userId: string; userName: string }>({ open: false, userId: "", userName: "" });
   const [msgTitle, setMsgTitle] = useState("");
   const [msgBody, setMsgBody] = useState("");
@@ -145,37 +135,17 @@ const UsersPage = () => {
       return;
     }
 
-    const isInspector = employeeType === "inspector";
-    const isLogistics = employeeType === "logistics";
-    const isCustoms = employeeType === "customs";
-    const permissions = isInspector ? INSPECTOR_PERMISSIONS : 
-                       (isLogistics || isCustoms) ? ["view_deals", "manage_deals"] : 
-                       newEmployee.permissions;
-
     const body: Record<string, unknown> = {
       action: "create_employee",
       email: newEmployee.email,
       password: newEmployee.password,
       full_name: newEmployee.name,
-      permissions,
+      permissions: INSPECTOR_PERMISSIONS,
+      job_title: "المفتش الميداني",
+      job_code: "agent_06",
+      motto: "العين التي لا ترمش.. واليد المقيدة بالحقيقة",
+      description: "كيان بشري يعمل بعقل رقمي.",
     };
-
-    if (isInspector) {
-      body.job_title = "المفتش الميداني";
-      body.job_code = "agent_06";
-      body.motto = "العين التي لا ترمش.. واليد المقيدة بالحقيقة";
-      body.description = "كيان بشري يعمل بعقل رقمي.";
-    } else if (isLogistics) {
-      body.job_title = "موظف اللوجستيك";
-      body.job_code = "logistics";
-      body.motto = "نوثّق كل شحنة بعين الثقة";
-      body.description = "مسؤول توثيق الشحنات وتأكيد السلامة وإرسال رابط التتبع.";
-    } else if (isCustoms) {
-      body.job_title = "مخلّص الميناء";
-      body.job_code = "customs_agent";
-      body.motto = "البوابة الأخيرة قبل العداد السيادي";
-      body.description = "مسؤول استلام البضاعة في الميناء والتأكد من سلامتها وتقديم التقرير النهائي الذي يُطلق العداد السيادي.";
-    }
 
     const { error } = await supabase.functions.invoke("manage-users", { body });
 
@@ -184,15 +154,9 @@ const UsersPage = () => {
       return;
     }
 
-    toast.success(
-      isInspector ? "تم إنشاء حساب المفتش الميداني بنجاح" : 
-      isLogistics ? "تم إنشاء حساب موظف اللوجستيك بنجاح" :
-      isCustoms ? "تم إنشاء حساب مخلّص الميناء بنجاح" :
-      "تم إنشاء حساب الموظف بنجاح"
-    );
+    toast.success("تم إنشاء حساب المفتش الميداني بنجاح");
     setShowEmployeeDialog(false);
-    setNewEmployee({ name: "", email: "", password: "", permissions: [] });
-    setEmployeeType("general");
+    setNewEmployee({ name: "", email: "", password: "" });
     fetchUsers();
   };
 
@@ -216,14 +180,8 @@ const UsersPage = () => {
     setMsgBody("");
   };
 
-  const togglePermission = (perm: string) => {
-    setNewEmployee((prev) => ({
-      ...prev,
-      permissions: prev.permissions.includes(perm)
-        ? prev.permissions.filter((p) => p !== perm)
-        : [...prev.permissions, perm],
-    }));
-  };
+
+
 
   const filteredClients = clients.filter((c) =>
     (c.full_name || "").toLowerCase().includes(search.toLowerCase()) ||
@@ -270,14 +228,8 @@ const UsersPage = () => {
         </Badge>
       );
     }
-    if (jobCode === "logistics") {
-      return <Badge className="bg-purple-500/10 text-purple-600 border-purple-500/20 gap-1">🚛 موظف لوجستيك</Badge>;
-    }
-    if (jobCode === "customs_agent") {
-      return <Badge className="bg-cyan-500/10 text-cyan-600 border-cyan-500/20 gap-1">⚓ مخلّص ميناء</Badge>;
-    }
     if (jobTitle) return <Badge variant="secondary">{jobTitle}</Badge>;
-    return <Badge variant="outline">موظف عام</Badge>;
+    return <Badge variant="outline">موظف</Badge>;
   };
 
   return (
@@ -286,25 +238,13 @@ const UsersPage = () => {
         <h1 className="font-heading text-2xl font-bold">إدارة المستخدمين</h1>
         <Dialog open={showEmployeeDialog} onOpenChange={setShowEmployeeDialog}>
           <DialogTrigger asChild>
-            <Button><Plus className="w-4 h-4 ml-2" />إضافة موظف</Button>
+            <Button><Plus className="w-4 h-4 ml-2" />إضافة مفتش ميداني</Button>
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>إنشاء حساب موظف</DialogTitle>
+              <DialogTitle>إنشاء حساب مفتش ميداني</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              <div>
-                <Label>نوع الموظف</Label>
-                <Select value={employeeType} onValueChange={(v) => setEmployeeType(v as EmployeeType)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="general">موظف عام</SelectItem>
-                    <SelectItem value="inspector">مفتش ميداني — الوكيل 06</SelectItem>
-                    <SelectItem value="logistics">موظف لوجستيك — توثيق الشحنات</SelectItem>
-                    <SelectItem value="customs">مخلّص ميناء — فحص الوصول</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
               <div>
                 <Label>الاسم الكامل</Label>
                 <Input value={newEmployee.name} onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })} />
@@ -317,62 +257,19 @@ const UsersPage = () => {
                 <Label>كلمة المرور المؤقتة</Label>
                 <Input type="password" value={newEmployee.password} onChange={(e) => setNewEmployee({ ...newEmployee, password: e.target.value })} />
               </div>
-              {employeeType === "general" && (
-                <div>
-                  <Label>الصلاحيات</Label>
-                  <div className="space-y-2 mt-2">
-                    {PERMISSIONS.map((p) => (
-                      <div key={p.value} className="flex items-center gap-2">
-                        <Checkbox checked={newEmployee.permissions.includes(p.value)} onCheckedChange={() => togglePermission(p.value)} />
-                        <span className="text-sm">{p.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {employeeType === "inspector" && (
-                <Card className="border-primary/20 bg-primary/5">
-                  <CardContent className="p-4">
-                    <p className="text-sm font-semibold mb-2">صلاحيات المفتش الميداني (تلقائية):</p>
-                    <ul className="text-xs text-muted-foreground space-y-1">
-                      <li>✓ استلام المواصفات المشفرة</li>
-                      <li>✓ القفل الجغرافي</li>
-                      <li>✓ التوثيق المقيد بالكاميرا</li>
-                      <li>✓ المطابقة البصرية وإطلاق التوكن</li>
-                      <li>✓ رفع التقارير للسحابة الآمنة</li>
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
-              {employeeType === "logistics" && (
-                <Card className="border-purple-500/20 bg-purple-500/5">
-                  <CardContent className="p-4">
-                    <p className="text-sm font-semibold mb-2">🚛 مهام موظف اللوجستيك:</p>
-                    <ul className="text-xs text-muted-foreground space-y-1">
-                      <li>✓ تصوير البضاعة مع ختم الشحنة</li>
-                      <li>✓ تأكيد سلامة البضاعة بتقرير</li>
-                      <li>✓ إرسال رمز تتبع السفينة</li>
-                      <li>✓ توثيق الشحنة وتأكيد الإرسال</li>
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
-              {employeeType === "customs" && (
-                <Card className="border-cyan-500/20 bg-cyan-500/5">
-                  <CardContent className="p-4">
-                    <p className="text-sm font-semibold mb-2">⚓ مهام مخلّص الميناء:</p>
-                    <ul className="text-xs text-muted-foreground space-y-1">
-                      <li>✓ استلام البضاعة عند وصولها للميناء</li>
-                      <li>✓ التأكد من سلامة البضاعة وتصويرها</li>
-                      <li>✓ تقديم تقرير الوصول النهائي</li>
-                      <li>✓ على تقريره يُطلق العداد السيادي 168 ساعة</li>
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
-              <Button onClick={createEmployee} className="w-full">
-                {employeeType === "inspector" ? "إنشاء المفتش الميداني" : employeeType === "logistics" ? "إنشاء موظف اللوجستيك" : employeeType === "customs" ? "إنشاء مخلّص الميناء" : "إنشاء الموظف"}
-              </Button>
+              <Card className="border-primary/20 bg-primary/5">
+                <CardContent className="p-4">
+                  <p className="text-sm font-semibold mb-2">صلاحيات المفتش الميداني (تلقائية):</p>
+                  <ul className="text-xs text-muted-foreground space-y-1">
+                    <li>✓ استلام المواصفات المشفرة</li>
+                    <li>✓ القفل الجغرافي</li>
+                    <li>✓ التوثيق المقيد بالكاميرا</li>
+                    <li>✓ المطابقة البصرية وإطلاق التوكن</li>
+                    <li>✓ رفع التقارير للسحابة الآمنة</li>
+                  </ul>
+                </CardContent>
+              </Card>
+              <Button onClick={createEmployee} className="w-full">إنشاء المفتش الميداني</Button>
             </div>
           </DialogContent>
         </Dialog>
