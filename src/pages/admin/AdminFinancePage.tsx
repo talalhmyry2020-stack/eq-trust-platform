@@ -8,7 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { DollarSign, CheckCircle, XCircle, Eye, Clock, Banknote, TrendingUp, Coins, Factory, TestTube, Play } from "lucide-react";
+import { DollarSign, CheckCircle, XCircle, Eye, Clock, Banknote, TrendingUp, Coins, Factory, TestTube, Play, MessageSquare, Send, Bot } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 const AdminFinancePage = () => {
   const queryClient = useQueryClient();
@@ -16,6 +17,8 @@ const AdminFinancePage = () => {
   const [rejectionReason, setRejectionReason] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [tokenReview, setTokenReview] = useState<any>(null);
+  const [testMessage, setTestMessage] = useState("تم اكتمال الإنتاج والبضاعة جاهزة للشحن");
+  const [selectedDealForMessage, setSelectedDealForMessage] = useState<string | null>(null);
 
   // جلب كل الإيداعات
   const { data: deposits = [] } = useQuery({
@@ -50,6 +53,43 @@ const AdminFinancePage = () => {
         .select("*, deals(title, deal_number, client_full_name)")
         .order("created_at", { ascending: false });
       return data || [];
+    },
+  });
+
+  // جلب رسائل الموردين
+  const { data: supplierMessages = [], refetch: refetchMessages } = useQuery({
+    queryKey: ["supplier-messages"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("supplier_messages")
+        .select("*, deals(title, deal_number, client_full_name)")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      return data || [];
+    },
+  });
+
+  // إرسال رسالة تجريبية من المورد
+  const sendTestMessage = useMutation({
+    mutationFn: async ({ dealId, message, factoryName }: { dealId: string; message: string; factoryName: string }) => {
+      const { data, error } = await supabase.functions.invoke("process-supplier-message", {
+        body: { deal_id: dealId, message, factory_name: factoryName, is_test: true },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (res) => {
+      if (res?.is_completion_signal) {
+        toast({ title: `✅ تم كشف إشارة اكتمال (ثقة: ${res.confidence}%)`, description: "تم تفعيل إجراء اكتمال الإنتاج تلقائياً" });
+      } else {
+        toast({ title: "📩 تم تسجيل الرسالة", description: "لم يُكتشف إشارة اكتمال في هذه الرسالة" });
+      }
+      refetchMessages();
+      queryClient.invalidateQueries({ queryKey: ["admin-supplier-tokens"] });
+      setSelectedDealForMessage(null);
+    },
+    onError: (err: any) => {
+      toast({ title: "خطأ", description: err.message, variant: "destructive" });
     },
   });
 
@@ -310,6 +350,7 @@ const AdminFinancePage = () => {
       <Tabs defaultValue="suppliers" dir="rtl">
         <TabsList className="flex-wrap">
           <TabsTrigger value="suppliers">الموردون ({suppliers.length})</TabsTrigger>
+          <TabsTrigger value="messages">📩 رسائل الموردين ({supplierMessages.length})</TabsTrigger>
           <TabsTrigger value="pending">معلقة ({pendingDeposits.length})</TabsTrigger>
           <TabsTrigger value="approved">موافق عليها ({approvedDeposits.length})</TabsTrigger>
           <TabsTrigger value="rejected">مرفوضة ({rejectedDeposits.length})</TabsTrigger>
@@ -421,6 +462,117 @@ const AdminFinancePage = () => {
                       </Button>
                     </>
                   )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </TabsContent>
+
+        {/* تبويب رسائل الموردين */}
+        <TabsContent value="messages" className="space-y-4 mt-4">
+          {/* إرسال رسالة تجريبية */}
+          <Card className="border-dashed border-2 border-amber-500/30">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <TestTube className="w-4 h-4 text-amber-500" />
+                🧪 محاكاة رسالة مورد (تجريبي)
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">اختر صفقة واكتب رسالة لمحاكاة ما يرسله المصنع. النظام سيحلل الرسالة تلقائياً.</p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* اختيار الصفقة */}
+              <div className="flex flex-wrap gap-2">
+                {suppliers.map((s: any) => (
+                  <Button
+                    key={s.dealId}
+                    size="sm"
+                    variant={selectedDealForMessage === s.dealId ? "default" : "outline"}
+                    onClick={() => setSelectedDealForMessage(s.dealId)}
+                  >
+                    <Factory className="w-3 h-3 ml-1" />
+                    #{s.dealNumber} — {s.factoryName}
+                  </Button>
+                ))}
+              </div>
+
+              {selectedDealForMessage && (
+                <div className="flex gap-2">
+                  <Input
+                    value={testMessage}
+                    onChange={(e) => setTestMessage(e.target.value)}
+                    placeholder="اكتب رسالة المورد..."
+                    className="flex-1"
+                    dir="rtl"
+                  />
+                  <Button
+                    onClick={() => {
+                      const supplier = suppliers.find((s: any) => s.dealId === selectedDealForMessage);
+                      sendTestMessage.mutate({
+                        dealId: selectedDealForMessage,
+                        message: testMessage,
+                        factoryName: supplier?.factoryName || "",
+                      });
+                    }}
+                    disabled={sendTestMessage.isPending || !testMessage.trim()}
+                  >
+                    <Send className="w-4 h-4 ml-1" />
+                    إرسال
+                  </Button>
+                </div>
+              )}
+
+              {/* أمثلة سريعة */}
+              {selectedDealForMessage && (
+                <div className="flex flex-wrap gap-1">
+                  <span className="text-xs text-muted-foreground">أمثلة:</span>
+                  {["تم اكتمال الإنتاج والبضاعة جاهزة للشحن", "production completed, ready to ship", "نحتاج مزيد من الوقت لإنهاء الطلبية", "الطلبية جاهزة للفحص"].map((ex) => (
+                    <button
+                      key={ex}
+                      className="text-xs px-2 py-0.5 rounded-full border hover:bg-muted transition-colors"
+                      onClick={() => setTestMessage(ex)}
+                    >
+                      {ex.substring(0, 30)}...
+                    </button>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* سجل الرسائل */}
+          {supplierMessages.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">لا توجد رسائل من الموردين بعد</p>
+          ) : supplierMessages.map((msg: any) => (
+            <Card key={msg.id} className={msg.is_completion_signal ? "border-green-500/30 bg-green-500/5" : ""}>
+              <CardContent className="pt-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 flex-1">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${msg.is_completion_signal ? "bg-green-500/20 text-green-600" : "bg-muted"}`}>
+                      {msg.sender_type === "system" ? <Bot className="w-4 h-4" /> : <Factory className="w-4 h-4" />}
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm">{msg.factory_name || "مورد"}</span>
+                        <span className="text-xs text-muted-foreground">· صفقة #{msg.deals?.deal_number}</span>
+                        {msg.sender_type === "system" && <Badge variant="outline" className="text-[10px]">🧪 تجريبي</Badge>}
+                      </div>
+                      <p className="text-sm">{msg.message}</p>
+                      <p className="text-[10px] text-muted-foreground">{new Date(msg.created_at).toLocaleString("ar-SA")}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    {msg.is_completion_signal ? (
+                      <>
+                        <Badge variant="default" className="text-[10px]">✅ اكتمال مكتشف</Badge>
+                        <span className="text-[10px] text-muted-foreground">ثقة: {msg.detection_confidence}%</span>
+                      </>
+                    ) : (
+                      <Badge variant="secondary" className="text-[10px]">رسالة عادية</Badge>
+                    )}
+                    {msg.auto_action_taken && (
+                      <Badge variant="outline" className="text-[10px] text-green-600">⚡ {msg.auto_action_taken}</Badge>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
