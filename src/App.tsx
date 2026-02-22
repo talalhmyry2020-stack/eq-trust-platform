@@ -115,6 +115,7 @@ const App = () => (
             </Route>
             <Route path="/logistics" element={<LogisticsLayout />}>
               <Route index element={<LogisticsDashboard />} />
+              <Route path="shipments" element={<LogisticsDashboard />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
