@@ -273,6 +273,17 @@ const InspectionMissionPage = () => {
           console.error("Auto Token A failed:", e);
         }
       }
+
+      // فحص جودة تجريبي → صرف Token B تلقائي + انتقال لمرحلة التحميل
+      if (activeMission.mission_type === "quality") {
+        try {
+          await supabase.functions.invoke("process-post-inspection", {
+            body: { deal_id: activeMission.deal_id, action: "test_auto_token_b" },
+          });
+        } catch (e) {
+          console.error("Auto Token B failed:", e);
+        }
+      }
     },
     onSuccess: () => {
       toast({ title: "✅ تم إنهاء المهمة بنجاح! تم رفع الصور والتقرير" });
