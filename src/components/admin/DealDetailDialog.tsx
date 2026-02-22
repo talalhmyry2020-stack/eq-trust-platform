@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { User, MapPin, FileText, Package, Globe, Download, ExternalLink, Clock } from "lucide-react";
+import { User, MapPin, FileText, Package, Globe, Download, ExternalLink, Clock, Camera, Image } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 interface DealDetailDialogProps {
   deal: any;
@@ -33,10 +34,59 @@ const PHASE_MAP: Record<string, string> = {
   negotiation: "بدء التفاوض",
   negotiating: "جاري التفاوض",
   negotiation_complete: "اكتمل التفاوض",
+  inspection_in_progress: "الفحص الميداني جاري",
+  inspection_completed: "اكتمل الفحص الميداني",
+  token_a_pending: "بانتظار اعتماد توكن A",
+  token_a_released: "تم صرف توكن A",
+  factory_production: "المصنع يعمل على الإنتاج",
+  factory_completed: "المصنع أكمل الإنتاج",
+  quality_inspection_assigned: "مفتش الجودة معيّن",
+  quality_approved: "فحص الجودة ناجح",
+  token_b_pending: "بانتظار اعتماد توكن B",
+  token_b_released: "تم صرف توكن B",
+  logistics_handoff: "تسليم اللوجستيك",
+  shipping_documented: "الشحنة موثقة",
+  in_transit: "البضاعة في الطريق",
+  sovereignty_timer: "العداد السيادي",
+  objection_raised: "اعتراض عميل",
+  completed: "مكتملة",
 };
 
 const DealDetailDialog = ({ deal, open, onClose, clientName, accountOwnerName }: DealDetailDialogProps) => {
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
+
+  // جلب صور الفحص الميداني
+  const { data: inspectionPhotos = [] } = useQuery({
+    queryKey: ["deal-inspection-photos", deal?.id],
+    queryFn: async () => {
+      const { data: missions } = await supabase
+        .from("deal_inspection_missions")
+        .select("id, mission_type, status, completed_at, inspector_id")
+        .eq("deal_id", deal.id)
+        .order("created_at", { ascending: true });
+
+      if (!missions || missions.length === 0) return [];
+
+      const allPhotos: any[] = [];
+      for (const mission of missions) {
+        const { data: photos } = await supabase
+          .from("deal_inspection_photos")
+          .select("*")
+          .eq("mission_id", mission.id)
+          .order("captured_at", { ascending: true });
+
+        if (photos) {
+          allPhotos.push(...photos.map(p => ({
+            ...p,
+            mission_type: mission.mission_type,
+            mission_status: mission.status,
+          })));
+        }
+      }
+      return allPhotos;
+    },
+    enabled: !!deal?.id && open,
+  });
 
   useEffect(() => {
     if (open && deal) {
@@ -185,6 +235,41 @@ const DealDetailDialog = ({ deal, open, onClose, clientName, accountOwnerName }:
               </div>
             </CardContent>
           </Card>
+          {/* صور الفحص الميداني */}
+          {inspectionPhotos.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Camera className="w-4 h-4" /> صور الفحص الميداني ({inspectionPhotos.length} صورة)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* تصنيف حسب نوع المهمة */}
+                {["initial", "quality", "port"].map((type) => {
+                  const photos = inspectionPhotos.filter((p: any) => p.mission_type === type);
+                  if (photos.length === 0) return null;
+                  const typeLabel = type === "initial" ? "الفحص الأولي" : type === "quality" ? "فحص الجودة" : "فحص الميناء";
+                  return (
+                    <div key={type}>
+                      <p className="text-sm font-medium text-muted-foreground mb-2">📸 {typeLabel} — {photos.length} صور</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {photos.map((photo: any) => (
+                          <a key={photo.id} href={photo.photo_url} target="_blank" rel="noopener noreferrer" className="block">
+                            <div className="relative rounded-lg overflow-hidden border hover:border-primary transition-colors">
+                              <img src={photo.photo_url} alt="صورة فحص" className="w-full h-24 object-cover" />
+                              <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-1 py-0.5">
+                                📍 {photo.latitude?.toFixed(4)}, {photo.longitude?.toFixed(4)}
+                              </div>
+                            </div>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </DialogContent>
     </Dialog>
