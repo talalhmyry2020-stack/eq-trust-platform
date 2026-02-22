@@ -75,7 +75,7 @@ const Auth = () => {
 
           const jobCode = empDetails?.job_code || "";
           if (jobCode === "logistics" || jobCode === "agent_07") {
-            navigate("/admin/logistics");
+            navigate("/logistics");
           } else if (jobCode === "customs_agent") {
             navigate("/admin/port-clearance");
           } else if (jobCode === "agent_06") {
