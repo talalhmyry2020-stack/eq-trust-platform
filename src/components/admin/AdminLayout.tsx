@@ -46,16 +46,19 @@ const AdminLayout = () => {
     const path = location.pathname;
     const isLogistics = jobCode === "logistics" || jobCode === "agent_07";
     const isCustoms = jobCode === "customs_agent";
+    const isQuality = jobCode === "quality_agent";
 
     // Allow only their specific page
     if (isLogistics) {
       return <Navigate to="/logistics" replace />;
     }
+    if (isQuality) {
+      return <Navigate to="/quality" replace />;
+    }
     if (isCustoms && !path.startsWith("/admin/port-clearance")) {
       return <Navigate to="/admin/port-clearance" replace />;
     }
-    // If unknown employee type, redirect to auth
-    if (!isLogistics && !isCustoms) {
+    if (!isLogistics && !isCustoms && !isQuality) {
       return <Navigate to="/inspector" replace />;
     }
   }

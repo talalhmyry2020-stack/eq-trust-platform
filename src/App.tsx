@@ -53,6 +53,11 @@ import InspectorSettings from "./pages/inspector/InspectorSettings";
 import InspectionMissionPage from "./pages/inspector/InspectionMissionPage";
 import LogisticsLayout from "./components/logistics/LogisticsLayout";
 import LogisticsDashboard from "./pages/logistics/LogisticsDashboard";
+import QualityLayout from "./components/quality/QualityLayout";
+import QualityDashboard from "./pages/quality/QualityDashboard";
+import QualityMissionPage from "./pages/quality/QualityMissionPage";
+import QualityReportsPage from "./pages/quality/QualityReportsPage";
+import QualitySettingsPage from "./pages/quality/QualitySettingsPage";
 
 const queryClient = new QueryClient();
 
@@ -116,6 +121,12 @@ const App = () => (
             <Route path="/logistics" element={<LogisticsLayout />}>
               <Route index element={<LogisticsDashboard />} />
               <Route path="shipments" element={<LogisticsDashboard />} />
+            </Route>
+            <Route path="/quality" element={<QualityLayout />}>
+              <Route index element={<QualityDashboard />} />
+              <Route path="mission" element={<QualityMissionPage />} />
+              <Route path="reports" element={<QualityReportsPage />} />
+              <Route path="settings" element={<QualitySettingsPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
