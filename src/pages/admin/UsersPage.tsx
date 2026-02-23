@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Plus, Ban, MessageSquare, Shield, Eye, Trash2, Truck } from "lucide-react";
+import { Search, Plus, Ban, MessageSquare, Shield, ShieldCheck, Eye, Trash2, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -36,7 +36,7 @@ interface AuthUser {
   last_sign_in_at: string | null;
 }
 
-type EmployeeType = "inspector" | "logistics";
+type EmployeeType = "inspector" | "logistics" | "quality";
 
 const INSPECTOR_PERMISSIONS = [
   "receive_briefing",
@@ -140,20 +140,25 @@ const UsersPage = () => {
     }
 
     const isInspector = employeeType === "inspector";
+    const isQuality = employeeType === "quality";
 
     const body: Record<string, unknown> = {
       action: "create_employee",
       email: newEmployee.email,
       password: newEmployee.password,
       full_name: newEmployee.name,
-      permissions: isInspector ? INSPECTOR_PERMISSIONS : LOGISTICS_PERMISSIONS,
-      job_title: isInspector ? "المفتش الميداني" : "موظف اللوجستيك",
-      job_code: isInspector ? "agent_06" : "agent_07",
+      permissions: isInspector || isQuality ? INSPECTOR_PERMISSIONS : LOGISTICS_PERMISSIONS,
+      job_title: isInspector ? "المفتش الميداني" : isQuality ? "وكيل الجودة" : "موظف اللوجستيك",
+      job_code: isInspector ? "agent_06" : isQuality ? "quality_agent" : "agent_07",
       motto: isInspector
         ? "العين التي لا ترمش.. واليد المقيدة بالحقيقة"
+        : isQuality
+        ? "درع الحماية الأساسي ضد التلاعب بالمواصفات"
         : "نوثّق كل شحنة.. ونتابع كل رحلة حتى الميناء",
       description: isInspector
         ? "كيان بشري يعمل بعقل رقمي."
+        : isQuality
+        ? "وكيل فحص الجودة والمطابقة الفنية للمنتجات."
         : "مسؤول توثيق ومتابعة الشحنات اللوجستية.",
     };
 
@@ -164,7 +169,7 @@ const UsersPage = () => {
       return;
     }
 
-    toast.success(isInspector ? "تم إنشاء حساب المفتش الميداني بنجاح" : "تم إنشاء حساب موظف اللوجستيك بنجاح");
+    toast.success(isInspector ? "تم إنشاء حساب المفتش الميداني بنجاح" : isQuality ? "تم إنشاء حساب وكيل الجودة بنجاح" : "تم إنشاء حساب موظف اللوجستيك بنجاح");
     setShowEmployeeDialog(false);
     setNewEmployee({ name: "", email: "", password: "" });
     setEmployeeType("inspector");
@@ -259,6 +264,14 @@ const UsersPage = () => {
         </Badge>
       );
     }
+    if (jobCode === "quality_agent") {
+      return (
+        <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 gap-1">
+          <ShieldCheck className="w-3 h-3" />
+          وكيل جودة
+        </Badge>
+      );
+    }
     if (jobTitle) return <Badge variant="secondary">{jobTitle}</Badge>;
     return <Badge variant="outline">موظف</Badge>;
   };
@@ -285,6 +298,9 @@ const UsersPage = () => {
                   <SelectContent>
                     <SelectItem value="inspector">
                       <div className="flex items-center gap-2"><Shield className="w-4 h-4 text-primary" />مفتش ميداني</div>
+                    </SelectItem>
+                    <SelectItem value="quality">
+                      <div className="flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-emerald-500" />وكيل جودة</div>
                     </SelectItem>
                     <SelectItem value="logistics">
                       <div className="flex items-center gap-2"><Truck className="w-4 h-4 text-purple-500" />موظف لوجستيك</div>
@@ -317,6 +333,20 @@ const UsersPage = () => {
                     </ul>
                   </CardContent>
                 </Card>
+              ) : employeeType === "quality" ? (
+                <Card className="border-emerald-500/20 bg-emerald-500/5">
+                  <CardContent className="p-4">
+                    <p className="text-sm font-semibold mb-2">مهام وكيل الجودة:</p>
+                    <ul className="text-xs text-muted-foreground space-y-1">
+                      <li>✓ المطابقة الفنية مع العينة المرجعية</li>
+                      <li>✓ القفل الجغرافي + الختم الزمني</li>
+                      <li>✓ التوثيق البصري المقيد بالكاميرا</li>
+                      <li>✓ إصدار شهادة السلامة الفنية</li>
+                      <li>✓ كسر خديعة المواصفات ومنع التلاعب</li>
+                      <li>✓ رفع التقارير للسحابة الآمنة</li>
+                    </ul>
+                  </CardContent>
+                </Card>
               ) : (
                 <Card className="border-purple-500/20 bg-purple-500/5">
                   <CardContent className="p-4">
@@ -333,7 +363,7 @@ const UsersPage = () => {
                 </Card>
               )}
               <Button onClick={createEmployee} className="w-full">
-                {employeeType === "inspector" ? "إنشاء المفتش الميداني" : "إنشاء موظف اللوجستيك"}
+                {employeeType === "inspector" ? "إنشاء المفتش الميداني" : employeeType === "quality" ? "إنشاء وكيل الجودة" : "إنشاء موظف اللوجستيك"}
               </Button>
             </div>
           </DialogContent>
