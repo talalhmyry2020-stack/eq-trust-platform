@@ -75,6 +75,8 @@ const Auth = () => {
             navigate("/logistics");
           } else if (jobCode === "customs_agent") {
             navigate("/admin/port-clearance");
+          } else if (jobCode === "quality_agent") {
+            navigate("/quality");
           } else if (jobCode === "agent_06") {
             navigate("/inspector");
           } else {
