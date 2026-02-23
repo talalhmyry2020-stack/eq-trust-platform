@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Mail, Lock, ArrowRight, Loader2, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import VerificationDialog from "@/components/VerificationDialog";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -13,8 +12,6 @@ const Auth = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showVerification, setShowVerification] = useState(false);
-  const [verifiedEmail, setVerifiedEmail] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -91,7 +88,6 @@ const Auth = () => {
           email: email.trim(),
           password,
           options: {
-            emailRedirectTo: window.location.origin,
             data: { full_name: fullName.trim() },
           },
         });
@@ -101,26 +97,26 @@ const Auth = () => {
           }
           throw new Error(error.message);
         }
-        toast({
-          title: "تم إنشاء الحساب بنجاح! 🎉",
-          description: "تم إرسال رسالة تأكيد إلى بريدك الإلكتروني. يرجى التحقق منها لتفعيل حسابك.",
-        });
 
-        // Send webhook to n8n
-        try {
-          await supabase.functions.invoke("send-verification", {
-            body: { email: email.trim(), full_name: fullName.trim(), password, user_id: signUpData?.user?.id },
-          });
-        } catch (webhookErr) {
-          console.error("Webhook error:", webhookErr);
+        // Check if user was actually created (Supabase returns fake user for existing emails when auto-confirm is on)
+        if (signUpData?.user?.identities?.length === 0) {
+          throw new Error("هذا البريد الإلكتروني مسجل بالفعل");
         }
 
-        setVerifiedEmail(email.trim());
-        setShowVerification(true);
-        setIsLogin(true);
-        setPassword("");
-        setConfirmPassword("");
-        setFullName("");
+        // Activate profile
+        if (signUpData?.user?.id) {
+          await supabase
+            .from("profiles")
+            .update({ is_active: true })
+            .eq("user_id", signUpData.user.id);
+        }
+
+        toast({
+          title: "تم إنشاء الحساب بنجاح! 🎉",
+          description: "مرحباً بك في المنصة",
+        });
+
+        navigate("/client");
       }
     } catch (err: any) {
       toast({
@@ -277,13 +273,6 @@ const Auth = () => {
           </button>
         </form>
 
-        {/* Info text for signup */}
-        {!isLogin && (
-          <p className="text-center mt-4 font-body text-muted-foreground text-xs">
-            سيتم إرسال رسالة تأكيد إلى بريدك الإلكتروني لتفعيل حسابك
-          </p>
-        )}
-
         {/* Back link */}
         <div className="text-center mt-6">
           <button
@@ -294,11 +283,6 @@ const Auth = () => {
           </button>
         </div>
       </motion.div>
-      <VerificationDialog
-        open={showVerification}
-        onClose={() => setShowVerification(false)}
-        email={verifiedEmail}
-      />
     </div>
   );
 };
