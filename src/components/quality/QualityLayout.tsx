@@ -12,6 +12,7 @@ const QualityLayout = () => {
   const [jobLoading, setJobLoading] = useState(true);
 
   useEffect(() => {
+    if (authLoading || roleLoading) return;
     if (!user || !isEmployee) {
       setJobLoading(false);
       return;
@@ -26,7 +27,7 @@ const QualityLayout = () => {
       setJobLoading(false);
     };
     fetchJob();
-  }, [user, isEmployee]);
+  }, [user, isEmployee, authLoading, roleLoading]);
 
   if (authLoading || roleLoading || jobLoading) {
     return (
