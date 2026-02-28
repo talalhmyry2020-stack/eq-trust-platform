@@ -17,41 +17,36 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Verify caller is admin (or internal service key)
+    // Verify caller is admin
     const authHeader = req.headers.get("Authorization");
-    const internalKey = req.headers.get("x-internal-key");
-    const isInternal = internalKey === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    if (!isInternal) {
-      if (!authHeader) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user: caller } } = await supabaseAdmin.auth.getUser(token);
+    if (!caller) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-      const token = authHeader.replace("Bearer ", "");
-      const { data: { user: caller } } = await supabaseAdmin.auth.getUser(token);
-      if (!caller) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+    // Check admin role
+    const { data: roles } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", caller.id)
+      .eq("role", "admin");
 
-      // Check admin role
-      const { data: roles } = await supabaseAdmin
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", caller.id)
-        .eq("role", "admin");
-
-      if (!roles || roles.length === 0) {
-        return new Response(JSON.stringify({ error: "Forbidden" }), {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+    if (!roles || roles.length === 0) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const body = await req.json();
