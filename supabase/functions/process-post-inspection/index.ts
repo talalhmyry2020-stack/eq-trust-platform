@@ -124,11 +124,11 @@ serve(async (req) => {
         break;
       }
 
-      // === المصنع أكمل الإنتاج → إرسال مهمة فحص جودة تلقائياً لنفس المفتش ===
+      // === المصنع أكمل الإنتاج → إرسال مهمة فحص جودة تلقائياً لوكيل الجودة ===
       case "factory_completed": {
         await supabase.from("deals").update({ current_phase: "factory_completed" }).eq("id", deal_id);
 
-        // جلب المهمة الأولى لنفس الصفقة لاستخدام نفس المفتش والموقع
+        // جلب بيانات الموقع من المهمة الأولى
         const { data: initialMission } = await supabase
           .from("deal_inspection_missions")
           .select("*")
@@ -138,8 +138,43 @@ serve(async (req) => {
           .limit(1)
           .single();
 
-        if (initialMission) {
-          // إنشاء مهمة فحص جودة تلقائياً بنفس المفتش والموقع
+        // البحث عن وكيل الجودة (quality_agent) بدلاً من المفتش الميداني
+        const { data: qualityAgents } = await supabase
+          .from("employee_details")
+          .select("user_id")
+          .eq("job_code", "quality_agent");
+
+        const qualityAgentId = qualityAgents?.[0]?.user_id;
+
+        if (qualityAgentId && initialMission) {
+          // إنشاء مهمة فحص جودة لوكيل الجودة مع نفس بيانات الموقع
+          await supabase.from("deal_inspection_missions").insert({
+            deal_id,
+            inspector_id: qualityAgentId,
+            mission_type: "quality",
+            factory_latitude: initialMission.factory_latitude,
+            factory_longitude: initialMission.factory_longitude,
+            factory_address: initialMission.factory_address,
+            factory_country: initialMission.factory_country,
+            geofence_radius_meters: initialMission.geofence_radius_meters,
+            max_photos: initialMission.max_photos,
+            assigned_by: initialMission.assigned_by,
+            notes: "مهمة فحص جودة — المطابقة الفنية للمنتجات مع العينة المرجعية قبل الشحن",
+          });
+
+          await supabase.from("deals").update({ current_phase: "quality_inspection_assigned" }).eq("id", deal_id);
+
+          // إشعار وكيل الجودة بالمهمة الجديدة
+          await supabase.from("notifications").insert({
+            user_id: qualityAgentId,
+            title: "مهمة فحص جودة جديدة 🔍",
+            message: `تم تكليفك بمهمة فحص جودة الإنتاج للصفقة #${deal.deal_number}. توجه للموقع للتحقق من مطابقة البضاعة للعينة المرجعية.`,
+            type: "inspection",
+            entity_type: "deal",
+            entity_id: deal_id,
+          });
+        } else if (initialMission) {
+          // لا يوجد وكيل جودة — تعيين للمفتش الميداني كخطة بديلة
           await supabase.from("deal_inspection_missions").insert({
             deal_id,
             inspector_id: initialMission.inspector_id,
@@ -151,21 +186,22 @@ serve(async (req) => {
             geofence_radius_meters: initialMission.geofence_radius_meters,
             max_photos: initialMission.max_photos,
             assigned_by: initialMission.assigned_by,
-            notes: "مهمة فحص جودة تلقائية — التحقق من البضاعة والعدد المطلوب بعد اكتمال الإنتاج",
+            notes: "مهمة فحص جودة — لا يوجد وكيل جودة متاح، أُسندت للمفتش الميداني",
           });
 
           await supabase.from("deals").update({ current_phase: "quality_inspection_assigned" }).eq("id", deal_id);
 
-          // إشعار المفتش بالمهمة الجديدة
           await supabase.from("notifications").insert({
             user_id: initialMission.inspector_id,
             title: "مهمة فحص جودة جديدة 🔍",
-            message: `تم تكليفك تلقائياً بمهمة فحص جودة الإنتاج للصفقة #${deal.deal_number}. توجه لنفس الموقع السابق للتحقق من البضاعة والكمية.`,
+            message: `تم تكليفك بمهمة فحص جودة الإنتاج للصفقة #${deal.deal_number} (لا يوجد وكيل جودة متاح).`,
             type: "inspection",
             entity_type: "deal",
             entity_id: deal_id,
           });
         }
+
+        const assignedTo = qualityAgentId ? "وكيل الجودة" : (initialMission ? "المفتش الميداني (بديل)" : "لم يُعيّن");
 
         // إشعار المدير
         const { data: admins } = await supabase.rpc("get_admin_contacts");
@@ -173,16 +209,15 @@ serve(async (req) => {
           await supabase.from("notifications").insert({
             user_id: admin.user_id,
             title: "المصنع أكمل الإنتاج ✅",
-            message: `الصفقة #${deal.deal_number}: المصنع أبلغ بإكمال الإنتاج.${initialMission ? " تم تعيين نفس المفتش تلقائياً لفحص الجودة." : " يرجى تعيين مفتش لفحص الجودة يدوياً."}`,
+            message: `الصفقة #${deal.deal_number}: المصنع أبلغ بإكمال الإنتاج. تم تعيين ${assignedTo} لفحص الجودة.`,
             type: "factory_update",
             entity_type: "deal",
             entity_id: deal_id,
           });
         }
 
-        result.message = initialMission 
-          ? "تم تسجيل اكتمال الإنتاج وتعيين مفتش الجودة تلقائياً" 
-          : "تم تسجيل اكتمال الإنتاج — يرجى تعيين مفتش يدوياً";
+        result.assigned_to = assignedTo;
+        result.message = `تم تسجيل اكتمال الإنتاج وتعيين ${assignedTo} لفحص الجودة`;
         break;
       }
 
