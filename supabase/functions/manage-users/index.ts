@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
     const { action } = body;
 
     if (action === "create_employee") {
-      const { email, password, full_name, permissions, job_title, job_code, motto, description } = body;
+      const { email, password, full_name, permissions, job_title, job_code, motto, description, country } = body;
 
       if (!email || !password || !full_name) {
         return new Response(JSON.stringify({ error: "Missing fields" }), {
@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
         await supabaseAdmin.from("employee_permissions").insert(permRows);
       }
 
-      // Save employee details (job title, code, motto, description)
+      // Save employee details (job title, code, motto, description, country)
       if (job_title || job_code) {
         await supabaseAdmin.from("employee_details").insert({
           user_id: userId,
@@ -100,6 +100,7 @@ Deno.serve(async (req) => {
           job_code: job_code || "",
           motto: motto || "",
           description: description || "",
+          country: country || "",
         });
       }
 
