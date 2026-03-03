@@ -68,7 +68,7 @@ serve(async (req) => {
       .from("deals")
       .select("id", { count: "exact", head: true })
       .eq("status", "active")
-      .in("current_phase", ["searching_products", "negotiating", "negotiating_phase2", "negotiating_phase3", "contract_drafting"]);
+      .in("current_phase", ["searching_products", "contract_drafting"]);
 
     if ((searchingCount || 0) > 0) {
       return new Response(JSON.stringify({ 
