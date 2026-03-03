@@ -72,7 +72,7 @@ const AdminSidebar = () => {
                 exit={{ opacity: 0, width: 0 }}
                 className="overflow-hidden"
               >
-                <span className="font-heading text-lg font-bold text-gradient-brand whitespace-nowrap">EI N</span>
+                <span className="font-heading text-lg font-bold text-gradient-brand whitespace-nowrap">EI</span>
                 <span className="block text-[10px] text-muted-foreground font-medium -mt-0.5">إدارة</span>
               </motion.div>
             )}

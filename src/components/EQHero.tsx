@@ -61,7 +61,7 @@ const EQHero = () => {
           transition={{ duration: 0.8, delay: 0.4 }}
           className="font-body text-muted-foreground text-lg md:text-xl max-w-xl mx-auto mb-10 leading-relaxed"
         >
-          منصة EI N تحول العمليات المعقدة إلى تجربة سلسة وشفافة.
+          منصة EI تحول العمليات المعقدة إلى تجربة سلسة وشفافة.
           <br />
           الثقة تُبنى بالحوكمة والتوثيق والبيانات الدقيقة.
         </motion.p>
@@ -74,7 +74,7 @@ const EQHero = () => {
         >
           {user ? (
             <button className="bg-brand-gradient text-primary-foreground font-heading font-bold text-lg px-10 py-4 rounded-2xl shadow-brand hover:shadow-brand-lg hover:-translate-y-1 transition-all duration-300">
-              مرحباً بك في EI N 🎉
+              مرحباً بك في EI 🎉
             </button>
           ) : (
             <>
