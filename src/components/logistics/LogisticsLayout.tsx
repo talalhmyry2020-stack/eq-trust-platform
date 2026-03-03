@@ -37,7 +37,7 @@ const LogisticsLayout = () => {
   return (
     <div className="min-h-screen flex w-full bg-mesh" dir="rtl">
       <LogisticsSidebar />
-      <main className="flex-1 p-6 bg-background/50 overflow-auto">
+      <main className="flex-1 p-4 md:p-6 bg-background/50 overflow-auto pt-16 md:pt-6">
         <Outlet />
       </main>
     </div>
