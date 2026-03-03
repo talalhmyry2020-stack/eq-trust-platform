@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Package, AlertTriangle, Handshake } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useIsMobile } from "@/hooks/use-mobile";
 import CharterAgreement from "@/components/client/CharterAgreement";
 import DealForm from "@/components/client/DealForm";
 import ProductCatalog from "@/components/client/ProductCatalog";
@@ -93,11 +94,33 @@ const ClientDeals = () => {
     }
   };
 
+  const isMobile = useIsMobile();
+
+  const renderDealActions = (deal: any) => (
+    <div className="flex gap-1 flex-wrap">
+      {(deal.current_phase === "product_selection" || deal.current_phase === "searching_products") && deal.status === "active" && (
+        <Button size="sm" variant="outline" onClick={() => setSelectedDealForProducts(deal.id)} className="gap-1">
+          <Package className="w-4 h-4" /> المنتجات
+        </Button>
+      )}
+      {(deal.current_phase === "negotiation_complete" || deal.current_phase === "negotiating_phase2" || deal.current_phase === "negotiation_phase2_complete") && deal.status === "active" && (
+        <Button size="sm" variant="outline" onClick={() => navigate(`/client/negotiation-results?deal_id=${deal.id}`)} className="gap-1">
+          <Handshake className="w-4 h-4" /> العروض
+        </Button>
+      )}
+      {deal.status === "cancelled" && (
+        <Button size="sm" variant="outline" onClick={() => setObjectionDeal(deal)} className="gap-1 text-destructive border-destructive/30">
+          <AlertTriangle className="w-4 h-4" /> اعتراض
+        </Button>
+      )}
+    </div>
+  );
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="font-heading text-2xl font-bold">صفقاتي</h1>
-        <Button onClick={() => setShowCharter(true)}>
+      <div className="flex items-center justify-between mb-6 gap-3">
+        <h1 className="font-heading text-xl md:text-2xl font-bold">صفقاتي</h1>
+        <Button onClick={() => setShowCharter(true)} size={isMobile ? "sm" : "default"}>
           <Plus className="w-4 h-4 ml-2" /> إنشاء صفقة
         </Button>
       </div>
@@ -116,63 +139,82 @@ const ClientDeals = () => {
         />
       )}
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>#</TableHead>
-                <TableHead>العنوان</TableHead>
-                <TableHead>المرحلة</TableHead>
-                <TableHead>الحالة</TableHead>
-                <TableHead>التقدم</TableHead>
-                <TableHead>آخر تحديث</TableHead>
-                <TableHead>إجراءات</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {deals.map((deal) => (
-                <TableRow key={deal.id} className="cursor-pointer hover:bg-muted/50" onDoubleClick={() => setSelectedDealDetail(deal)}>
-                  <TableCell className="font-mono">{deal.deal_number}</TableCell>
-                  <TableCell className="font-medium">{deal.title}</TableCell>
-                  <TableCell>{getStageName(deal.stage_id)}</TableCell>
-                  <TableCell>
-                    <Badge variant={statusVariant(deal.status)}>{statusMap[deal.status] || deal.status}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    {deal.current_phase && (
-                      <Badge variant="outline" className="text-xs">
-                        {phaseMap[deal.current_phase] || deal.current_phase}
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs">{new Date(deal.updated_at).toLocaleDateString("ar-SA")}</TableCell>
-                  <TableCell className="flex gap-1">
-                    {(deal.current_phase === "product_selection" || deal.current_phase === "searching_products") && deal.status === "active" && (
-                      <Button size="sm" variant="outline" onClick={() => setSelectedDealForProducts(deal.id)} className="gap-1">
-                        <Package className="w-4 h-4" /> المنتجات
-                      </Button>
-                    )}
-                    {(deal.current_phase === "negotiation_complete" || deal.current_phase === "negotiating_phase2" || deal.current_phase === "negotiation_phase2_complete") && deal.status === "active" && (
-                      <Button size="sm" variant="outline" onClick={() => navigate(`/client/negotiation-results?deal_id=${deal.id}`)} className="gap-1">
-                        <Handshake className="w-4 h-4" /> العروض
-                      </Button>
-                    )}
-                    {deal.status === "cancelled" && (
-                      <Button size="sm" variant="outline" onClick={() => setObjectionDeal(deal)} className="gap-1 text-destructive border-destructive/30">
-                        <AlertTriangle className="w-4 h-4" /> اعتراض
-                      </Button>
-                    )}
-                  </TableCell>
+      {/* Mobile: cards, Desktop: table */}
+      {isMobile ? (
+        <div className="space-y-3">
+          {deals.length === 0 && (
+            <Card><CardContent className="text-center text-muted-foreground py-8">لا توجد صفقات نشطة</CardContent></Card>
+          )}
+          {deals.map((deal) => (
+            <Card key={deal.id} className="cursor-pointer" onClick={() => setSelectedDealDetail(deal)}>
+              <CardContent className="p-4 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-medium text-sm">{deal.title}</p>
+                    <p className="text-xs text-muted-foreground font-mono">#{deal.deal_number}</p>
+                  </div>
+                  <Badge variant={statusVariant(deal.status)} className="text-xs shrink-0">
+                    {statusMap[deal.status] || deal.status}
+                  </Badge>
+                </div>
+                {deal.current_phase && (
+                  <Badge variant="outline" className="text-xs">
+                    {phaseMap[deal.current_phase] || deal.current_phase}
+                  </Badge>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">{new Date(deal.updated_at).toLocaleDateString("ar-SA")}</span>
+                  {renderDealActions(deal)}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>#</TableHead>
+                  <TableHead>العنوان</TableHead>
+                  <TableHead>المرحلة</TableHead>
+                  <TableHead>الحالة</TableHead>
+                  <TableHead>التقدم</TableHead>
+                  <TableHead>آخر تحديث</TableHead>
+                  <TableHead>إجراءات</TableHead>
                 </TableRow>
-              ))}
-              {deals.length === 0 && (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">لا توجد صفقات نشطة</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              </TableHeader>
+              <TableBody>
+                {deals.map((deal) => (
+                  <TableRow key={deal.id} className="cursor-pointer hover:bg-muted/50" onDoubleClick={() => setSelectedDealDetail(deal)}>
+                    <TableCell className="font-mono">{deal.deal_number}</TableCell>
+                    <TableCell className="font-medium">{deal.title}</TableCell>
+                    <TableCell>{getStageName(deal.stage_id)}</TableCell>
+                    <TableCell>
+                      <Badge variant={statusVariant(deal.status)}>{statusMap[deal.status] || deal.status}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      {deal.current_phase && (
+                        <Badge variant="outline" className="text-xs">
+                          {phaseMap[deal.current_phase] || deal.current_phase}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">{new Date(deal.updated_at).toLocaleDateString("ar-SA")}</TableCell>
+                    <TableCell className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                      {renderDealActions(deal)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {deals.length === 0 && (
+                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">لا توجد صفقات نشطة</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* كتالوج المنتجات */}
       <Dialog open={!!selectedDealForProducts} onOpenChange={() => setSelectedDealForProducts(null)}>

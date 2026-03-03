@@ -144,20 +144,20 @@ const ClientTreasuryPage = () => {
           </CardHeader>
           <CardContent className="space-y-3">
             {dealsNeedingDeposit.map((deal) => (
-              <div key={deal.id} className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
-                <div>
-                  <p className="font-medium">صفقة #{deal.deal_number} — {deal.title}</p>
-                  <p className="text-sm text-muted-foreground">
+              <div key={deal.id} className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 border rounded-lg bg-muted/30">
+                <div className="space-y-1 min-w-0">
+                  <p className="font-medium text-sm md:text-base">صفقة #{deal.deal_number} — {deal.title}</p>
+                  <p className="text-xs md:text-sm text-muted-foreground">
                     💰 قيمة الصفقة: {deal.product_amount?.toLocaleString()} {deal.currency}
                   </p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs md:text-sm text-muted-foreground">
                     📊 عمولة المنصة ({deal.fee_percentage}%): {deal.fee_amount?.toLocaleString()} {deal.currency}
                   </p>
-                  <p className="text-sm font-bold text-primary">
+                  <p className="text-xs md:text-sm font-bold text-primary">
                     💵 الإجمالي المطلوب: {deal.grand_total?.toLocaleString()} {deal.currency}
                   </p>
                 </div>
-                <Button onClick={() => setSelectedDealId(deal.id)} size="sm">
+                <Button onClick={() => setSelectedDealId(deal.id)} size="sm" className="self-start md:self-center shrink-0">
                   <Upload className="w-4 h-4 ml-2" />
                   إيداع
                 </Button>
@@ -218,18 +218,18 @@ const ClientTreasuryPage = () => {
               {deposits.map((dep: any) => {
                 const st = statusMap[dep.status] || statusMap.pending;
                 return (
-                  <div key={dep.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="space-y-1">
-                      <p className="font-medium">
+                  <div key={dep.id} className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 border rounded-lg">
+                    <div className="space-y-1 min-w-0">
+                      <p className="font-medium text-sm">
                         صفقة #{dep.deals?.deal_number} — {dep.deals?.title}
                       </p>
-                      <p className="text-sm text-muted-foreground">رقم السند: {dep.receipt_number}</p>
+                      <p className="text-xs text-muted-foreground">رقم السند: {dep.receipt_number}</p>
                       <p className="text-sm font-semibold">{dep.amount?.toLocaleString()} {dep.currency}</p>
                       {dep.status === "rejected" && dep.rejection_reason && (
-                        <p className="text-sm text-destructive">سبب الرفض: {dep.rejection_reason}</p>
+                        <p className="text-xs text-destructive">سبب الرفض: {dep.rejection_reason}</p>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 self-start md:self-center shrink-0">
                       {dep.receipt_image_url && (
                         <Button variant="ghost" size="icon" onClick={() => setPreviewUrl(dep.receipt_image_url)}>
                           <Eye className="w-4 h-4" />

@@ -72,7 +72,7 @@ const ClientDashboard = () => {
           ) : (
             <div className="space-y-3">
               {recentDeals.map((deal) => (
-                <div key={deal.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                <div key={deal.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-lg bg-muted/30">
                   <div>
                     <p className="font-medium">{deal.title}</p>
                     <p className="text-xs text-muted-foreground font-mono">#{deal.deal_number}</p>

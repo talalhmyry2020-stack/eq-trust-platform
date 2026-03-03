@@ -404,14 +404,14 @@ const ClientContractPage = () => {
   return (
     <div className="space-y-4 max-w-4xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
-          <h1 className="font-heading text-2xl font-bold">عقد الصفقة #{dealNumber}</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="font-heading text-xl md:text-2xl font-bold">عقد الصفقة #{dealNumber}</h1>
+          <p className="text-xs md:text-sm text-muted-foreground">
             {contract.client_name} ↔ {contract.factory_name}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Badge variant={contract.client_signed ? "default" : "outline"} className={contract.client_signed ? "bg-green-600" : ""}>
             {contract.client_signed ? "تم التوقيع ✅" : statusLabel}
           </Badge>
