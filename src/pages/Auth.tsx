@@ -17,7 +17,7 @@ const Auth = () => {
 
   const validateForm = (): string | null => {
     if (!email.trim() || !password.trim()) return "جميع الحقول إجبارية";
-    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) return "صيغة البريد الإلكتروني غير صحيحة";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "صيغة البريد الإلكتروني غير صحيحة";
     if (password.length < 8) return "كلمة المرور يجب أن تكون 8 أحرف على الأقل";
     if (!isLogin) {
       if (!fullName.trim()) return "الاسم الكامل مطلوب";
