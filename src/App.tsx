@@ -29,6 +29,7 @@ import AdminInspectorAssignPage from "./pages/admin/AdminInspectorAssignPage";
 import LogisticsPage from "./pages/admin/LogisticsPage";
 import PortClearancePage from "./pages/admin/PortClearancePage";
 import WorkflowManagerPage from "./pages/admin/WorkflowManagerPage";
+import WorkflowEditorPage from "./pages/admin/WorkflowEditorPage";
 import ClientLayout from "./components/client/ClientLayout";
 import ClientDashboard from "./pages/client/ClientDashboard";
 import ClientDeals from "./pages/client/ClientDeals";
@@ -88,6 +89,7 @@ const App = () => (
               <Route path="logistics" element={<LogisticsPage />} />
               <Route path="port-clearance" element={<PortClearancePage />} />
               <Route path="workflow" element={<WorkflowManagerPage />} />
+              <Route path="workflow-editor" element={<WorkflowEditorPage />} />
               <Route path="notifications" element={<AdminNotificationsPage />} />
               <Route path="chat" element={<AdminChatPage />} />
               <Route path="logs" element={<LogsPage />} />
