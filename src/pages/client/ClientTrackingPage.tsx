@@ -95,6 +95,26 @@ const ClientTrackingPage = () => {
     },
   });
 
+  const acceptDeal = useMutation({
+    mutationFn: async (dealId: string) => {
+      const { error } = await supabase.functions.invoke("process-post-inspection", {
+        body: {
+          deal_id: dealId,
+          action: "client_accept_deal",
+          data: { client_id: user!.id },
+        },
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "🎉 تم إنهاء الصفقة بنجاح — شكراً لثقتك!" });
+      queryClient.invalidateQueries({ queryKey: ["client-tracking-deals"] });
+    },
+    onError: (err: any) => {
+      toast({ title: "خطأ", description: err.message, variant: "destructive" });
+    },
+  });
+
   const getSovereigntyRemaining = (deal: any) => {
     if (!deal?.sovereignty_timer_end) return null;
     const remaining = new Date(deal.sovereignty_timer_end).getTime() - Date.now();
@@ -179,6 +199,20 @@ const ClientTrackingPage = () => {
                         إذا انتهى العداد دون اعتراض، تُغلق الصفقة نهائياً ويُصرف المبلغ المتبقي.
                       </p>
 
+                      {/* زر إنهاء الصفقة */}
+                      <Button
+                        className="w-full bg-green-600 hover:bg-green-700 text-white"
+                        onClick={() => {
+                          if (confirm("هل أنت متأكد من إنهاء الصفقة؟ سيتم صرف المبلغ المتبقي للمصنع نهائياً.")) {
+                            acceptDeal.mutate(deal.id);
+                          }
+                        }}
+                        disabled={acceptDeal.isPending}
+                      >
+                        <CheckCircle className="w-4 h-4 ml-2" />
+                        {acceptDeal.isPending ? "جاري الإنهاء..." : "✅ كل شيء تمام — إنهاء الصفقة"}
+                      </Button>
+
                       {/* زر الاعتراض */}
                       {!showObjectionForm ? (
                         <Button
@@ -190,8 +224,8 @@ const ClientTrackingPage = () => {
                           اعتراض — إيقاف العداد
                         </Button>
                       ) : (
-                        <div className="space-y-3 p-3 rounded-lg border border-red-500/20 bg-red-500/5">
-                          <p className="text-sm font-medium text-red-600">⚠️ الاعتراض سيوقف العداد السيادي فوراً</p>
+                        <div className="space-y-3 p-3 rounded-lg border border-destructive/20 bg-destructive/5">
+                          <p className="text-sm font-medium text-destructive">⚠️ الاعتراض سيوقف العداد السيادي فوراً</p>
                           <Textarea
                             value={objectionReason}
                             onChange={(e) => setObjectionReason(e.target.value)}
