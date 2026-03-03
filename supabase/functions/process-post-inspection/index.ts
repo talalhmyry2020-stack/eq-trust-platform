@@ -467,18 +467,147 @@ serve(async (req) => {
         break;
       }
 
-      // === المرحلة 5: وصلت ميناء الوجهة ===
+      // === المرحلة 5: وصلت ميناء الوجهة → تعيين لوجستيك الوجهة تلقائياً ===
       case "at_destination_port": {
-        await supabase.from("deals").update({ current_phase: "at_destination_port" }).eq("id", deal_id);
+        // البحث عن موظف لوجستيك في بلد العميل (import_country)
+        const clientCountry = deal.import_country || deal.country || "";
+        let destLogisticsId: string | null = null;
+
+        if (clientCountry) {
+          const { data: destAgents } = await supabase
+            .from("employee_details")
+            .select("user_id")
+            .eq("job_code", "agent_07")
+            .eq("country", clientCountry);
+
+          // اختيار موظف مختلف عن لوجستيك المصنع
+          const available = (destAgents || []).filter(
+            (a: any) => a.user_id !== deal.logistics_employee_id
+          );
+          destLogisticsId = available[0]?.user_id || destAgents?.[0]?.user_id || null;
+        }
+
+        // إذا لم يُعثر على موظف بنفس البلد، البحث عن أي لوجستيك متاح
+        if (!destLogisticsId) {
+          const { data: anyAgents } = await supabase
+            .from("employee_details")
+            .select("user_id")
+            .eq("job_code", "agent_07");
+          const fallback = (anyAgents || []).filter(
+            (a: any) => a.user_id !== deal.logistics_employee_id
+          );
+          destLogisticsId = fallback[0]?.user_id || null;
+        }
+
+        const updateData: any = {
+          current_phase: "destination_inspection",
+        };
+        if (destLogisticsId) {
+          updateData.destination_logistics_employee_id = destLogisticsId;
+        }
+        await supabase.from("deals").update(updateData).eq("id", deal_id);
+
+        // إشعار موظف لوجستيك الوجهة
+        if (destLogisticsId) {
+          await supabase.from("notifications").insert({
+            user_id: destLogisticsId,
+            title: "📦 مهمة فحص وصول جديدة",
+            message: `الصفقة #${deal.deal_number}: البضاعة وصلت ميناء الوجهة. يرجى التوجه لفحصها وتأكيد سلامتها لبدء العداد السيادي.`,
+            type: "shipping_update",
+            entity_type: "deal",
+            entity_id: deal_id,
+          });
+        }
+
         if (deal.client_id) {
           await supabase.from("notifications").insert({
             user_id: deal.client_id,
             title: "🏁 البضاعة وصلت ميناء الوجهة",
-            message: `الصفقة #${deal.deal_number}: البضاعة وصلت الميناء. سيتم فحصها قبل بدء العداد السيادي.`,
+            message: `الصفقة #${deal.deal_number}: البضاعة وصلت الميناء. سيتم فحصها من قبل وكيلنا قبل بدء العداد السيادي.`,
             type: "shipping_update", entity_type: "deal", entity_id: deal_id,
           });
         }
-        result.message = "البضاعة وصلت ميناء الوجهة";
+
+        const { data: admins } = await supabase.rpc("get_admin_contacts");
+        for (const admin of admins || []) {
+          await supabase.from("notifications").insert({
+            user_id: admin.user_id,
+            title: "🏁 وصول ميناء الوجهة + تعيين لوجستيك",
+            message: `الصفقة #${deal.deal_number}: البضاعة وصلت. ${destLogisticsId ? "تم تعيين موظف لوجستيك الوجهة تلقائياً." : "⚠️ لم يُعثر على موظف لوجستيك للوجهة!"}`,
+            type: "shipping_update", entity_type: "deal", entity_id: deal_id,
+          });
+        }
+
+        result.destination_logistics_assigned = !!destLogisticsId;
+        result.message = destLogisticsId 
+          ? "البضاعة وصلت — تم تعيين لوجستيك الوجهة للفحص"
+          : "البضاعة وصلت — ⚠️ لا يوجد موظف لوجستيك للوجهة";
+        break;
+      }
+
+      // === تأكيد فحص الوصول من لوجستيك الوجهة → بدء العداد السيادي ===
+      case "destination_arrival_confirmed": {
+        const now = new Date();
+        const timerEnd = new Date(now.getTime() + 168 * 60 * 60 * 1000);
+
+        await supabase.from("deals").update({
+          current_phase: "sovereignty_timer",
+          sovereignty_timer_start: now.toISOString(),
+          sovereignty_timer_end: timerEnd.toISOString(),
+        }).eq("id", deal_id);
+
+        if (deal.client_id) {
+          await supabase.from("notifications").insert({
+            user_id: deal.client_id,
+            title: "⏱️ بدء العداد السيادي — 168 ساعة",
+            message: `الصفقة #${deal.deal_number}: تم فحص البضاعة وتأكيد سلامتها. لديك 168 ساعة للاعتراض.`,
+            type: "sovereignty_timer",
+            entity_type: "deal",
+            entity_id: deal_id,
+          });
+        }
+
+        const { data: admins } = await supabase.rpc("get_admin_contacts");
+        for (const admin of admins || []) {
+          await supabase.from("notifications").insert({
+            user_id: admin.user_id,
+            title: "⏱️ العداد السيادي بدأ",
+            message: `الصفقة #${deal.deal_number}: لوجستيك الوجهة أكّد سلامة البضاعة. العداد ينتهي في ${timerEnd.toISOString()}.`,
+            type: "sovereignty_timer",
+            entity_type: "deal",
+            entity_id: deal_id,
+          });
+        }
+
+        result.message = "تم تأكيد سلامة البضاعة — بدأ العداد السيادي 168 ساعة";
+        result.timer_end = timerEnd.toISOString();
+        break;
+      }
+
+      // === إعادة تشغيل العداد السيادي يدوياً (بعد حل اعتراض) ===
+      case "restart_sovereignty_timer": {
+        const now = new Date();
+        const timerEnd = new Date(now.getTime() + 168 * 60 * 60 * 1000);
+
+        await supabase.from("deals").update({
+          current_phase: "sovereignty_timer",
+          sovereignty_timer_start: now.toISOString(),
+          sovereignty_timer_end: timerEnd.toISOString(),
+        }).eq("id", deal_id);
+
+        if (deal.client_id) {
+          await supabase.from("notifications").insert({
+            user_id: deal.client_id,
+            title: "⏱️ إعادة تشغيل العداد السيادي",
+            message: `الصفقة #${deal.deal_number}: تمت معالجة اعتراضك. بدأ العداد السيادي من جديد (168 ساعة).`,
+            type: "sovereignty_timer",
+            entity_type: "deal",
+            entity_id: deal_id,
+          });
+        }
+
+        result.message = "تم إعادة تشغيل العداد السيادي يدوياً";
+        result.timer_end = timerEnd.toISOString();
         break;
       }
 

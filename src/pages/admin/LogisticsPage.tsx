@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Truck, FlaskConical, Shield } from "lucide-react";
-import LogisticsPhaseMap, { SHIPPING_PHASES } from "@/components/admin/logistics/LogisticsPhaseMap";
+import LogisticsPhaseMap, { SHIPPING_PHASES, DESTINATION_PHASES } from "@/components/admin/logistics/LogisticsPhaseMap";
 import LogisticsStats from "@/components/admin/logistics/LogisticsStats";
 import LogisticsDealCard from "@/components/admin/logistics/LogisticsDealCard";
 
@@ -15,8 +15,11 @@ const LogisticsPage = () => {
   const { user } = useAuth();
   const [testMode, setTestMode] = useState(true);
 
-  const { data: deals = [] } = useQuery({
-    queryKey: ["logistics-deals", user?.id],
+  const allPhases = [...SHIPPING_PHASES, ...DESTINATION_PHASES];
+
+  // صفقات لوجستيك المصنع (المصدر)
+  const { data: sourceDeals = [] } = useQuery({
+    queryKey: ["logistics-deals-source", user?.id],
     queryFn: async () => {
       if (!user) return [];
       const { data } = await supabase
@@ -33,6 +36,25 @@ const LogisticsPage = () => {
     enabled: !!user,
     refetchInterval: 10000,
   });
+
+  // صفقات لوجستيك الوجهة (بلد العميل)
+  const { data: destDeals = [] } = useQuery({
+    queryKey: ["logistics-deals-destination", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data } = await supabase
+        .from("deals")
+        .select("id, deal_number, title, current_phase, client_full_name, estimated_amount, shipping_tracking_url")
+        .eq("destination_logistics_employee_id", user.id)
+        .in("current_phase", ["destination_inspection"])
+        .order("updated_at", { ascending: false });
+      return data || [];
+    },
+    enabled: !!user,
+    refetchInterval: 10000,
+  });
+
+  const deals = [...sourceDeals, ...destDeals];
 
   const { data: stats } = useQuery({
     queryKey: ["logistics-stats", user?.id],
@@ -53,11 +75,11 @@ const LogisticsPage = () => {
   });
 
   const phaseCounts: Record<string, number> = {};
-  SHIPPING_PHASES.forEach(p => {
+  allPhases.forEach(p => {
     phaseCounts[p.key] = deals.filter((d: any) => d.current_phase === p.key).length;
   });
 
-  const groupedDeals = SHIPPING_PHASES.map(phase => ({
+  const groupedDeals = allPhases.map(phase => ({
     ...phase,
     deals: deals.filter((d: any) => d.current_phase === phase.key),
   }));

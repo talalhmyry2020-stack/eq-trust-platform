@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle, Camera, ExternalLink, FlaskConical, Upload } from "lucide-react";
-import { SHIPPING_PHASES, PHASE_CHECKLIST } from "./LogisticsPhaseMap";
+import { SHIPPING_PHASES, PHASE_CHECKLIST, DESTINATION_PHASES } from "./LogisticsPhaseMap";
 
 interface Props {
   deal: any;
@@ -32,8 +32,11 @@ const PHOTO_TYPES = [
 const LogisticsDealCard = ({ deal, phaseKey, testMode }: Props) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const allPhases = [...SHIPPING_PHASES, ...DESTINATION_PHASES];
   const checklist = PHASE_CHECKLIST[phaseKey] || [];
-  const nextPhase = SHIPPING_PHASES.find(p => p.key === phaseKey)?.next;
+  const currentPhaseInfo = allPhases.find(p => p.key === phaseKey);
+  const nextPhase = currentPhaseInfo?.next;
+  const isDestinationInspection = phaseKey === "destination_inspection";
 
   const [completedItems, setCompletedItems] = useState<string[]>([]);
   const [containerNumber, setContainerNumber] = useState("");
@@ -110,15 +113,22 @@ const LogisticsDealCard = ({ deal, phaseKey, testMode }: Props) => {
         await supabase.from("deals").update({ shipping_tracking_url: trackingUrl }).eq("id", deal.id);
       }
 
-      // 4. Advance phase
-      if (nextPhase) {
+      // 4. Advance phase or trigger sovereignty timer
+      if (isDestinationInspection) {
+        // لوجستيك الوجهة → بدء العداد السيادي
+        await supabase.functions.invoke("process-post-inspection", {
+          body: { deal_id: deal.id, action: "destination_arrival_confirmed", data: {} },
+        });
+      } else if (nextPhase) {
         await supabase.functions.invoke("process-post-inspection", {
           body: { deal_id: deal.id, action: nextPhase, data: { tracking_url: trackingUrl } },
         });
       }
     },
     onSuccess: () => {
-      toast({ title: `✅ تم تقديم تقرير ${SHIPPING_PHASES.find(p => p.key === phaseKey)?.label} والانتقال للمرحلة التالية` });
+      toast({ title: isDestinationInspection 
+        ? "✅ تم تأكيد سلامة البضاعة — بدأ العداد السيادي ⏱️" 
+        : `✅ تم تقديم تقرير ${allPhases.find(p => p.key === phaseKey)?.label} والانتقال للمرحلة التالية` });
       setUploading(false);
       setPhotos([]);
       setReportText("");
@@ -255,7 +265,9 @@ const LogisticsDealCard = ({ deal, phaseKey, testMode }: Props) => {
               disabled={!allRequiredDone || !reportText.trim() || uploading || submitReport.isPending}
             >
               <Upload className="w-4 h-4 ml-2" />
-              {uploading ? "جاري الرفع..." : `تقديم التقرير والانتقال → ${SHIPPING_PHASES.find(p => p.key === nextPhase)?.label || "إنهاء"}`}
+              {uploading ? "جاري الرفع..." : isDestinationInspection 
+                ? "تأكيد سلامة البضاعة وبدء العداد السيادي ⏱️"
+                : `تقديم التقرير والانتقال → ${allPhases.find(p => p.key === nextPhase)?.label || "إنهاء"}`}
             </Button>
 
             {testMode && phaseKey === "loading_goods" && (

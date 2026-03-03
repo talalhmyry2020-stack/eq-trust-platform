@@ -755,6 +755,7 @@ export type Database = {
           deal_number: number
           deal_type: string
           description: string | null
+          destination_logistics_employee_id: string | null
           employee_id: string | null
           entity_type: string | null
           estimated_amount: number | null
@@ -787,6 +788,7 @@ export type Database = {
           deal_number?: number
           deal_type?: string
           description?: string | null
+          destination_logistics_employee_id?: string | null
           employee_id?: string | null
           entity_type?: string | null
           estimated_amount?: number | null
@@ -819,6 +821,7 @@ export type Database = {
           deal_number?: number
           deal_type?: string
           description?: string | null
+          destination_logistics_employee_id?: string | null
           employee_id?: string | null
           entity_type?: string | null
           estimated_amount?: number | null

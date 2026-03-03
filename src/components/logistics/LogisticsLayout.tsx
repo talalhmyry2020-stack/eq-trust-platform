@@ -45,7 +45,7 @@ const LogisticsLayout = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  // Only allow logistics employees (agent_07)
+  // Allow logistics employees (agent_07) and destination logistics
   if (jobCode !== "agent_07" && jobCode !== "logistics") {
     return <Navigate to="/auth" replace />;
   }
