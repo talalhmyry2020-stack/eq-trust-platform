@@ -6,7 +6,12 @@ export const SHIPPING_PHASES = [
   { key: "leaving_factory", label: "🚛 مغادرة المصنع", icon: Truck, color: "text-orange-500", next: "at_source_port" },
   { key: "at_source_port", label: "⚓ ميناء التصدير", icon: Anchor, color: "text-blue-500", next: "in_transit" },
   { key: "in_transit", label: "🚢 في البحر", icon: Ship, color: "text-cyan-500", next: "at_destination_port" },
-  { key: "at_destination_port", label: "🏁 ميناء الوجهة", icon: MapPin, color: "text-green-500", next: null },
+  { key: "at_destination_port", label: "🏁 ميناء الوجهة", icon: MapPin, color: "text-green-500", next: "destination_inspection" },
+];
+
+// مراحل لوجستيك الوجهة (بلد العميل)
+export const DESTINATION_PHASES = [
+  { key: "destination_inspection", label: "🔍 فحص الوصول", icon: MapPin, color: "text-emerald-500", next: null },
 ];
 
 export const PHASE_CHECKLIST: Record<string, { id: string; label: string; required: boolean }[]> = {
@@ -37,6 +42,13 @@ export const PHASE_CHECKLIST: Record<string, { id: string; label: string; requir
   at_destination_port: [
     { id: "arrival_photo", label: "📸 تصوير وصول الحاوية", required: false },
     { id: "report", label: "📋 كتابة تقرير الوصول", required: true },
+  ],
+  destination_inspection: [
+    { id: "container_check", label: "✅ فحص سلامة الحاوية والختم", required: true },
+    { id: "goods_check", label: "✅ فحص البضاعة ومطابقتها", required: true },
+    { id: "arrival_photos", label: "📸 تصوير البضاعة عند الوصول", required: true },
+    { id: "damage_check", label: "✅ لا توجد أضرار أو تلف", required: true },
+    { id: "report", label: "📋 كتابة تقرير فحص الوصول", required: true },
   ],
 };
 
