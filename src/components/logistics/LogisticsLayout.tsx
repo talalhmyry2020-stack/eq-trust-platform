@@ -12,21 +12,11 @@ const LogisticsLayout = () => {
   const [jobLoading, setJobLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
-      setJobLoading(false);
-      return;
-    }
-    if (!isEmployee) {
-      // Don't set jobLoading=false yet - roles may still be loading
-      return;
-    }
+    if (!user) { setJobLoading(false); return; }
+    if (!isEmployee) { return; }
     setJobLoading(true);
     const fetchJob = async () => {
-      const { data } = await supabase
-        .from("employee_details")
-        .select("job_code")
-        .eq("user_id", user.id)
-        .single();
+      const { data } = await supabase.from("employee_details").select("job_code").eq("user_id", user.id).single();
       setJobCode(data?.job_code || "");
       setJobLoading(false);
     };
@@ -35,25 +25,19 @@ const LogisticsLayout = () => {
 
   if (authLoading || roleLoading || jobLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500" />
+      <div className="min-h-screen flex items-center justify-center bg-mesh">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" />
       </div>
     );
   }
 
-  if (!user || !isEmployee) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  // Allow logistics employees (agent_07) and destination logistics
-  if (jobCode !== "agent_07" && jobCode !== "logistics") {
-    return <Navigate to="/auth" replace />;
-  }
+  if (!user || !isEmployee) return <Navigate to="/auth" replace />;
+  if (jobCode !== "agent_07" && jobCode !== "logistics") return <Navigate to="/auth" replace />;
 
   return (
-    <div className="min-h-screen flex w-full" dir="rtl">
+    <div className="min-h-screen flex w-full bg-mesh" dir="rtl">
       <LogisticsSidebar />
-      <main className="flex-1 p-6 bg-background overflow-auto">
+      <main className="flex-1 p-6 bg-background/50 overflow-auto">
         <Outlet />
       </main>
     </div>

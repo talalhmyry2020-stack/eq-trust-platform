@@ -22,18 +22,20 @@ const QualitySidebar = () => {
   const location = useLocation();
 
   return (
-    <aside className="w-64 min-h-screen bg-card border-l border-border flex flex-col">
-      <div className="p-6 border-b border-border">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="w-6 h-6 text-emerald-600" />
+    <aside className="w-64 min-h-screen bg-card/50 backdrop-blur-xl border-l border-border/50 flex flex-col">
+      <div className="p-5 border-b border-border/50">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-brand">
+            <ShieldCheck className="w-5 h-5 text-white" />
+          </div>
           <div>
-            <h1 className="font-heading text-lg font-bold text-emerald-600">وكيل الجودة</h1>
+            <h1 className="font-heading text-lg font-bold text-gradient-brand">وكيل الجودة</h1>
             <p className="text-xs text-muted-foreground">درع الحماية ضد التلاعب</p>
           </div>
         </div>
       </div>
 
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 p-3 space-y-0.5">
         {navItems.map((item) => {
           const isActive =
             item.to === "/quality"
@@ -44,10 +46,10 @@ const QualitySidebar = () => {
               key={item.to}
               to={item.to}
               className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
+                "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
                 isActive
-                  ? "bg-emerald-500/10 text-emerald-600"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "bg-brand-gradient text-white shadow-brand"
+                  : "text-muted-foreground hover:bg-primary/5 hover:text-foreground"
               )}
             >
               <item.icon className="w-5 h-5" />
@@ -57,10 +59,10 @@ const QualitySidebar = () => {
         })}
       </nav>
 
-      <div className="p-4 border-t border-border">
+      <div className="p-3 border-t border-border/50">
         <button
           onClick={signOut}
-          className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors w-full"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 transition-all w-full"
         >
           <LogOut className="w-5 h-5" />
           تسجيل الخروج
