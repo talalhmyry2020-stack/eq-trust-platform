@@ -184,6 +184,36 @@ serve(async (req) => {
     if (readyForPhase2 && readyForPhase2.length > 0) {
       const p2Deal = readyForPhase2[0];
       console.log(`[Auto-Process] Running negotiation phase 2 for deal #${p2Deal.deal_number}`);
+
+      // أولاً: التأكد من وجود عروض مقبولة، وإن لم توجد نقبلها تلقائياً
+      const { data: existingAccepted } = await supabase
+        .from("deal_negotiations")
+        .select("id")
+        .eq("deal_id", p2Deal.id)
+        .eq("negotiation_phase", 1)
+        .eq("status", "accepted");
+
+      if (!existingAccepted || existingAccepted.length === 0) {
+        console.log(`[Auto-Process] No accepted phase 1 negotiations, auto-accepting...`);
+        const { data: respondedNegs } = await supabase
+          .from("deal_negotiations")
+          .select("*")
+          .eq("deal_id", p2Deal.id)
+          .eq("negotiation_phase", 1)
+          .in("status", ["responded", "pending"]);
+
+        if (respondedNegs && respondedNegs.length > 0) {
+          const toAccept = respondedNegs.slice(0, 2);
+          for (const neg of toAccept) {
+            await supabase.from("deal_negotiations").update({
+              status: "accepted",
+              requested_quantity: neg.requested_quantity || 100,
+              quantity_unit: neg.quantity_unit || "وحدة",
+            }).eq("id", neg.id);
+          }
+          console.log(`[Auto-Process] Auto-accepted ${toAccept.length} phase 1 negotiations`);
+        }
+      }
       
       try {
         const p2Res = await fetch(`${supabaseUrl}/functions/v1/negotiate-deals-phase2`, {
