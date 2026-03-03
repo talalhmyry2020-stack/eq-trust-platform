@@ -86,10 +86,10 @@ const EQHero = () => {
                 <ArrowLeft size={20} />
               </button>
               <button
-                onClick={() => navigate("/auth")}
+                onClick={() => navigate("/demo")}
                 className="border-2 border-border text-foreground font-heading font-bold text-lg px-10 py-4 rounded-2xl hover:bg-secondary hover:border-primary/30 transition-all duration-300"
               >
-                تسجيل الدخول
+                🧪 تجربة المنصة
               </button>
             </>
           )}

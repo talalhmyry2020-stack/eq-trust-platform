@@ -84,6 +84,12 @@ const EQHeader = () => {
           ) : (
             <>
               <button
+                onClick={() => navigate("/demo")}
+                className="font-body text-muted-foreground hover:text-foreground transition-colors text-sm"
+              >
+                🧪 تجربة
+              </button>
+              <button
                 onClick={() => navigate("/auth")}
                 className="font-body text-muted-foreground hover:text-foreground transition-colors text-sm"
               >
