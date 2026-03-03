@@ -225,27 +225,108 @@ ${resultsText}
 
     await supabase.from("deal_search_rows").insert(rowInserts);
 
-    // تحديث مرحلة الصفقة
+    // تحديث مرحلة الصفقة مؤقتاً
     await supabase.from("deals").update({ current_phase: "results_ready" }).eq("id", deal_id);
 
-    // إرسال إشعار للعميل والمدير
+    console.log(`[Search Agent] ✅ Saved ${factories.length} results for deal #${deal.deal_number}`);
+
+    // ===== الخطوة الجديدة: اختيار أفضل المصانع تلقائياً بالذكاء الاصطناعي =====
+    console.log(`[Search Agent] 🤖 AI auto-selecting best factories...`);
+
+    const selectionResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${lovableKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          {
+            role: "system",
+            content: `أنت خبير في تقييم واختيار المصانع والموردين الدوليين. مهمتك اختيار أفضل 3-5 مصانع من القائمة بناءً على المعايير التالية:
+1. توفر وسائل تواصل متعددة (إيميل + هاتف + موقع)
+2. جودة التقييم والشهادات
+3. تنوع المنتجات وملاءمتها للطلب
+4. سمعة المصنع وحجمه
+
+أعد قائمة JSON تحتوي فقط على أرقام الترتيب (row_order) للمصانع المختارة، مرتبة من الأفضل.
+مثال: [0, 3, 1, 4]
+لا تكتب أي نص آخر. فقط المصفوفة.`,
+          },
+          {
+            role: "user",
+            content: `المنتج المطلوب: "${product}"
+الوصف: "${desc}"
+بلد الاستيراد: "${country}"
+
+المصانع المتاحة:
+${factories.map((f: any, i: number) => `[${i}] ${f.factory_name} | ${f.country} | ${f.email || "—"} | ${f.phone || "—"} | ${f.website || "—"} | التقييم: ${f.rating || "—"} | الشهادات: ${f.certifications || "—"} | المنتجات: ${f.products || "—"}`).join("\n")}
+
+اختر أفضل 3-5 مصانع (أرقام الترتيب فقط).`,
+          },
+        ],
+        temperature: 0.1,
+      }),
+    });
+
+    let selectedIndices: number[] = [];
+    if (selectionResponse.ok) {
+      const selData = await selectionResponse.json();
+      const selContent = selData.choices?.[0]?.message?.content || "[]";
+      try {
+        const arrMatch = selContent.match(/\[[\d\s,]+\]/);
+        if (arrMatch) {
+          selectedIndices = JSON.parse(arrMatch[0]).filter((i: number) => i >= 0 && i < factories.length);
+        }
+      } catch { /* fallback below */ }
+    }
+
+    // Fallback: إذا فشل الذكاء الاصطناعي، نختار أول 3 مصانع
+    if (selectedIndices.length === 0) {
+      selectedIndices = factories.slice(0, Math.min(3, factories.length)).map((_: any, i: number) => i);
+    }
+
+    // تحويل المصانع المختارة إلى deal_product_results
+    const selectedFactories = selectedIndices.map((idx: number) => factories[idx]).filter(Boolean);
+    
+    const productInserts = selectedFactories.map((f: any) => ({
+      deal_id,
+      product_name: f.products || product || deal.title,
+      supplier_name: f.factory_name || f.factory_name_ar || "",
+      origin_country: f.country || country,
+      product_url: f.website || "",
+      notes: `📧 ${f.email || "—"} | 📞 ${f.phone || "—"} | الشهادات: ${f.certifications || "—"} | الحد الأدنى: ${f.min_order || "—"}`,
+      quality_rating: f.rating || "غير محدد",
+      selected: false,
+    }));
+
+    // حذف المنتجات القديمة وإدراج الجديدة
+    await supabase.from("deal_product_results").delete().eq("deal_id", deal_id);
+    await supabase.from("deal_product_results").insert(productInserts);
+
+    // الانتقال مباشرة لمرحلة اختيار المنتج (العميل يختار من القائمة المفلترة)
+    await supabase.from("deals").update({ current_phase: "product_selection" }).eq("id", deal_id);
+
+    console.log(`[Search Agent] 🎯 AI selected ${selectedFactories.length} best factories, moved to product_selection`);
+
+    // إرسال إشعار للعميل
     if (deal.client_id) {
       await supabase.from("notifications").insert({
         user_id: deal.client_id,
-        title: "نتائج البحث جاهزة",
-        message: `تم العثور على ${factories.length} مصنع/مورد لصفقتك رقم ${deal.deal_number}`,
+        title: "المنتجات جاهزة للاختيار",
+        message: `تم اختيار أفضل ${selectedFactories.length} موردين لصفقتك رقم ${deal.deal_number}. يمكنك الآن مراجعة العروض واختيار الأنسب.`,
         type: "product_results",
         entity_type: "deal",
         entity_id: deal_id,
       });
     }
 
-    console.log(`[Search Agent] ✅ Saved ${factories.length} results for deal #${deal.deal_number}`);
-
     return new Response(JSON.stringify({
       success: true,
       deal_number: deal.deal_number,
       factories_count: factories.length,
+      selected_count: selectedFactories.length,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
