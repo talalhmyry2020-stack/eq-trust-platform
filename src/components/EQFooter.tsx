@@ -8,12 +8,12 @@ const EQFooter = () => {
             <div className="w-8 h-8 rounded-xl bg-brand-gradient flex items-center justify-center">
               <span className="font-heading font-bold text-primary-foreground text-sm">N</span>
             </div>
-            <span className="font-heading font-bold text-foreground text-lg">EI N</span>
+            <span className="font-heading font-bold text-foreground text-lg">EI</span>
           </div>
 
           {/* Copyright */}
           <p className="font-body text-muted-foreground text-sm">
-            © {new Date().getFullYear()} EI N Platform. جميع الحقوق محفوظة.
+            © {new Date().getFullYear()} EI Platform. جميع الحقوق محفوظة.
           </p>
         </div>
       </div>

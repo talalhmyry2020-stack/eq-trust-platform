@@ -44,7 +44,7 @@ const EQHeader = () => {
             <span className="font-heading font-bold text-primary-foreground text-lg">N</span>
           </div>
           <div className="flex items-baseline gap-1.5">
-            <span className="font-heading font-bold text-foreground text-xl tracking-tight">EI N</span>
+            <span className="font-heading font-bold text-foreground text-xl tracking-tight">EI</span>
           </div>
         </div>
 

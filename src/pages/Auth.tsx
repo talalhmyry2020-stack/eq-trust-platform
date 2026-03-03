@@ -109,7 +109,7 @@ const Auth = () => {
             <div className="w-12 h-12 rounded-2xl bg-brand-gradient flex items-center justify-center shadow-brand">
               <Sparkles className="w-6 h-6 text-white" />
             </div>
-            <span className="font-heading font-bold text-foreground text-3xl">EI N</span>
+            <span className="font-heading font-bold text-foreground text-3xl">EI</span>
           </div>
           <p className="font-body text-muted-foreground text-lg">
             {isLogin ? "سجّل دخولك للمتابعة" : "أنشئ حسابك الآن"}

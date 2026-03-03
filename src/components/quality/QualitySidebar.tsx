@@ -29,7 +29,7 @@ const QualitySidebar = () => {
             <span className="font-heading font-black text-white text-sm tracking-tight">EI</span>
           </div>
           <div>
-            <span className="font-heading text-lg font-bold text-gradient-brand">EI N</span>
+            <span className="font-heading text-lg font-bold text-gradient-brand">EI</span>
             <span className="block text-[10px] text-muted-foreground font-medium -mt-0.5">الجودة</span>
           </div>
         </div>

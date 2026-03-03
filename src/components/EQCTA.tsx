@@ -34,7 +34,7 @@ const EQCTA = () => {
           transition={{ duration: 0.6, delay: 0.15 }}
           className="font-body text-muted-foreground text-lg md:text-xl mb-10 max-w-lg mx-auto"
         >
-          انضم إلى منصة EI N اليوم، واكتشف كيف تُبنى الثقة رقمياً
+          انضم إلى منصة EI اليوم، واكتشف كيف تُبنى الثقة رقمياً
         </motion.p>
 
         <motion.div

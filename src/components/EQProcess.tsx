@@ -35,7 +35,7 @@ const EQProcess = () => {
           className="text-center mb-20"
         >
           <span className="font-body text-primary text-sm tracking-wider mb-4 block font-bold">
-            رحلة طلبك في EI N
+            رحلة طلبك في EI
           </span>
           <h2 className="font-heading font-bold text-3xl md:text-5xl text-foreground mb-6">
             خمس خطوات، تجربة واحدة سلسة

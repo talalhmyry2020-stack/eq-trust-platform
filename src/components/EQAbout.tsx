@@ -43,13 +43,13 @@ const EQAbout = () => {
           className="text-center mb-16"
         >
           <span className="font-body text-primary text-sm tracking-wider mb-4 block font-bold">
-            EI N ليست مجرد وسيط
+            EI ليست مجرد وسيط
           </span>
           <h2 className="font-heading font-bold text-3xl md:text-5xl text-foreground mb-6">
             نحن الحلقة الذكية في التجارة
           </h2>
           <p className="font-body text-muted-foreground text-lg max-w-2xl mx-auto leading-relaxed">
-            EI N منصة رقمية متقدمة تجمع بين الحوكمة الآلية والتوثيق الدقيق،
+            EI منصة رقمية متقدمة تجمع بين الحوكمة الآلية والتوثيق الدقيق،
             لنضمن حقوق جميع الأطراف بشفافية تامة.
           </p>
         </motion.div>
