@@ -141,6 +141,37 @@ serve(async (req) => {
     if (readyForPhase3 && readyForPhase3.length > 0) {
       const p3Deal = readyForPhase3[0];
       console.log(`[Auto-Process] Running negotiation phase 3 for deal #${p3Deal.deal_number}`);
+
+      // التأكد من وجود عروض مرحلة 2 بحالة responded
+      const { data: phase2Responded } = await supabase
+        .from("deal_negotiations")
+        .select("id")
+        .eq("deal_id", p3Deal.id)
+        .eq("negotiation_phase", 2)
+        .eq("status", "responded");
+
+      if (!phase2Responded || phase2Responded.length === 0) {
+        // محاولة ترقية أي عروض مرحلة 2 موجودة
+        const { data: anyPhase2 } = await supabase
+          .from("deal_negotiations")
+          .select("id")
+          .eq("deal_id", p3Deal.id)
+          .eq("negotiation_phase", 2);
+
+        if (anyPhase2 && anyPhase2.length > 0) {
+          for (const n of anyPhase2) {
+            await supabase.from("deal_negotiations").update({ status: "responded" }).eq("id", n.id);
+          }
+          console.log(`[Auto-Process] Updated ${anyPhase2.length} phase 2 negotiations to responded`);
+        } else {
+          console.log(`[Auto-Process] No phase 2 negotiations found, running phase 2 first...`);
+          // تشغيل المرحلة 2 أولاً ثم المرحلة 3 في الدورة التالية
+          await supabase.from("deals").update({ current_phase: "negotiating_phase2" }).eq("id", p3Deal.id);
+          return new Response(JSON.stringify({ success: true, message: `أعيد توجيه الصفقة #${p3Deal.deal_number} للمرحلة 2 أولاً` }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
       
       try {
         const p3Res = await fetch(`${supabaseUrl}/functions/v1/negotiate-deals-phase3`, {
@@ -258,24 +289,27 @@ serve(async (req) => {
       const aaDeal = readyForAutoAccept[0];
       console.log(`[Auto-Process] Auto-accepting phase 1 negotiations for deal #${aaDeal.deal_number}`);
 
-      // قبول العروض المستجابة تلقائياً وتحديد كميات افتراضية
-      const { data: respondedNegs } = await supabase
+      // قبول العروض تلقائياً (responded أو pending) وتحديد كميات افتراضية
+      const { data: phase1Negs } = await supabase
         .from("deal_negotiations")
         .select("*")
         .eq("deal_id", aaDeal.id)
         .eq("negotiation_phase", 1)
-        .eq("status", "responded");
+        .in("status", ["responded", "pending"]);
 
-      if (respondedNegs && respondedNegs.length > 0) {
-        // قبول أول عرضين فقط (كما يفعل العميل)
-        const toAccept = respondedNegs.slice(0, 2);
+      if (phase1Negs && phase1Negs.length > 0) {
+        // أولوية للعروض المستجابة، ثم pending كاحتياط
+        const responded = phase1Negs.filter(n => n.status === "responded");
+        const available = responded.length > 0 ? responded : phase1Negs;
+        const toAccept = available.slice(0, 2);
         for (const neg of toAccept) {
           await supabase.from("deal_negotiations").update({
             status: "accepted",
-            requested_quantity: 100,
-            quantity_unit: "وحدة",
+            requested_quantity: neg.requested_quantity || 100,
+            quantity_unit: neg.quantity_unit || "وحدة",
           }).eq("id", neg.id);
         }
+        console.log(`[Auto-Process] Auto-accepted ${toAccept.length} phase 1 negotiations for deal #${aaDeal.deal_number}`);
       }
 
       // تقدم المرحلة مباشرة
