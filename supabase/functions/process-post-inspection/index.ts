@@ -693,30 +693,90 @@ serve(async (req) => {
         break;
       }
 
-      // === انتهاء العداد → إغلاق الصفقة ===
+      // === انتهاء العداد → صرف التوكن C (20%) + عمولة المنصة → إغلاق الصفقة ===
       case "complete_deal": {
+        // 1. جلب بيانات العقد
+        const { data: contract } = await supabase
+          .from("deal_contracts")
+          .select("total_amount, currency, platform_fee_percentage")
+          .eq("deal_id", deal_id)
+          .single();
+
+        const totalAmount = contract?.total_amount || deal.estimated_amount || 0;
+        const currency = contract?.currency || "USD";
+        const feePercent = contract?.platform_fee_percentage || 7;
+        
+        // صافي المبلغ بعد خصم العمولة
+        const netAmount = totalAmount * (1 - feePercent / 100);
+        const tokenCAmount = netAmount * 0.2;
+        const platformFee = totalAmount * (feePercent / 100);
+
+        // 2. إنشاء التوكن C
+        await supabase.from("deal_tokens").insert({
+          deal_id,
+          token_type: "token_c",
+          amount: tokenCAmount,
+          percentage: 20,
+          currency,
+          status: "approved",
+          approved_at: new Date().toISOString(),
+          released_at: new Date().toISOString(),
+        });
+
+        // 3. تحديث حساب الضمان — خصم التوكن C + تحويل العمولة
+        const { data: escrow } = await supabase
+          .from("deal_escrow")
+          .select("*")
+          .eq("deal_id", deal_id)
+          .single();
+
+        if (escrow) {
+          const newReleased = Number(escrow.total_released) + tokenCAmount + platformFee;
+          await supabase.from("deal_escrow").update({
+            total_released: newReleased,
+            balance: 0,
+            status: "completed",
+          }).eq("deal_id", deal_id);
+        } else {
+          await supabase.from("deal_escrow")
+            .update({ status: "completed" })
+            .eq("deal_id", deal_id);
+        }
+
+        // 4. إغلاق الصفقة
         await supabase.from("deals").update({
           current_phase: "completed",
           status: "completed" as any,
         }).eq("id", deal_id);
 
-        // تحديث الضمان
-        await supabase.from("deal_escrow")
-          .update({ status: "completed" })
-          .eq("deal_id", deal_id);
-
+        // 5. إشعار العميل
         if (deal.client_id) {
           await supabase.from("notifications").insert({
             user_id: deal.client_id,
-            title: "🎉 الصفقة مكتملة",
-            message: `تم إغلاق الصفقة #${deal.deal_number} بنجاح بعد انتهاء العداد السيادي دون اعتراض.`,
+            title: "🎉 الصفقة مكتملة — تم صرف الدفعة النهائية",
+            message: `الصفقة #${deal.deal_number}: انتهى العداد السيادي دون اعتراض. تم صرف الدفعة النهائية (${tokenCAmount.toFixed(2)} ${currency}) للمصنع وعمولة المنصة (${platformFee.toFixed(2)} ${currency}). الصفقة مغلقة رسمياً.`,
             type: "deal_completed",
             entity_type: "deal",
             entity_id: deal_id,
           });
         }
 
-        result.message = "تم إغلاق الصفقة بنجاح";
+        // 6. إشعار المدير
+        const { data: admins } = await supabase.rpc("get_admin_contacts");
+        for (const admin of admins || []) {
+          await supabase.from("notifications").insert({
+            user_id: admin.user_id,
+            title: "🎉 صفقة مكتملة + توكن C + عمولة",
+            message: `الصفقة #${deal.deal_number}: تم صرف التوكن C (${tokenCAmount.toFixed(2)} ${currency} — 20%) + عمولة المنصة (${platformFee.toFixed(2)} ${currency} — ${feePercent}%). الرصيد النهائي: 0 ${currency}. الصفقة مغلقة.`,
+            type: "deal_completed",
+            entity_type: "deal",
+            entity_id: deal_id,
+          });
+        }
+
+        result.token_c_amount = tokenCAmount;
+        result.platform_fee = platformFee;
+        result.message = `تم إغلاق الصفقة — توكن C: ${tokenCAmount.toFixed(2)} ${currency} + عمولة: ${platformFee.toFixed(2)} ${currency}`;
         break;
       }
 
