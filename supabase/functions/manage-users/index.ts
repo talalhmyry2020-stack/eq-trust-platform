@@ -246,13 +246,11 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Delete related data first
       await supabaseAdmin.from("employee_permissions").delete().eq("user_id", user_id);
       await supabaseAdmin.from("employee_details").delete().eq("user_id", user_id);
       await supabaseAdmin.from("user_roles").delete().eq("user_id", user_id);
       await supabaseAdmin.from("profiles").delete().eq("user_id", user_id);
 
-      // Delete auth user
       const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user_id);
       if (deleteError) {
         return new Response(JSON.stringify({ error: deleteError.message }), {
@@ -262,6 +260,41 @@ Deno.serve(async (req) => {
       }
 
       return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "purge_all_except_admin") {
+      // Get all non-admin users
+      const { data: allRoles } = await supabaseAdmin.from("user_roles").select("user_id, role");
+      const adminUserIds = (allRoles || []).filter(r => r.role === "admin").map(r => r.user_id);
+      
+      // Get all auth users
+      const { data: { users: allUsers } } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+      const usersToDelete = (allUsers || []).filter(u => !adminUserIds.includes(u.id));
+      
+      let deleted = 0;
+      let errors: string[] = [];
+      
+      for (const u of usersToDelete) {
+        try {
+          await supabaseAdmin.from("employee_permissions").delete().eq("user_id", u.id);
+          await supabaseAdmin.from("employee_details").delete().eq("user_id", u.id);
+          await supabaseAdmin.from("employee_client_assignments").delete().eq("employee_id", u.id);
+          await supabaseAdmin.from("employee_client_assignments").delete().eq("client_id", u.id);
+          await supabaseAdmin.from("notifications").delete().eq("user_id", u.id);
+          await supabaseAdmin.from("direct_messages").delete().eq("sender_id", u.id);
+          await supabaseAdmin.from("direct_messages").delete().eq("receiver_id", u.id);
+          await supabaseAdmin.from("user_roles").delete().eq("user_id", u.id);
+          await supabaseAdmin.from("profiles").delete().eq("user_id", u.id);
+          await supabaseAdmin.auth.admin.deleteUser(u.id);
+          deleted++;
+        } catch (e) {
+          errors.push(`${u.email}: ${(e as Error).message}`);
+        }
+      }
+      
+      return new Response(JSON.stringify({ success: true, deleted, errors }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
