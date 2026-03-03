@@ -215,6 +215,87 @@ serve(async (req) => {
       });
     }
 
+    // التحقق: هل هناك صفقات أكملت التفاوض المرحلة 1 وتحتاج قبول تلقائي؟
+    const { data: readyForAutoAccept } = await supabase
+      .from("deals")
+      .select("*")
+      .eq("status", "active")
+      .eq("current_phase", "negotiation_complete")
+      .order("created_at", { ascending: true })
+      .limit(1);
+
+    if (readyForAutoAccept && readyForAutoAccept.length > 0) {
+      const aaDeal = readyForAutoAccept[0];
+      console.log(`[Auto-Process] Auto-accepting phase 1 negotiations for deal #${aaDeal.deal_number}`);
+
+      // قبول العروض المستجابة تلقائياً وتحديد كميات افتراضية
+      const { data: respondedNegs } = await supabase
+        .from("deal_negotiations")
+        .select("*")
+        .eq("deal_id", aaDeal.id)
+        .eq("negotiation_phase", 1)
+        .eq("status", "responded");
+
+      if (respondedNegs && respondedNegs.length > 0) {
+        // قبول أول عرضين فقط (كما يفعل العميل)
+        const toAccept = respondedNegs.slice(0, 2);
+        for (const neg of toAccept) {
+          await supabase.from("deal_negotiations").update({
+            status: "accepted",
+            requested_quantity: 100,
+            quantity_unit: "وحدة",
+          }).eq("id", neg.id);
+        }
+      }
+
+      // تقدم المرحلة مباشرة
+      await supabase.from("deals").update({ current_phase: "negotiating_phase2" }).eq("id", aaDeal.id);
+
+      await supabase.from("system_settings").upsert({
+        key: "last_auto_process_time",
+        value: { timestamp: new Date().toISOString() },
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "key" });
+
+      return new Response(JSON.stringify({
+        success: true,
+        deal_id: aaDeal.id,
+        message: `تم قبول العروض تلقائياً وتقدم الصفقة #${aaDeal.deal_number} للمرحلة 2`,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // التحقق: هل هناك صفقات أكملت المرحلة 2 وتحتاج تقدم تلقائي للمرحلة 3؟
+    const { data: readyForAutoP3 } = await supabase
+      .from("deals")
+      .select("*")
+      .eq("status", "active")
+      .eq("current_phase", "negotiation_phase2_complete")
+      .order("created_at", { ascending: true })
+      .limit(1);
+
+    if (readyForAutoP3 && readyForAutoP3.length > 0) {
+      const apDeal = readyForAutoP3[0];
+      console.log(`[Auto-Process] Auto-advancing deal #${apDeal.deal_number} to phase 3`);
+
+      await supabase.from("deals").update({ current_phase: "negotiating_phase3" }).eq("id", apDeal.id);
+
+      await supabase.from("system_settings").upsert({
+        key: "last_auto_process_time",
+        value: { timestamp: new Date().toISOString() },
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "key" });
+
+      return new Response(JSON.stringify({
+        success: true,
+        deal_id: apDeal.id,
+        message: `تم تقدم الصفقة #${apDeal.deal_number} تلقائياً للمرحلة 3`,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // التحقق: هل هناك صفقات اختار العميل منتجاً فيها وجاهزة للتفاوض (product_selected)؟
     const { data: readyForNeg } = await supabase
       .from("deals")
