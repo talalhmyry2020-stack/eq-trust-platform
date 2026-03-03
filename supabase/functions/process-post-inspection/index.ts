@@ -995,6 +995,125 @@ serve(async (req) => {
         break;
       }
 
+      // === تعيين المفتش الميداني آلياً بعد اعتماد الإيداع ===
+      case "auto_assign_inspector": {
+        // جلب بيانات التفاوض المقبولة للحصول على بلد المصنع
+        const { data: acceptedNeg } = await supabase
+          .from("deal_negotiations")
+          .select("factory_name, factory_country, factory_email, factory_phone")
+          .eq("deal_id", deal_id)
+          .eq("status", "accepted")
+          .limit(1)
+          .maybeSingle();
+
+        const factoryCountry = acceptedNeg?.factory_country || deal.import_country || deal.country || "";
+
+        // البحث عن مفتشين لديهم صلاحية capture_evidence
+        const { data: inspectorPerms } = await supabase
+          .from("employee_permissions")
+          .select("user_id")
+          .eq("permission", "capture_evidence");
+
+        if (!inspectorPerms?.length) {
+          // لا يوجد مفتشون — إشعار المدير
+          const { data: admins } = await supabase.rpc("get_admin_contacts");
+          for (const admin of admins || []) {
+            await supabase.from("notifications").insert({
+              user_id: admin.user_id,
+              title: "⚠️ لا يوجد مفتش ميداني",
+              message: `الصفقة #${deal.deal_number}: تم اعتماد الإيداع لكن لا يوجد مفتش ميداني في النظام. يرجى إضافة مفتش يدوياً.`,
+              type: "inspection", entity_type: "deal", entity_id: deal_id,
+            });
+          }
+          result.message = "لا يوجد مفتش — تم إشعار المدير";
+          break;
+        }
+
+        const inspectorIds = inspectorPerms.map(p => p.user_id);
+
+        // جلب بيانات الموظفين لمطابقة البلد
+        const { data: inspectorDetails } = await supabase
+          .from("employee_details")
+          .select("user_id, country")
+          .in("user_id", inspectorIds);
+
+        // اختيار المفتش: الأولوية لمن يطابق بلد المصنع
+        let selectedInspectorId = inspectorIds[0]; // افتراضي: أول مفتش
+        if (factoryCountry && inspectorDetails?.length) {
+          const matched = inspectorDetails.find(d => 
+            d.country && d.country.toLowerCase().includes(factoryCountry.toLowerCase())
+          );
+          if (matched) selectedInspectorId = matched.user_id;
+        }
+
+        // البحث الجغرافي عن إحداثيات المصنع
+        let factoryLat = 0, factoryLng = 0, factoryAddress = "";
+        const geoQuery = [acceptedNeg?.factory_name, factoryCountry].filter(Boolean).join(", ");
+        
+        if (geoQuery) {
+          try {
+            const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(geoQuery)}&limit=1`, {
+              headers: { "User-Agent": "EQ-Platform/1.0" }
+            });
+            const geoData = await geoRes.json();
+            if (geoData?.length > 0) {
+              factoryLat = parseFloat(geoData[0].lat);
+              factoryLng = parseFloat(geoData[0].lon);
+              factoryAddress = geoData[0].display_name || geoQuery;
+            }
+          } catch (e) {
+            console.error("Geocoding error:", e);
+            factoryAddress = geoQuery;
+          }
+        }
+
+        // إنشاء مهمة الفحص
+        await supabase.from("deal_inspection_missions").insert({
+          deal_id,
+          inspector_id: selectedInspectorId,
+          factory_latitude: factoryLat || null,
+          factory_longitude: factoryLng || null,
+          factory_address: factoryAddress,
+          factory_country: factoryCountry,
+          assigned_by: null, // تعيين آلي
+          notes: "تعيين آلي بعد اعتماد الإيداع",
+        });
+
+        // تحديث مرحلة الصفقة
+        await supabase.from("deals").update({ current_phase: "inspection_assigned" }).eq("id", deal_id);
+
+        // جلب اسم المفتش
+        const { data: inspProfile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("user_id", selectedInspectorId)
+          .single();
+
+        // إشعار المفتش
+        await supabase.from("notifications").insert({
+          user_id: selectedInspectorId,
+          title: "مهمة فحص جديدة 🔍",
+          message: `تم تكليفك آلياً بمهمة فحص للصفقة #${deal.deal_number}. يرجى التوجه للموقع المحدد.`,
+          type: "inspection", entity_type: "deal", entity_id: deal_id,
+        });
+
+        // إشعار المدير
+        const { data: admins } = await supabase.rpc("get_admin_contacts");
+        for (const admin of admins || []) {
+          await supabase.from("notifications").insert({
+            user_id: admin.user_id,
+            title: "✅ تعيين مفتش آلي",
+            message: `الصفقة #${deal.deal_number}: تم تعيين المفتش "${inspProfile?.full_name || "غير معروف"}" آلياً بناءً على بلد المصنع (${factoryCountry}).`,
+            type: "inspection", entity_type: "deal", entity_id: deal_id,
+          });
+        }
+
+        result.inspector_id = selectedInspectorId;
+        result.inspector_name = inspProfile?.full_name;
+        result.message = `تم تعيين المفتش آلياً: ${inspProfile?.full_name || selectedInspectorId}`;
+        break;
+      }
+
       default:
         throw new Error("Unknown action: " + action);
     }

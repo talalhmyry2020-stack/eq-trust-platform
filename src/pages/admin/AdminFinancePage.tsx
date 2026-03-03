@@ -169,7 +169,7 @@ const AdminFinancePage = () => {
             });
           }
 
-          // تحديث مرحلة الصفقة
+          // تحديث مرحلة الصفقة مؤقتاً
           await supabase.from("deals").update({ current_phase: "deposit_approved" }).eq("id", deposit.deal_id);
 
           // إشعار العميل
@@ -178,11 +178,20 @@ const AdminFinancePage = () => {
             await supabase.from("notifications").insert({
               user_id: deal.client_id,
               title: "تمت الموافقة على الإيداع",
-              message: `تمت الموافقة على إيداعك لصفقة #${deal.deal_number}. سيتم إرسال مفتش ميداني قريباً.`,
+              message: `تمت الموافقة على إيداعك لصفقة #${deal.deal_number}. سيتم تعيين مفتش ميداني آلياً.`,
               type: "finance",
               entity_type: "deal",
               entity_id: deposit.deal_id,
             });
+          }
+
+          // تعيين المفتش الميداني آلياً
+          try {
+            await supabase.functions.invoke("process-post-inspection", {
+              body: { deal_id: deposit.deal_id, action: "auto_assign_inspector" },
+            });
+          } catch (e) {
+            console.error("Auto-assign inspector error:", e);
           }
         }
       }
