@@ -4,8 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Mail, Lock, ArrowRight, Loader2, User, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useRedirectIfAuthenticated } from "@/hooks/useRedirectIfAuthenticated";
 
 const Auth = () => {
+  const { checking } = useRedirectIfAuthenticated();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -83,6 +85,14 @@ const Auth = () => {
   };
 
   const inputClass = "w-full bg-card border border-border rounded-2xl py-4 pr-12 pl-4 font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all duration-300";
+
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center px-6 bg-background relative overflow-hidden">
