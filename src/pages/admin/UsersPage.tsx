@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Plus, Ban, MessageSquare, Shield, ShieldCheck, Eye, Trash2, Truck, AlertTriangle } from "lucide-react";
+import { Search, Plus, Ban, MessageSquare, Shield, ShieldCheck, Eye, Trash2, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -209,18 +209,6 @@ const UsersPage = () => {
     fetchUsers();
   };
 
-  const purgeAllUsers = async () => {
-    if (!confirm("⚠️ هل أنت متأكد من حذف جميع المستخدمين (موظفين + عملاء)؟\nسيبقى حسابك كمدير فقط.\nلا يمكن التراجع عن هذا الإجراء!")) return;
-    toast.loading("جاري حذف جميع الحسابات...");
-    const { data, error } = await supabase.functions.invoke("purge-users");
-    toast.dismiss();
-    if (error) {
-      toast.error("فشل حذف الحسابات");
-      return;
-    }
-    toast.success(`تم حذف ${data.deleted} حساب بنجاح`);
-    fetchUsers();
-  };
 
 
   const filteredClients = clients.filter((c) =>
@@ -292,14 +280,10 @@ const UsersPage = () => {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-heading text-2xl font-bold">إدارة المستخدمين</h1>
-        <div className="flex gap-2">
-          <Button variant="destructive" size="sm" onClick={purgeAllUsers}>
-            <AlertTriangle className="w-4 h-4 ml-2" />حذف الكل
-          </Button>
-          <Dialog open={showEmployeeDialog} onOpenChange={setShowEmployeeDialog}>
-            <DialogTrigger asChild>
-              <Button><Plus className="w-4 h-4 ml-2" />إضافة موظف</Button>
-            </DialogTrigger>
+        <Dialog open={showEmployeeDialog} onOpenChange={setShowEmployeeDialog}>
+          <DialogTrigger asChild>
+            <Button><Plus className="w-4 h-4 ml-2" />إضافة موظف</Button>
+          </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>إنشاء حساب موظف</DialogTitle>
@@ -389,7 +373,6 @@ const UsersPage = () => {
             </div>
           </DialogContent>
         </Dialog>
-        </div>
       </div>
 
       <div className="relative mb-4">

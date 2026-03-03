@@ -816,7 +816,95 @@ serve(async (req) => {
         break;
       }
 
-      // === محاكاة تجريبية: فحص → توكن A → إيداع للمصنع بخطوة واحدة ===
+      // === العميل يقبل ويختصر العداد السيادي ===
+      case "client_accept_deal": {
+        const { client_id: acceptClientId } = data || {};
+        if (!acceptClientId) throw new Error("client_id required");
+        
+        // تحقق أن الصفقة في مرحلة العداد السيادي
+        if (deal.current_phase !== "sovereignty_timer") {
+          throw new Error("الصفقة ليست في مرحلة العداد السيادي");
+        }
+        
+        // تحقق أن العميل هو صاحب الصفقة
+        if (deal.client_id !== acceptClientId) {
+          throw new Error("غير مصرح");
+        }
+
+        // تنفيذ إغلاق الصفقة (نفس منطق complete_deal)
+        const { data: contractAccept } = await supabase
+          .from("deal_contracts")
+          .select("total_amount, currency, platform_fee_percentage")
+          .eq("deal_id", deal_id)
+          .single();
+
+        const totalAmountAccept = contractAccept?.total_amount || deal.estimated_amount || 0;
+        const currencyAccept = contractAccept?.currency || "USD";
+        const feePercentAccept = contractAccept?.platform_fee_percentage || 7;
+        const netAmountAccept = totalAmountAccept * (1 - feePercentAccept / 100);
+        const tokenCAmountAccept = netAmountAccept * 0.2;
+        const platformFeeAccept = totalAmountAccept * (feePercentAccept / 100);
+
+        await supabase.from("deal_tokens").insert({
+          deal_id,
+          token_type: "token_c",
+          amount: tokenCAmountAccept,
+          percentage: 20,
+          currency: currencyAccept,
+          status: "approved",
+          approved_at: new Date().toISOString(),
+          released_at: new Date().toISOString(),
+        });
+
+        const { data: escrowAccept } = await supabase
+          .from("deal_escrow")
+          .select("*")
+          .eq("deal_id", deal_id)
+          .single();
+
+        if (escrowAccept) {
+          const newReleased = Number(escrowAccept.total_released) + tokenCAmountAccept + platformFeeAccept;
+          await supabase.from("deal_escrow").update({
+            total_released: newReleased,
+            balance: 0,
+            status: "completed",
+          }).eq("deal_id", deal_id);
+        }
+
+        await supabase.from("deals").update({
+          current_phase: "completed",
+          status: "completed" as any,
+          sovereignty_timer_end: new Date().toISOString(),
+        }).eq("id", deal_id);
+
+        if (deal.client_id) {
+          await supabase.from("notifications").insert({
+            user_id: deal.client_id,
+            title: "🎉 تم إنهاء الصفقة بنجاح",
+            message: `الصفقة #${deal.deal_number}: قمت بتأكيد استلام البضاعة وإنهاء الصفقة. تم صرف الدفعة النهائية (${tokenCAmountAccept.toFixed(2)} ${currencyAccept}).`,
+            type: "deal_completed",
+            entity_type: "deal",
+            entity_id: deal_id,
+          });
+        }
+
+        const { data: adminsAccept } = await supabase.rpc("get_admin_contacts");
+        for (const admin of adminsAccept || []) {
+          await supabase.from("notifications").insert({
+            user_id: admin.user_id,
+            title: "🎉 العميل أنهى الصفقة مبكراً",
+            message: `الصفقة #${deal.deal_number}: وافق العميل وأنهى الصفقة. توكن C: ${tokenCAmountAccept.toFixed(2)} ${currencyAccept} + عمولة: ${platformFeeAccept.toFixed(2)} ${currencyAccept}.`,
+            type: "deal_completed",
+            entity_type: "deal",
+            entity_id: deal_id,
+          });
+        }
+
+        result.message = "تم إنهاء الصفقة بنجاح من قبل العميل";
+        break;
+      }
+
+
       case "test_auto_token_a": {
         // 1) جلب مبلغ العقد
         const { data: contract } = await supabase
