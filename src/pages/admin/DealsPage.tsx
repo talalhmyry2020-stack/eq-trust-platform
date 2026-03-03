@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import DealDetailDialog from "@/components/admin/DealDetailDialog";
 import QualificationAgentBanner from "@/components/admin/QualificationAgentBanner";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Deal {
   id: string;
@@ -61,6 +62,7 @@ const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondar
 const DealsPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [deals, setDeals] = useState<Deal[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
   const [clients, setClients] = useState<{ user_id: string; full_name: string }[]>([]);
@@ -186,137 +188,176 @@ const DealsPage = () => {
   const contractDeals = filtered.filter(d => d.status === "active" && (d.current_phase === "contract_drafting" || d.current_phase === "contract_review" || d.current_phase === "contract_revision" || d.current_phase === "contract_signing" || d.current_phase === "contract_signed"));
   const rejectedDeals = filtered.filter(d => d.status === "cancelled");
 
-  const renderDealsTable = (dealsList: Deal[]) => (
-    <Card>
-      <CardContent className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>#</TableHead>
-              <TableHead>العنوان</TableHead>
-              <TableHead>العميل</TableHead>
-              <TableHead>صاحب الحساب</TableHead>
-              <TableHead>النوع</TableHead>
-              <TableHead>المرحلة</TableHead>
-              <TableHead>الحالة</TableHead>
-              <TableHead>التاريخ</TableHead>
-              <TableHead>إجراءات</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {dealsList.map((deal) => {
-              const st = STATUS_MAP[deal.status] || { label: deal.status, variant: "secondary" as const };
-              return (
-                <TableRow key={deal.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedDeal(deal)} onDoubleClick={() => navigate(`/admin/deal-search-results?deal_id=${deal.id}`)}>
-                  <TableCell className="font-mono">{deal.deal_number}</TableCell>
-                  <TableCell className="font-medium">{deal.title}</TableCell>
-                  <TableCell>{deal.client_full_name || getClientName(deal.client_id)}</TableCell>
-                  <TableCell className="text-muted-foreground text-xs" dir="ltr">{getAccountOwnerEmail(deal.client_id)}</TableCell>
-                  <TableCell>{deal.deal_type || "—"}</TableCell>
-                  <TableCell>{getPhaseName(deal.current_phase)}</TableCell>
-                  <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
-                  <TableCell className="font-mono text-xs">{new Date(deal.created_at).toLocaleDateString("ar-SA")}</TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <div className="flex gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => setSelectedDeal(deal)} title="عرض التفاصيل">
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      {(deal.current_phase === "results_ready" || deal.current_phase === "searching_products" || deal.current_phase === "product_selection") && (
-                        <Button size="icon" variant="ghost" className="text-primary" onClick={() => navigate(`/admin/deal-search-results?deal_id=${deal.id}`)} title="نتائج البحث">
-                          <FileSearch className="w-4 h-4" />
-                        </Button>
-                      )}
+  const renderDealActions = (deal: Deal) => (
+    <div className="flex gap-1 flex-wrap">
+      <Button size="icon" variant="ghost" onClick={() => setSelectedDeal(deal)} title="عرض التفاصيل">
+        <Eye className="w-4 h-4" />
+      </Button>
+      {(deal.current_phase === "results_ready" || deal.current_phase === "searching_products" || deal.current_phase === "product_selection") && (
+        <Button size="icon" variant="ghost" className="text-primary" onClick={() => navigate(`/admin/deal-search-results?deal_id=${deal.id}`)} title="نتائج البحث">
+          <FileSearch className="w-4 h-4" />
+        </Button>
+      )}
       {(deal.current_phase === "negotiation" || deal.current_phase === "negotiating" || deal.current_phase === "negotiation_complete") && (
-                        <Button size="icon" variant="ghost" className="text-amber-600" onClick={() => navigate(`/admin/deal-negotiations?deal_id=${deal.id}`)} title="نتائج التفاوض">
-                           <Handshake className="w-4 h-4" />
-                         </Button>
-                       )}
-                       {(deal.current_phase === "negotiating_phase2" || deal.current_phase === "negotiation_phase2_complete") && (
-                        <Button size="icon" variant="ghost" className="text-emerald-600" onClick={() => navigate(`/admin/deal-negotiations?deal_id=${deal.id}&phase=2`)} title="التفاوض النهائي">
-                           <Handshake className="w-4 h-4" />
-                         </Button>
-                       )}
-                       {(deal.current_phase === "negotiating_phase3" || deal.current_phase === "negotiation_phase3_complete") && (
-                        <Button size="icon" variant="ghost" className="text-blue-600" onClick={() => navigate(`/admin/deal-negotiations?deal_id=${deal.id}&phase=3`)} title="موافقة المصنع">
-                           <Handshake className="w-4 h-4" />
-                         </Button>
-                       )}
-                       {(deal.current_phase === "contract_review" || deal.current_phase === "contract_signing" || deal.current_phase === "contract_signed" || deal.current_phase === "contract_drafting" || deal.current_phase === "contract_revision") && (
-                         <Button size="icon" variant="ghost" className="text-violet-600" onClick={() => navigate(`/admin/contract-review?deal_id=${deal.id}`)} title="مراجعة العقد">
-                            <FileText className="w-4 h-4" />
-                          </Button>
-                        )}
-                       {deal.current_phase === "negotiation_phase3_complete" && (
-                         <Button size="icon" variant="ghost" className="text-violet-600" onClick={async () => {
-                           await supabase.from("deals").update({ current_phase: "contract_drafting" }).eq("id", deal.id);
-                           toast.success("تم إرسال الصفقة لوكيل صياغة العقود");
-                           fetchData();
-                         }} title="صياغة العقد">
-                            <FileText className="w-4 h-4" />
-                          </Button>
-                       )}
-                      {deal.status === "pending_review" && (
-                        <>
-                          <Button size="icon" variant="ghost" className="text-green-600" onClick={() => updateStatus(deal.id, "active")} title="موافقة">
-                            <CheckCircle className="w-4 h-4" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="text-destructive" onClick={() => updateStatus(deal.id, "cancelled")} title="رفض">
-                            <XCircle className="w-4 h-4" />
-                          </Button>
-                        </>
-                      )}
-                      {deal.status === "cancelled" && (
-                        <>
-                          <Button size="icon" variant="ghost" className="text-blue-600" onClick={() => restoreDeal(deal.id)} title="إرجاع للمراجعة">
-                            <RotateCcw className="w-4 h-4" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="text-green-600" onClick={() => updateStatus(deal.id, "active")} title="قبول مباشر">
-                            <CheckCircle className="w-4 h-4" />
-                          </Button>
-                        </>
-                      )}
-                      {deal.status === "active" && (
-                        <>
-                          <Button size="icon" variant="ghost" onClick={() => updateStatus(deal.id, "paused")} title="إيقاف">
-                            <Pause className="w-4 h-4" />
-                          </Button>
-                          <Button size="icon" variant="ghost" onClick={() => updateStatus(deal.id, "delayed")} title="تأخير">
-                            <Clock className="w-4 h-4" />
-                          </Button>
-                        </>
-                      )}
-                      {(deal.status === "paused" || deal.status === "delayed") && (
-                        <Button size="icon" variant="ghost" onClick={() => updateStatus(deal.id, "active")} title="تفعيل">
-                          <Play className="w-4 h-4" />
-                        </Button>
-                      )}
-                      <Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteDeal(deal.id)} title="حذف">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-            {dealsList.length === 0 && (
-              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">لا توجد صفقات</TableCell></TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+        <Button size="icon" variant="ghost" className="text-amber-600" onClick={() => navigate(`/admin/deal-negotiations?deal_id=${deal.id}`)} title="نتائج التفاوض">
+          <Handshake className="w-4 h-4" />
+        </Button>
+      )}
+      {(deal.current_phase === "negotiating_phase2" || deal.current_phase === "negotiation_phase2_complete") && (
+        <Button size="icon" variant="ghost" className="text-emerald-600" onClick={() => navigate(`/admin/deal-negotiations?deal_id=${deal.id}&phase=2`)} title="التفاوض النهائي">
+          <Handshake className="w-4 h-4" />
+        </Button>
+      )}
+      {(deal.current_phase === "negotiating_phase3" || deal.current_phase === "negotiation_phase3_complete") && (
+        <Button size="icon" variant="ghost" className="text-blue-600" onClick={() => navigate(`/admin/deal-negotiations?deal_id=${deal.id}&phase=3`)} title="موافقة المصنع">
+          <Handshake className="w-4 h-4" />
+        </Button>
+      )}
+      {(deal.current_phase === "contract_review" || deal.current_phase === "contract_signing" || deal.current_phase === "contract_signed" || deal.current_phase === "contract_drafting" || deal.current_phase === "contract_revision") && (
+        <Button size="icon" variant="ghost" className="text-violet-600" onClick={() => navigate(`/admin/contract-review?deal_id=${deal.id}`)} title="مراجعة العقد">
+          <FileText className="w-4 h-4" />
+        </Button>
+      )}
+      {deal.current_phase === "negotiation_phase3_complete" && (
+        <Button size="icon" variant="ghost" className="text-violet-600" onClick={async () => {
+          await supabase.from("deals").update({ current_phase: "contract_drafting" }).eq("id", deal.id);
+          toast.success("تم إرسال الصفقة لوكيل صياغة العقود");
+          fetchData();
+        }} title="صياغة العقد">
+          <FileText className="w-4 h-4" />
+        </Button>
+      )}
+      {deal.status === "pending_review" && (
+        <>
+          <Button size="icon" variant="ghost" className="text-green-600" onClick={() => updateStatus(deal.id, "active")} title="موافقة">
+            <CheckCircle className="w-4 h-4" />
+          </Button>
+          <Button size="icon" variant="ghost" className="text-destructive" onClick={() => updateStatus(deal.id, "cancelled")} title="رفض">
+            <XCircle className="w-4 h-4" />
+          </Button>
+        </>
+      )}
+      {deal.status === "cancelled" && (
+        <>
+          <Button size="icon" variant="ghost" className="text-blue-600" onClick={() => restoreDeal(deal.id)} title="إرجاع للمراجعة">
+            <RotateCcw className="w-4 h-4" />
+          </Button>
+          <Button size="icon" variant="ghost" className="text-green-600" onClick={() => updateStatus(deal.id, "active")} title="قبول مباشر">
+            <CheckCircle className="w-4 h-4" />
+          </Button>
+        </>
+      )}
+      {deal.status === "active" && (
+        <>
+          <Button size="icon" variant="ghost" onClick={() => updateStatus(deal.id, "paused")} title="إيقاف">
+            <Pause className="w-4 h-4" />
+          </Button>
+          <Button size="icon" variant="ghost" onClick={() => updateStatus(deal.id, "delayed")} title="تأخير">
+            <Clock className="w-4 h-4" />
+          </Button>
+        </>
+      )}
+      {(deal.status === "paused" || deal.status === "delayed") && (
+        <Button size="icon" variant="ghost" onClick={() => updateStatus(deal.id, "active")} title="تفعيل">
+          <Play className="w-4 h-4" />
+        </Button>
+      )}
+      <Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteDeal(deal.id)} title="حذف">
+        <Trash2 className="w-4 h-4" />
+      </Button>
+    </div>
   );
+
+  const renderDealsTable = (dealsList: Deal[]) => {
+    if (isMobile) {
+      return (
+        <div className="space-y-3">
+          {dealsList.length === 0 && (
+            <Card><CardContent className="text-center text-muted-foreground py-8">لا توجد صفقات</CardContent></Card>
+          )}
+          {dealsList.map((deal) => {
+            const st = STATUS_MAP[deal.status] || { label: deal.status, variant: "secondary" as const };
+            return (
+              <Card key={deal.id} className="cursor-pointer" onClick={() => setSelectedDeal(deal)}>
+                <CardContent className="p-4 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{deal.title}</p>
+                      <p className="text-xs text-muted-foreground font-mono">#{deal.deal_number}</p>
+                      <p className="text-xs text-muted-foreground">{deal.client_full_name || getClientName(deal.client_id)}</p>
+                    </div>
+                    <Badge variant={st.variant} className="text-xs shrink-0">{st.label}</Badge>
+                  </div>
+                  {deal.current_phase && (
+                    <Badge variant="outline" className="text-xs">{getPhaseName(deal.current_phase)}</Badge>
+                  )}
+                  <div onClick={(e) => e.stopPropagation()}>
+                    {renderDealActions(deal)}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      );
+    }
+
+    return (
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>#</TableHead>
+                <TableHead>العنوان</TableHead>
+                <TableHead>العميل</TableHead>
+                <TableHead>صاحب الحساب</TableHead>
+                <TableHead>النوع</TableHead>
+                <TableHead>المرحلة</TableHead>
+                <TableHead>الحالة</TableHead>
+                <TableHead>التاريخ</TableHead>
+                <TableHead>إجراءات</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {dealsList.map((deal) => {
+                const st = STATUS_MAP[deal.status] || { label: deal.status, variant: "secondary" as const };
+                return (
+                  <TableRow key={deal.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedDeal(deal)} onDoubleClick={() => navigate(`/admin/deal-search-results?deal_id=${deal.id}`)}>
+                    <TableCell className="font-mono">{deal.deal_number}</TableCell>
+                    <TableCell className="font-medium">{deal.title}</TableCell>
+                    <TableCell>{deal.client_full_name || getClientName(deal.client_id)}</TableCell>
+                    <TableCell className="text-muted-foreground text-xs" dir="ltr">{getAccountOwnerEmail(deal.client_id)}</TableCell>
+                    <TableCell>{deal.deal_type || "—"}</TableCell>
+                    <TableCell>{getPhaseName(deal.current_phase)}</TableCell>
+                    <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
+                    <TableCell className="font-mono text-xs">{new Date(deal.created_at).toLocaleDateString("ar-SA")}</TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      {renderDealActions(deal)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              {dealsList.length === 0 && (
+                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">لا توجد صفقات</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <div>
       <QualificationAgentBanner onDealProcessed={fetchData} />
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="font-heading text-2xl font-bold">إدارة الصفقات</h1>
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-3">
+        <h1 className="font-heading text-xl md:text-2xl font-bold">إدارة الصفقات</h1>
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
           <DialogTrigger asChild>
-            <Button><Plus className="w-4 h-4 ml-2" />صفقة جديدة</Button>
+            <Button size={isMobile ? "sm" : "default"}><Plus className="w-4 h-4 ml-2" />صفقة جديدة</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>إنشاء صفقة جديدة</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div><Label>عنوان الصفقة</Label><Input value={newDeal.title} onChange={(e) => setNewDeal({ ...newDeal, title: e.target.value })} /></div>
@@ -349,13 +390,13 @@ const DealsPage = () => {
         </Dialog>
       </div>
 
-      <div className="flex gap-4 mb-4">
+      <div className="flex flex-col md:flex-row gap-3 mb-4">
         <div className="relative flex-1">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder="بحث بالاسم أو الرقم..." className="pr-10" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full md:w-44"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">جميع الحالات</SelectItem>
             <SelectItem value="pending_review">قيد المراجعة</SelectItem>
@@ -370,15 +411,15 @@ const DealsPage = () => {
 
 
       <Tabs defaultValue="all" className="w-full">
-        <TabsList className="mb-4">
+        <TabsList className="mb-4 flex-wrap h-auto gap-1">
           <TabsTrigger value="all">الكل ({filtered.length})</TabsTrigger>
           <TabsTrigger value="pending">قيد المراجعة ({pendingDeals.length})</TabsTrigger>
           <TabsTrigger value="accepted">مقبولة ({acceptedDeals.length})</TabsTrigger>
-          <TabsTrigger value="waiting">انتظار نتائج البحث ({waitingResultsDeals.length})</TabsTrigger>
-          <TabsTrigger value="negotiation">التفاوض ({negotiationDeals.length})</TabsTrigger>
-          <TabsTrigger value="negotiation2">التفاوض النهائي ({negotiation2Deals.length})</TabsTrigger>
-          <TabsTrigger value="negotiation3">موافقة المصنع ({negotiation3Deals.length})</TabsTrigger>
-          <TabsTrigger value="contracts">صياغة العقود ({contractDeals.length})</TabsTrigger>
+          <TabsTrigger value="waiting">انتظار ({waitingResultsDeals.length})</TabsTrigger>
+          <TabsTrigger value="negotiation">تفاوض ({negotiationDeals.length})</TabsTrigger>
+          <TabsTrigger value="negotiation2">نهائي ({negotiation2Deals.length})</TabsTrigger>
+          <TabsTrigger value="negotiation3">مصنع ({negotiation3Deals.length})</TabsTrigger>
+          <TabsTrigger value="contracts">عقود ({contractDeals.length})</TabsTrigger>
           <TabsTrigger value="rejected">مرفوضة ({rejectedDeals.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="all">{renderDealsTable(filtered)}</TabsContent>

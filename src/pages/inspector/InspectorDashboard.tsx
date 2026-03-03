@@ -278,11 +278,11 @@ const InspectorDashboard = () => {
   return (
     <div>
       {/* العنوان */}
-      <div className="flex items-center gap-3 mb-6">
-        <Shield className="w-8 h-8 text-primary" />
+      <div className="flex items-start gap-3 mb-6 flex-wrap">
+        <Shield className="w-7 h-7 md:w-8 md:h-8 text-primary shrink-0" />
         <div>
-          <h1 className="font-heading text-2xl font-bold">المفتش الميداني — الوكيل 06</h1>
-          <p className="text-sm text-muted-foreground italic">"العين التي لا ترمش.. واليد المقيدة بالحقيقة"</p>
+          <h1 className="font-heading text-lg md:text-2xl font-bold">المفتش الميداني — الوكيل 06</h1>
+          <p className="text-xs md:text-sm text-muted-foreground italic">"العين التي لا ترمش.. واليد المقيدة بالحقيقة"</p>
         </div>
       </div>
 
@@ -332,7 +332,7 @@ const InspectorDashboard = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             {/* تفاصيل المهمة */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
               <div>
                 <p className="text-muted-foreground">📍 الموقع</p>
                 <p className="font-medium">{activeMission.factory_address || "غير محدد"}</p>
