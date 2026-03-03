@@ -7,24 +7,33 @@ const cards = [
     title: "منصة ذكية",
     subtitle: "رقمية بالكامل",
     text: "لا ورق، لا تأخير، لا مجال للخطأ البشري",
+    gradient: "from-[hsl(var(--ein-teal)/0.1)] to-transparent",
+    iconBg: "bg-[hsl(var(--ein-teal)/0.1)]",
+    iconColor: "text-[hsl(var(--ein-teal))]",
   },
   {
     icon: Scale,
     title: "قرارات مبنية على بيانات",
     subtitle: "حوكمة آلية",
     text: "نظام يحكم ويوثق ويحفظ الحقوق تلقائياً",
+    gradient: "from-[hsl(var(--ein-purple)/0.1)] to-transparent",
+    iconBg: "bg-[hsl(var(--ein-purple)/0.1)]",
+    iconColor: "text-[hsl(var(--ein-purple))]",
   },
   {
     icon: Eye,
     title: "رؤية واضحة",
     subtitle: "شفافة",
     text: "كل خطوة موثقة، كل قرار قابل للتدقيق",
+    gradient: "from-[hsl(var(--ein-coral)/0.1)] to-transparent",
+    iconBg: "bg-[hsl(var(--ein-coral)/0.1)]",
+    iconColor: "text-[hsl(var(--ein-coral))]",
   },
 ];
 
 const EQAbout = () => {
   return (
-    <section id="about" className="py-28 md:py-32 bg-secondary">
+    <section id="about" className="py-28 md:py-32 bg-secondary/50">
       <div className="container mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -33,15 +42,14 @@ const EQAbout = () => {
           transition={{ duration: 0.6 }}
           className="text-center mb-16"
         >
-          <span className="font-body text-primary text-sm tracking-wider mb-4 block">
-            EQ ليست مجرد وسيط
+          <span className="font-body text-primary text-sm tracking-wider mb-4 block font-bold">
+            EI N ليست مجرد وسيط
           </span>
           <h2 className="font-heading font-bold text-3xl md:text-5xl text-foreground mb-6">
             نحن الحلقة الذكية في التجارة
           </h2>
           <p className="font-body text-muted-foreground text-lg max-w-2xl mx-auto leading-relaxed">
-            EQ ليست شركة نقل تقليدية، ولا وسيطاً يعتمد على العلاقات الشخصية.
-            نحن منصة رقمية متقدمة تجمع بين الحوكمة الآلية والتوثيق الدقيق،
+            EI N منصة رقمية متقدمة تجمع بين الحوكمة الآلية والتوثيق الدقيق،
             لنضمن حقوق جميع الأطراف بشفافية تامة.
           </p>
         </motion.div>
@@ -54,12 +62,12 @@ const EQAbout = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-80px" }}
               transition={{ duration: 0.5, delay: i * 0.15 }}
-              className="group bg-card border border-primary/10 rounded-2xl p-8 hover:-translate-y-2 hover:shadow-gold transition-all duration-300"
+              className={`group bg-card border border-border rounded-2xl p-8 hover:-translate-y-2 hover:shadow-brand transition-all duration-300 bg-gradient-to-br ${card.gradient}`}
             >
-              <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-6">
-                <card.icon className="text-primary" size={28} />
+              <div className={`w-14 h-14 rounded-2xl ${card.iconBg} flex items-center justify-center mb-6`}>
+                <card.icon className={card.iconColor} size={28} />
               </div>
-              <span className="font-body text-primary text-xs tracking-wider mb-2 block">
+              <span className="font-body text-primary text-xs tracking-wider mb-2 block font-bold">
                 {card.subtitle}
               </span>
               <h3 className="font-heading font-bold text-xl text-foreground mb-3">

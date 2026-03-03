@@ -6,56 +6,54 @@
 
 @layer base {
   :root {
-    --background: 0 0% 4%;
-    --foreground: 50 33% 93%;
+    --background: 210 20% 98%;
+    --foreground: 220 25% 12%;
 
-    --card: 0 0% 6%;
-    --card-foreground: 50 33% 93%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 25% 12%;
 
-    --popover: 0 0% 6%;
-    --popover-foreground: 50 33% 93%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 25% 12%;
 
-    --primary: 43 56% 52%;
-    --primary-foreground: 0 0% 4%;
+    --primary: 195 80% 42%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 8%;
-    --secondary-foreground: 50 33% 93%;
+    --secondary: 210 15% 94%;
+    --secondary-foreground: 220 25% 12%;
 
-    --muted: 0 0% 10%;
-    --muted-foreground: 0 0% 64%;
+    --muted: 210 12% 92%;
+    --muted-foreground: 220 10% 46%;
 
-    --accent: 43 56% 52%;
-    --accent-foreground: 0 0% 4%;
+    --accent: 262 60% 55%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 50%;
-    --destructive-foreground: 50 33% 93%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 43 56% 52% / 0.15;
-    --input: 0 0% 15%;
-    --ring: 43 56% 52%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 195 80% 42%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    /* EQ Custom tokens */
-    --gold: 43 56% 52%;
-    --gold-light: 40 76% 85%;
-    --gold-dark: 33 28% 44%;
-    --eq-blue: 217 91% 53%;
-    --eq-green: 142 72% 38%;
-    --eq-red: 0 84% 50%;
-    --surface-1: 0 0% 4%;
-    --surface-2: 0 0% 6%;
-    --surface-3: 0 0% 8%;
-    --surface-4: 240 33% 11%;
+    /* EI N Custom tokens */
+    --ein-teal: 195 80% 42%;
+    --ein-teal-light: 195 70% 92%;
+    --ein-purple: 262 60% 55%;
+    --ein-purple-light: 262 50% 94%;
+    --ein-coral: 12 76% 61%;
+    --ein-coral-light: 12 76% 95%;
+    --ein-navy: 220 55% 18%;
+    --ein-warm: 35 90% 56%;
 
-    --sidebar-background: 0 0% 4%;
-    --sidebar-foreground: 50 33% 93%;
-    --sidebar-primary: 43 56% 52%;
-    --sidebar-primary-foreground: 0 0% 4%;
-    --sidebar-accent: 0 0% 8%;
-    --sidebar-accent-foreground: 50 33% 93%;
-    --sidebar-border: 43 56% 52% / 0.15;
-    --sidebar-ring: 43 56% 52%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 25% 12%;
+    --sidebar-primary: 195 80% 42%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 15% 96%;
+    --sidebar-accent-foreground: 220 25% 12%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 195 80% 42%;
   }
 }
 
@@ -87,31 +85,32 @@
     font-family: 'Roboto Mono', monospace;
   }
 
-  .text-gradient-gold {
+  .text-gradient-brand {
     @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(135deg, hsl(var(--gold)), hsl(var(--gold-light)));
+    background-image: linear-gradient(135deg, hsl(var(--ein-teal)), hsl(var(--ein-purple)));
   }
 
-  .bg-gold-gradient {
-    background: linear-gradient(135deg, hsl(var(--gold)), hsl(var(--gold-dark)));
+  .bg-brand-gradient {
+    background: linear-gradient(135deg, hsl(var(--ein-teal)), hsl(var(--ein-purple)));
   }
 
-  .shadow-gold {
-    box-shadow: 0 8px 32px hsl(var(--gold) / 0.25);
+  .shadow-brand {
+    box-shadow: 0 8px 32px hsl(var(--ein-teal) / 0.2);
   }
 
-  .shadow-gold-lg {
-    box-shadow: 0 12px 48px hsl(var(--gold) / 0.35);
+  .shadow-brand-lg {
+    box-shadow: 0 16px 48px hsl(var(--ein-teal) / 0.25);
   }
 
-  .bg-grid-pattern {
+  .bg-mesh {
     background-image: 
-      linear-gradient(hsl(var(--gold) / 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--gold) / 0.03) 1px, transparent 1px);
-    background-size: 60px 60px;
+      radial-gradient(at 20% 20%, hsl(var(--ein-teal) / 0.06) 0%, transparent 50%),
+      radial-gradient(at 80% 80%, hsl(var(--ein-purple) / 0.06) 0%, transparent 50%),
+      radial-gradient(at 50% 50%, hsl(var(--ein-coral) / 0.04) 0%, transparent 50%);
   }
 
-  .bg-radial-gold {
-    background: radial-gradient(ellipse at center, hsl(var(--gold) / 0.08) 0%, transparent 70%);
+  .bg-dots {
+    background-image: radial-gradient(hsl(var(--ein-teal) / 0.08) 1px, transparent 1px);
+    background-size: 24px 24px;
   }
 }

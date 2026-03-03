@@ -1,63 +1,19 @@
 import { motion } from "framer-motion";
-import { ChevronDown } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { ChevronDown, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
-const Particles = () => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    let animationId: number;
-    const particles: { x: number; y: number; vx: number; vy: number; size: number; opacity: number }[] = [];
-
-    const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-    resize();
-    window.addEventListener("resize", resize);
-
-    for (let i = 0; i < 60; i++) {
-      particles.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        vx: (Math.random() - 0.5) * 0.3,
-        vy: (Math.random() - 0.5) * 0.3,
-        size: Math.random() * 2 + 0.5,
-        opacity: Math.random() * 0.5 + 0.1,
-      });
-    }
-
-    const animate = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      particles.forEach((p) => {
-        p.x += p.vx;
-        p.y += p.vy;
-        if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
-        if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(43, 56%, 52%, ${p.opacity})`;
-        ctx.fill();
-      });
-      animationId = requestAnimationFrame(animate);
-    };
-    animate();
-
-    return () => {
-      cancelAnimationFrame(animationId);
-      window.removeEventListener("resize", resize);
-    };
-  }, []);
-
-  return <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" />;
-};
+const FloatingShape = ({ className, delay = 0 }: { className: string; delay?: number }) => (
+  <motion.div
+    className={`absolute rounded-full blur-3xl opacity-30 ${className}`}
+    animate={{
+      y: [0, -30, 10, 0],
+      x: [0, 15, -10, 0],
+      scale: [1, 1.1, 0.95, 1],
+    }}
+    transition={{ duration: 8, repeat: Infinity, delay, ease: "easeInOut" }}
+  />
+);
 
 const EQHero = () => {
   const navigate = useNavigate();
@@ -66,21 +22,37 @@ const EQHero = () => {
   return (
     <section
       id="hero"
-      className="relative min-h-screen flex items-center justify-center overflow-hidden"
-      style={{
-        background: "linear-gradient(180deg, hsl(0 0% 4%) 0%, hsl(240 33% 11%) 100%)",
-      }}
+      className="relative min-h-screen flex items-center justify-center overflow-hidden bg-background"
     >
-      <Particles />
+      {/* Animated blobs */}
+      <FloatingShape className="w-[500px] h-[500px] bg-[hsl(var(--ein-teal)/0.15)] -top-20 -right-20" delay={0} />
+      <FloatingShape className="w-[400px] h-[400px] bg-[hsl(var(--ein-purple)/0.12)] bottom-10 -left-20" delay={2} />
+      <FloatingShape className="w-[300px] h-[300px] bg-[hsl(var(--ein-coral)/0.1)] top-1/3 left-1/3" delay={4} />
+
+      {/* Dot pattern */}
+      <div className="absolute inset-0 bg-dots opacity-40" />
 
       <div className="relative z-10 text-center px-6 max-w-4xl mx-auto">
+        {/* Badge */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          className="inline-flex items-center gap-2 bg-card border border-border rounded-full px-5 py-2 mb-8 shadow-sm"
+        >
+          <span className="w-2 h-2 rounded-full bg-[hsl(var(--ein-teal))] animate-pulse" />
+          <span className="font-body text-muted-foreground text-sm">منصة الوساطة التجارية الذكية</span>
+        </motion.div>
+
         <motion.h1
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className="font-heading font-extrabold text-4xl sm:text-5xl md:text-7xl text-gradient-gold leading-tight mb-6"
+          className="font-heading font-extrabold text-4xl sm:text-5xl md:text-7xl leading-tight mb-6"
         >
-          الوساطة التجارية بثقة رقمية
+          <span className="text-foreground">الوساطة التجارية</span>
+          <br />
+          <span className="text-gradient-brand">بثقة رقمية مطلقة</span>
         </motion.h1>
 
         <motion.p
@@ -89,9 +61,9 @@ const EQHero = () => {
           transition={{ duration: 0.8, delay: 0.4 }}
           className="font-body text-muted-foreground text-lg md:text-xl max-w-xl mx-auto mb-10 leading-relaxed"
         >
-          منصة EQ تحول العمليات المعقدة إلى تجربة سلسة وشفافة.
+          منصة EI N تحول العمليات المعقدة إلى تجربة سلسة وشفافة.
           <br />
-          الثقة لا تُبنى بالكلام، بل تُرسخ عبر الحوكمة والتوثيق والبيانات الدقيقة.
+          الثقة تُبنى بالحوكمة والتوثيق والبيانات الدقيقة.
         </motion.p>
 
         <motion.div
@@ -101,22 +73,21 @@ const EQHero = () => {
           className="flex flex-col sm:flex-row items-center justify-center gap-4"
         >
           {user ? (
-            <button
-              className="bg-primary text-primary-foreground font-heading font-bold text-lg px-10 py-4 rounded-lg hover:shadow-gold-lg hover:-translate-y-1 transition-all duration-300"
-            >
-              مرحباً بك في EQ 🎉
+            <button className="bg-brand-gradient text-primary-foreground font-heading font-bold text-lg px-10 py-4 rounded-2xl shadow-brand hover:shadow-brand-lg hover:-translate-y-1 transition-all duration-300">
+              مرحباً بك في EI N 🎉
             </button>
           ) : (
             <>
               <button
                 onClick={() => navigate("/auth")}
-                className="bg-primary text-primary-foreground font-heading font-bold text-lg px-10 py-4 rounded-lg hover:shadow-gold-lg hover:-translate-y-1 transition-all duration-300"
+                className="bg-brand-gradient text-primary-foreground font-heading font-bold text-lg px-10 py-4 rounded-2xl shadow-brand hover:shadow-brand-lg hover:-translate-y-1 transition-all duration-300 flex items-center gap-2"
               >
                 إنشاء حساب جديد
+                <ArrowLeft size={20} />
               </button>
               <button
                 onClick={() => navigate("/auth")}
-                className="border-2 border-primary text-primary font-heading font-bold text-lg px-10 py-4 rounded-lg hover:bg-primary/10 transition-all duration-300"
+                className="border-2 border-border text-foreground font-heading font-bold text-lg px-10 py-4 rounded-2xl hover:bg-secondary hover:border-primary/30 transition-all duration-300"
               >
                 تسجيل الدخول
               </button>
@@ -135,14 +106,6 @@ const EQHero = () => {
         <span className="font-body text-muted-foreground text-sm">اكتشف المزيد</span>
         <ChevronDown className="text-primary animate-bounce-slow" size={24} />
       </motion.div>
-
-      {/* Bottom gold line */}
-      <motion.div
-        initial={{ scaleX: 0 }}
-        animate={{ scaleX: 1 }}
-        transition={{ duration: 1.5, delay: 0.8 }}
-        className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent"
-      />
     </section>
   );
 };
