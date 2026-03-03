@@ -93,18 +93,26 @@ const ProductCatalog = ({ dealId, onProductSelected }: ProductCatalogProps) => {
   const [loading, setLoading] = useState(true);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState("");
-  const [quantityUnit, setQuantityUnit] = useState("وحدة");
+  const [quantityUnit, setQuantityUnit] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [dealProductType, setDealProductType] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [locked, setLocked] = useState(false);
+
+  const availableUnits = getUnitsForProduct(dealProductType);
 
   const fetchProducts = async () => {
     const [prodRes, dealRes] = await Promise.all([
       supabase.from("deal_product_results").select("*").eq("deal_id", dealId).order("created_at"),
       supabase.from("deals").select("product_type").eq("id", dealId).single(),
     ]);
-    setDealProductType(dealRes.data?.product_type || null);
+    const productType = dealRes.data?.product_type || null;
+    setDealProductType(productType);
+    // Auto-select first smart unit based on product type
+    const smartUnits = getUnitsForProduct(productType);
+    if (smartUnits.length > 0) {
+      setQuantityUnit(smartUnits[0].value);
+    }
     const items = (prodRes.data as any[]) || [];
     setProducts(items);
     const alreadySelected = items.find((p) => p.selected);
@@ -118,7 +126,6 @@ const ProductCatalog = ({ dealId, onProductSelected }: ProductCatalogProps) => {
   useEffect(() => { fetchProducts(); }, [dealId]);
 
   const selectedProduct = products.find((p) => p.id === selectedProductId);
-  const availableUnits = getUnitsForProduct(dealProductType);
 
   const handleConfirmSelection = async () => {
     if (!selectedProductId || !quantity || parseInt(quantity) <= 0) {
@@ -274,16 +281,20 @@ const ProductCatalog = ({ dealId, onProductSelected }: ProductCatalogProps) => {
               onClick={() => setSelectedProductId(product.id)}
             >
               {isSelected && <div className="h-1 bg-primary" />}
-              {product.product_image_url && (
-                <div className="aspect-video overflow-hidden relative">
+              <div className="aspect-video overflow-hidden relative bg-muted">
+                {product.product_image_url ? (
                   <img src={product.product_image_url} alt={product.product_name} className="w-full h-full object-cover" />
-                  {isSelected && (
-                    <div className="absolute top-2 left-2 bg-primary text-primary-foreground rounded-full p-1.5">
-                      <Check className="w-4 h-4" />
-                    </div>
-                  )}
-                </div>
-              )}
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Package className="w-12 h-12 text-muted-foreground/40" />
+                  </div>
+                )}
+                {isSelected && (
+                  <div className="absolute top-2 left-2 bg-primary text-primary-foreground rounded-full p-1.5">
+                    <Check className="w-4 h-4" />
+                  </div>
+                )}
+              </div>
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-start justify-between">
                   <h4 className="font-medium text-base">{product.product_name}</h4>
