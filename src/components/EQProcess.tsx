@@ -3,11 +3,11 @@ import { FileText, CheckCircle, UserPlus, Scale, Archive } from "lucide-react";
 import { useRef } from "react";
 
 const steps = [
-  { icon: FileText, title: "إنشاء الطلب", text: "حدد تفاصيل المعاملة والأطراف والشروط", num: "01" },
-  { icon: CheckCircle, title: "التحقق الذكي", text: "نتحقق من البيانات وننظم الالتزامات", num: "02" },
-  { icon: UserPlus, title: "تعيين الوكيل", text: "نختار الوكيل المناسب وننسق التواصل", num: "03" },
-  { icon: Scale, title: "القرار المبني على بيانات", text: "مراجعة شاملة وقرار عادل", num: "04" },
-  { icon: Archive, title: "إغلاق ذكي", text: "أرشفة رقمية آمنة وسجل كامل للرجوع إليه", num: "05" },
+  { icon: FileText, title: "إنشاء الطلب", text: "حدد تفاصيل المعاملة والأطراف والشروط", num: "01", color: "ein-teal" },
+  { icon: CheckCircle, title: "التحقق الذكي", text: "نتحقق من البيانات وننظم الالتزامات", num: "02", color: "ein-purple" },
+  { icon: UserPlus, title: "تعيين الوكيل", text: "نختار الوكيل المناسب وننسق التواصل", num: "03", color: "ein-coral" },
+  { icon: Scale, title: "القرار المبني على بيانات", text: "مراجعة شاملة وقرار عادل", num: "04", color: "ein-teal" },
+  { icon: Archive, title: "إغلاق ذكي", text: "أرشفة رقمية آمنة وسجل كامل للرجوع إليه", num: "05", color: "ein-purple" },
 ];
 
 const EQProcess = () => {
@@ -22,12 +22,11 @@ const EQProcess = () => {
     <section
       id="process"
       ref={sectionRef}
-      className="py-28 md:py-32"
-      style={{
-        background: "linear-gradient(180deg, hsl(0 0% 4%) 0%, hsl(0 0% 8%) 100%)",
-      }}
+      className="py-28 md:py-32 bg-background relative"
     >
-      <div className="container mx-auto px-6">
+      <div className="absolute inset-0 bg-mesh pointer-events-none" />
+
+      <div className="container mx-auto px-6 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -35,8 +34,8 @@ const EQProcess = () => {
           transition={{ duration: 0.6 }}
           className="text-center mb-20"
         >
-          <span className="font-body text-primary text-sm tracking-wider mb-4 block">
-            رحلة طلبك في EQ
+          <span className="font-body text-primary text-sm tracking-wider mb-4 block font-bold">
+            رحلة طلبك في EI N
           </span>
           <h2 className="font-heading font-bold text-3xl md:text-5xl text-foreground mb-6">
             خمس خطوات، تجربة واحدة سلسة
@@ -48,10 +47,9 @@ const EQProcess = () => {
 
         {/* Desktop Timeline */}
         <div className="hidden lg:block relative">
-          {/* Progress line */}
-          <div className="absolute top-16 right-0 left-0 h-0.5 bg-muted">
+          <div className="absolute top-16 right-0 left-0 h-0.5 bg-border">
             <motion.div
-              className="h-full bg-primary origin-right"
+              className="h-full bg-brand-gradient origin-right rounded-full"
               style={{ width: lineWidth }}
             />
           </div>
@@ -64,15 +62,13 @@ const EQProcess = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-60px" }}
                 transition={{ duration: 0.5, delay: i * 0.1 }}
-                className={`flex flex-col items-center text-center ${
-                  i % 2 === 0 ? "" : "mt-24"
-                }`}
+                className={`flex flex-col items-center text-center ${i % 2 === 0 ? "" : "mt-24"}`}
               >
-                <div className="w-12 h-12 rounded-full bg-card border-2 border-primary flex items-center justify-center mb-4 relative z-10">
+                <div className="w-12 h-12 rounded-full bg-card border-2 border-primary flex items-center justify-center mb-4 relative z-10 shadow-sm">
                   <span className="font-mono font-bold text-primary text-sm">{step.num}</span>
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
-                  <step.icon className="text-primary" size={22} />
+                <div className={`w-12 h-12 rounded-2xl bg-[hsl(var(--${step.color})/0.1)] flex items-center justify-center mb-3`}>
+                  <step.icon className={`text-[hsl(var(--${step.color}))]`} size={22} />
                 </div>
                 <h3 className="font-heading font-bold text-foreground text-base mb-2">
                   {step.title}
@@ -85,7 +81,7 @@ const EQProcess = () => {
           </div>
         </div>
 
-        {/* Mobile/Tablet vertical timeline */}
+        {/* Mobile vertical timeline */}
         <div className="lg:hidden space-y-8">
           {steps.map((step, i) => (
             <motion.div
@@ -97,16 +93,16 @@ const EQProcess = () => {
               className="flex gap-5 items-start"
             >
               <div className="flex flex-col items-center shrink-0">
-                <div className="w-10 h-10 rounded-full bg-card border-2 border-primary flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-card border-2 border-primary flex items-center justify-center shadow-sm">
                   <span className="font-mono font-bold text-primary text-xs">{step.num}</span>
                 </div>
                 {i < steps.length - 1 && (
-                  <div className="w-0.5 h-12 bg-primary/20 mt-2" />
+                  <div className="w-0.5 h-12 bg-border mt-2" />
                 )}
               </div>
               <div>
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
-                  <step.icon className="text-primary" size={20} />
+                <div className={`w-10 h-10 rounded-xl bg-[hsl(var(--${step.color})/0.1)] flex items-center justify-center mb-2`}>
+                  <step.icon className={`text-[hsl(var(--${step.color}))]`} size={20} />
                 </div>
                 <h3 className="font-heading font-bold text-foreground mb-1">{step.title}</h3>
                 <p className="font-body text-muted-foreground text-sm">{step.text}</p>

@@ -7,34 +7,36 @@ const values = [
     title: "شفافية تامة",
     text: "لا خفايا، لا غموض. كل بيانة، كل قرار، كل خطوة موثقة ومرئية",
     icon: Eye,
-    accentClass: "bg-eq-blue/10 group-hover:shadow-[0_8px_30px_hsl(217_91%_53%/0.15)]",
+    color: "--ein-teal",
   },
   {
     num: "02",
     title: "توثيق دقيق",
     text: "سجل رقمي كامل لا يُمحى، يحفظ حقوقك ويمنع النزاعات",
     icon: FileCheck,
-    accentClass: "bg-primary/10 group-hover:shadow-gold",
+    color: "--ein-purple",
   },
   {
     num: "03",
     title: "حوكمة رقمية",
     text: "نظام آلي يحكم ويوزع ويضمن العدالة دون تدخل بشري",
     icon: Settings,
-    accentClass: "bg-eq-green/10 group-hover:shadow-[0_8px_30px_hsl(142_72%_38%/0.15)]",
+    color: "--ein-coral",
   },
   {
     num: "04",
     title: "مخاطر أقل",
     text: "نحدد المخاطر مبكراً ونضع ضمانات تحمي جميع الأطراف",
     icon: ShieldCheck,
-    accentClass: "bg-eq-red/10 group-hover:shadow-[0_8px_30px_hsl(0_84%_50%/0.15)]",
+    color: "--ein-warm",
   },
 ];
 
 const EQValues = () => {
   return (
-    <section id="values" className="py-28 md:py-32 bg-background bg-grid-pattern relative">
+    <section id="values" className="py-28 md:py-32 bg-secondary/30 relative">
+      <div className="absolute inset-0 bg-dots opacity-30 pointer-events-none" />
+
       <div className="container mx-auto px-6 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -43,7 +45,7 @@ const EQValues = () => {
           transition={{ duration: 0.6 }}
           className="text-center mb-16"
         >
-          <span className="font-body text-primary text-sm tracking-wider mb-4 block">
+          <span className="font-body text-primary text-sm tracking-wider mb-4 block font-bold">
             ما نؤمن به
           </span>
           <h2 className="font-heading font-bold text-3xl md:text-5xl text-foreground">
@@ -59,14 +61,17 @@ const EQValues = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: i * 0.1 }}
-              className={`group bg-card border border-primary/10 rounded-2xl p-8 hover:scale-[1.02] transition-all duration-300 ${v.accentClass}`}
+              className="group bg-card border border-border rounded-2xl p-8 hover:shadow-brand hover:-translate-y-1 transition-all duration-300"
             >
               <div className="flex items-start justify-between mb-6">
-                <span className="font-mono text-4xl font-bold text-gradient-gold opacity-30">
+                <span className="font-mono text-4xl font-bold text-gradient-brand opacity-40">
                   {v.num}
                 </span>
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <v.icon className="text-primary" size={24} />
+                <div
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center"
+                  style={{ backgroundColor: `hsl(var(${v.color}) / 0.1)` }}
+                >
+                  <v.icon className="transition-colors" style={{ color: `hsl(var(${v.color}))` }} size={24} />
                 </div>
               </div>
               <h3 className="font-heading font-bold text-xl text-foreground mb-3">
