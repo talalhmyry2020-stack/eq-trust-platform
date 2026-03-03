@@ -26,15 +26,66 @@ interface ProductCatalogProps {
   onProductSelected: () => void;
 }
 
-const quantityUnits = [
-  { value: "وحدة", label: "وحدة" },
-  { value: "كرتون", label: "كرتون" },
-  { value: "كيلو", label: "كيلو" },
-  { value: "طن", label: "طن" },
-  { value: "لتر", label: "لتر" },
-  { value: "متر", label: "متر" },
-  { value: "قطعة", label: "قطعة" },
-];
+const unitsByCategory: Record<string, { value: string; label: string }[]> = {
+  ملابس: [
+    { value: "قطعة", label: "قطعة" },
+    { value: "دزينة", label: "دزينة (12 قطعة)" },
+    { value: "كرتون", label: "كرتون" },
+  ],
+  أقمشة: [
+    { value: "متر", label: "متر" },
+    { value: "يارد", label: "يارد" },
+    { value: "رول", label: "رول" },
+    { value: "طن", label: "طن" },
+  ],
+  أغذية: [
+    { value: "كيلو", label: "كيلو" },
+    { value: "طن", label: "طن" },
+    { value: "كرتون", label: "كرتون" },
+    { value: "لتر", label: "لتر" },
+  ],
+  مشروبات: [
+    { value: "لتر", label: "لتر" },
+    { value: "كرتون", label: "كرتون" },
+    { value: "صندوق", label: "صندوق" },
+  ],
+  إلكترونيات: [
+    { value: "قطعة", label: "قطعة" },
+    { value: "كرتون", label: "كرتون" },
+    { value: "وحدة", label: "وحدة" },
+  ],
+  مواد_بناء: [
+    { value: "طن", label: "طن" },
+    { value: "متر", label: "متر" },
+    { value: "متر مربع", label: "متر مربع" },
+    { value: "كيلو", label: "كيلو" },
+  ],
+  عطور: [
+    { value: "قطعة", label: "قطعة" },
+    { value: "كرتون", label: "كرتون" },
+    { value: "دزينة", label: "دزينة (12 قطعة)" },
+  ],
+  default: [
+    { value: "قطعة", label: "قطعة" },
+    { value: "وحدة", label: "وحدة" },
+    { value: "كرتون", label: "كرتون" },
+    { value: "كيلو", label: "كيلو" },
+    { value: "طن", label: "طن" },
+  ],
+};
+
+function getUnitsForProduct(productType: string | null | undefined): { value: string; label: string }[] {
+  if (!productType) return unitsByCategory.default;
+  const n = productType.trim().toLowerCase();
+  if (["ملابس", "أزياء", "قمصان", "فساتين", "جاكيت", "بنطلون", "ثياب", "تيشيرت", "clothes", "clothing", "apparel"].some(k => n.includes(k))) return unitsByCategory.ملابس;
+  if (["قماش", "أقمشة", "نسيج", "حرير", "قطن", "fabric", "textile"].some(k => n.includes(k))) return unitsByCategory.أقمشة;
+  if (["طعام", "أغذية", "أرز", "سكر", "زيت", "بهارات", "شاي", "قهوة", "food"].some(k => n.includes(k))) return unitsByCategory.أغذية;
+  if (["مشروب", "عصير", "ماء", "حليب", "drink", "beverage", "juice"].some(k => n.includes(k))) return unitsByCategory.مشروبات;
+  if (["إلكتروني", "هاتف", "جوال", "شاشة", "كمبيوتر", "لابتوب", "سماعة", "electronic", "phone"].some(k => n.includes(k))) return unitsByCategory.إلكترونيات;
+  if (["بناء", "حديد", "اسمنت", "سيراميك", "بلاط", "رخام", "خشب", "construction"].some(k => n.includes(k))) return unitsByCategory.مواد_بناء;
+  if (["عطر", "عطور", "بخور", "مسك", "perfume"].some(k => n.includes(k))) return unitsByCategory.عطور;
+  return unitsByCategory.default;
+}
 
 const ProductCatalog = ({ dealId, onProductSelected }: ProductCatalogProps) => {
   const { toast } = useToast();
@@ -44,18 +95,18 @@ const ProductCatalog = ({ dealId, onProductSelected }: ProductCatalogProps) => {
   const [quantity, setQuantity] = useState("");
   const [quantityUnit, setQuantityUnit] = useState("وحدة");
   const [showConfirm, setShowConfirm] = useState(false);
+  const [dealProductType, setDealProductType] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [locked, setLocked] = useState(false);
 
   const fetchProducts = async () => {
-    const { data } = await supabase
-      .from("deal_product_results")
-      .select("*")
-      .eq("deal_id", dealId)
-      .order("created_at");
-    const items = (data as any[]) || [];
+    const [prodRes, dealRes] = await Promise.all([
+      supabase.from("deal_product_results").select("*").eq("deal_id", dealId).order("created_at"),
+      supabase.from("deals").select("product_type").eq("id", dealId).single(),
+    ]);
+    setDealProductType(dealRes.data?.product_type || null);
+    const items = (prodRes.data as any[]) || [];
     setProducts(items);
-    // Check if already selected
     const alreadySelected = items.find((p) => p.selected);
     if (alreadySelected) {
       setSelectedProductId(alreadySelected.id);
@@ -67,6 +118,7 @@ const ProductCatalog = ({ dealId, onProductSelected }: ProductCatalogProps) => {
   useEffect(() => { fetchProducts(); }, [dealId]);
 
   const selectedProduct = products.find((p) => p.id === selectedProductId);
+  const availableUnits = getUnitsForProduct(dealProductType);
 
   const handleConfirmSelection = async () => {
     if (!selectedProductId || !quantity || parseInt(quantity) <= 0) {
@@ -188,7 +240,7 @@ const ProductCatalog = ({ dealId, onProductSelected }: ProductCatalogProps) => {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {quantityUnits.map((u) => (
+              {availableUnits.map((u) => (
                 <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
               ))}
             </SelectContent>
