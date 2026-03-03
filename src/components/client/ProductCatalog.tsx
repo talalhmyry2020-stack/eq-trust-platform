@@ -19,6 +19,10 @@ interface ProductResult {
   specifications: any;
   quality_rating: string | null;
   selected: boolean;
+  supplier_name: string | null;
+  origin_country: string | null;
+  product_url: string | null;
+  notes: string | null;
 }
 
 interface ProductCatalogProps {
@@ -305,17 +309,31 @@ const ProductCatalog = ({ dealId, onProductSelected }: ProductCatalogProps) => {
                   )}
                 </div>
 
-                {product.price && (
-                  <p className="text-xl font-bold text-primary">
-                    {product.price.toLocaleString()} {product.currency}
-                  </p>
-                )}
+                <p className="text-xl font-bold text-primary">
+                  {product.price 
+                    ? `${product.price.toLocaleString()} ${product.currency}`
+                    : <span className="text-sm font-normal text-muted-foreground">السعر: يُحدد بعد التفاوض</span>
+                  }
+                </p>
 
-                {product.quality_rating && (
+                {product.quality_rating && product.quality_rating !== "غير محدد" ? (
                   <div className="flex items-center gap-1 text-sm">
                     <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
                     <span>{product.quality_rating}</span>
                   </div>
+                ) : (
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <Star className="w-4 h-4" />
+                    <span>التقييم: سيتوفر لاحقاً</span>
+                  </div>
+                )}
+
+                {/* Show supplier info */}
+                {product.supplier_name && (
+                  <Badge variant="secondary" className="text-xs">{product.supplier_name}</Badge>
+                )}
+                {product.origin_country && (
+                  <Badge variant="outline" className="text-xs">🌍 {product.origin_country}</Badge>
                 )}
 
                 {product.specifications && Object.keys(product.specifications).length > 0 && (
