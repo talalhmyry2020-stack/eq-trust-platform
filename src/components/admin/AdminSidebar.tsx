@@ -14,9 +14,13 @@ import {
   FileText,
   DollarSign,
   UserCheck,
+  Sparkles,
+  ChevronLeft,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 const navItems = [
   { to: "/admin", icon: LayoutDashboard, label: "لوحة التحكم" },
@@ -28,7 +32,6 @@ const navItems = [
   { to: "/admin/finance", icon: DollarSign, label: "المالية" },
   { to: "/admin/inspector-assign", icon: UserCheck, label: "المفتشون" },
   { to: "/admin/archive", icon: Archive, label: "الأرشيف" },
-  { to: "/admin/archive", icon: Archive, label: "الأرشيف" },
   { to: "/admin/product-search", icon: Search, label: "نتائج البحث" },
   { to: "/admin/factory-search", icon: Search, label: "بحث المصانع" },
   { to: "/admin/logs", icon: ScrollText, label: "السجلات" },
@@ -39,16 +42,44 @@ const navItems = [
 const AdminSidebar = () => {
   const { signOut } = useAuth();
   const location = useLocation();
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <aside className="w-64 min-h-screen bg-card border-l border-border flex flex-col">
-      <div className="p-6 border-b border-border">
-        <h1 className="font-heading text-xl font-bold text-gradient-gold">
-          لوحة الإدارة
-        </h1>
+    <motion.aside
+      animate={{ width: collapsed ? 80 : 260 }}
+      transition={{ duration: 0.3, ease: "easeInOut" }}
+      className="min-h-screen bg-card/50 backdrop-blur-xl border-l border-border/50 flex flex-col relative"
+    >
+      {/* Collapse toggle */}
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        className="absolute -left-3 top-8 z-10 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-brand hover:shadow-brand-lg transition-all"
+      >
+        <ChevronLeft className={cn("w-3.5 h-3.5 transition-transform", collapsed && "rotate-180")} />
+      </button>
+
+      {/* Logo */}
+      <div className="p-5 border-b border-border/50">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-brand-gradient flex items-center justify-center shadow-brand flex-shrink-0">
+            <Sparkles className="w-5 h-5 text-white" />
+          </div>
+          <AnimatePresence>
+            {!collapsed && (
+              <motion.span
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: "auto" }}
+                exit={{ opacity: 0, width: 0 }}
+                className="font-heading text-lg font-bold text-gradient-brand whitespace-nowrap overflow-hidden"
+              >
+                EI N إدارة
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto scrollbar-thin">
         {navItems.map((item) => {
           const isActive =
             item.to === "/admin"
@@ -56,32 +87,59 @@ const AdminSidebar = () => {
               : location.pathname.startsWith(item.to);
           return (
             <NavLink
-              key={item.to}
+              key={item.to + item.label}
               to={item.to}
               className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
+                "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group relative",
+                collapsed && "justify-center px-0",
                 isActive
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "bg-brand-gradient text-white shadow-brand"
+                  : "text-muted-foreground hover:bg-primary/5 hover:text-foreground"
               )}
             >
-              <item.icon className="w-5 h-5" />
-              {item.label}
+              <item.icon className={cn("w-5 h-5 flex-shrink-0", isActive && "text-white")} />
+              <AnimatePresence>
+                {!collapsed && (
+                  <motion.span
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="whitespace-nowrap"
+                  >
+                    {item.label}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+              {/* Tooltip for collapsed */}
+              {collapsed && (
+                <span className="absolute right-full mr-2 px-2 py-1 bg-foreground text-background text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                  {item.label}
+                </span>
+              )}
             </NavLink>
           );
         })}
       </nav>
 
-      <div className="p-4 border-t border-border">
+      <div className="p-3 border-t border-border/50">
         <button
           onClick={signOut}
-          className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors w-full"
+          className={cn(
+            "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 transition-all w-full",
+            collapsed && "justify-center px-0"
+          )}
         >
-          <LogOut className="w-5 h-5" />
-          تسجيل الخروج
+          <LogOut className="w-5 h-5 flex-shrink-0" />
+          <AnimatePresence>
+            {!collapsed && (
+              <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                تسجيل الخروج
+              </motion.span>
+            )}
+          </AnimatePresence>
         </button>
       </div>
-    </aside>
+    </motion.aside>
   );
 };
 

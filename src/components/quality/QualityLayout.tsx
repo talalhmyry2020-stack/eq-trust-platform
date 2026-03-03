@@ -13,16 +13,9 @@ const QualityLayout = () => {
 
   useEffect(() => {
     if (authLoading || roleLoading) return;
-    if (!user || !isEmployee) {
-      setJobLoading(false);
-      return;
-    }
+    if (!user || !isEmployee) { setJobLoading(false); return; }
     const fetchJob = async () => {
-      const { data } = await supabase
-        .from("employee_details")
-        .select("job_code")
-        .eq("user_id", user.id)
-        .single();
+      const { data } = await supabase.from("employee_details").select("job_code").eq("user_id", user.id).single();
       setJobCode(data?.job_code || "");
       setJobLoading(false);
     };
@@ -31,20 +24,18 @@ const QualityLayout = () => {
 
   if (authLoading || roleLoading || jobLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" />
+      <div className="min-h-screen flex items-center justify-center bg-mesh">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     );
   }
 
-  if (!user || !isEmployee || jobCode !== "quality_agent") {
-    return <Navigate to="/auth" replace />;
-  }
+  if (!user || !isEmployee || jobCode !== "quality_agent") return <Navigate to="/auth" replace />;
 
   return (
-    <div className="min-h-screen flex w-full" dir="rtl">
+    <div className="min-h-screen flex w-full bg-mesh" dir="rtl">
       <QualitySidebar />
-      <main className="flex-1 p-6 bg-background overflow-auto">
+      <main className="flex-1 p-6 bg-background/50 overflow-auto">
         <Outlet />
       </main>
     </div>

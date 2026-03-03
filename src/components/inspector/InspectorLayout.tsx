@@ -9,7 +9,7 @@ const InspectorLayout = () => {
 
   if (authLoading || roleLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-mesh">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     );
@@ -20,9 +20,9 @@ const InspectorLayout = () => {
   }
 
   return (
-    <div className="min-h-screen flex w-full" dir="rtl">
+    <div className="min-h-screen flex w-full bg-mesh" dir="rtl">
       <InspectorSidebar />
-      <main className="flex-1 p-6 bg-background overflow-auto">
+      <main className="flex-1 p-6 bg-background/50 overflow-auto">
         <Outlet />
       </main>
     </div>
