@@ -35,12 +35,15 @@ const ClientSidebar = () => {
 
   return (
     <aside className="w-64 min-h-screen bg-card/50 backdrop-blur-xl border-l border-border/50 flex flex-col">
-      <div className="p-5 border-b border-border/50">
+      <div className="p-4 border-b border-border/50">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-brand-gradient flex items-center justify-center shadow-brand">
-            <Sparkles className="w-5 h-5 text-white" />
+            <span className="font-heading font-black text-white text-sm tracking-tight">EI</span>
           </div>
-          <span className="font-heading text-lg font-bold text-gradient-brand">لوحة العميل</span>
+          <div>
+            <span className="font-heading text-lg font-bold text-gradient-brand">EI N</span>
+            <span className="block text-[10px] text-muted-foreground font-medium -mt-0.5">بوابة العميل</span>
+          </div>
         </div>
       </div>
 

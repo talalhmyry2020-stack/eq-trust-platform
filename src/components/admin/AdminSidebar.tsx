@@ -59,21 +59,22 @@ const AdminSidebar = () => {
       </button>
 
       {/* Logo */}
-      <div className="p-5 border-b border-border/50">
+      <div className="p-4 border-b border-border/50">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-brand-gradient flex items-center justify-center shadow-brand flex-shrink-0">
-            <Sparkles className="w-5 h-5 text-white" />
+            <span className="font-heading font-black text-white text-sm tracking-tight">EI</span>
           </div>
           <AnimatePresence>
             {!collapsed && (
-              <motion.span
+              <motion.div
                 initial={{ opacity: 0, width: 0 }}
                 animate={{ opacity: 1, width: "auto" }}
                 exit={{ opacity: 0, width: 0 }}
-                className="font-heading text-lg font-bold text-gradient-brand whitespace-nowrap overflow-hidden"
+                className="overflow-hidden"
               >
-                EI N إدارة
-              </motion.span>
+                <span className="font-heading text-lg font-bold text-gradient-brand whitespace-nowrap">EI N</span>
+                <span className="block text-[10px] text-muted-foreground font-medium -mt-0.5">إدارة</span>
+              </motion.div>
             )}
           </AnimatePresence>
         </div>
