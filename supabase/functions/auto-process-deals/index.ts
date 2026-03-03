@@ -215,12 +215,12 @@ serve(async (req) => {
       });
     }
 
-    // التحقق: هل هناك صفقات جاهزة للتفاوض (results_ready)؟
+    // التحقق: هل هناك صفقات اختار العميل منتجاً فيها وجاهزة للتفاوض (product_selected)؟
     const { data: readyForNeg } = await supabase
       .from("deals")
       .select("*")
       .eq("status", "active")
-      .eq("current_phase", "results_ready")
+      .eq("current_phase", "product_selected")
       .order("created_at", { ascending: true })
       .limit(1);
 
