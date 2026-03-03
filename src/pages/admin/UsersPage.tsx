@@ -66,7 +66,7 @@ const UsersPage = () => {
   const [loading, setLoading] = useState(true);
   const [showEmployeeDialog, setShowEmployeeDialog] = useState(false);
   const [employeeType, setEmployeeType] = useState<EmployeeType>("inspector");
-  const [newEmployee, setNewEmployee] = useState({ name: "", email: "", password: "" });
+  const [newEmployee, setNewEmployee] = useState({ name: "", email: "", password: "", country: "" });
   const [msgDialog, setMsgDialog] = useState<{ open: boolean; userId: string; userName: string }>({ open: false, userId: "", userName: "" });
   const [msgTitle, setMsgTitle] = useState("");
   const [msgBody, setMsgBody] = useState("");
@@ -147,6 +147,7 @@ const UsersPage = () => {
       email: newEmployee.email,
       password: newEmployee.password,
       full_name: newEmployee.name,
+      country: newEmployee.country.trim() || "",
       permissions: isInspector || isQuality ? INSPECTOR_PERMISSIONS : LOGISTICS_PERMISSIONS,
       job_title: isInspector ? "المفتش الميداني" : isQuality ? "وكيل الجودة" : "موظف اللوجستيك",
       job_code: isInspector ? "agent_06" : isQuality ? "quality_agent" : "agent_07",
@@ -171,7 +172,7 @@ const UsersPage = () => {
 
     toast.success(isInspector ? "تم إنشاء حساب المفتش الميداني بنجاح" : isQuality ? "تم إنشاء حساب وكيل الجودة بنجاح" : "تم إنشاء حساب موظف اللوجستيك بنجاح");
     setShowEmployeeDialog(false);
-    setNewEmployee({ name: "", email: "", password: "" });
+    setNewEmployee({ name: "", email: "", password: "", country: "" });
     setEmployeeType("inspector");
     fetchUsers();
   };
@@ -319,6 +320,11 @@ const UsersPage = () => {
               <div>
                 <Label>كلمة المرور المؤقتة</Label>
                 <Input type="password" value={newEmployee.password} onChange={(e) => setNewEmployee({ ...newEmployee, password: e.target.value })} />
+              </div>
+              <div>
+                <Label>البلد (دولة تواجد الموظف)</Label>
+                <Input placeholder="مثال: مصر، الصين، تركيا..." value={newEmployee.country} onChange={(e) => setNewEmployee({ ...newEmployee, country: e.target.value })} />
+                <p className="text-xs text-muted-foreground mt-1">يُستخدم لتعيين الموظف تلقائياً للصفقات في نفس بلده</p>
               </div>
               {employeeType === "inspector" ? (
                 <Card className="border-primary/20 bg-primary/5">
