@@ -140,9 +140,11 @@ serve(async (req) => {
 7. الأحكام العامة والختامية
 8. التوقيعات`;
 
+    const contractDate = new Date().toLocaleDateString("ar-SA", { dateStyle: "full", timeZone: "Asia/Riyadh" });
+
     const userPrompt = `اصغ العقد التالي:
 
-بيانات الصفقة:
+تاريخ تحرير العقد: ${contractDate}
 - رقم الصفقة: #${deal.deal_number}
 - عنوان الصفقة: ${deal.title}
 - نوع الصفقة: ${deal.deal_type}
