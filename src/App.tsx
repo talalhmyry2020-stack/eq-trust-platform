@@ -63,10 +63,18 @@ import QualitySettingsPage from "./pages/quality/QualitySettingsPage";
 
 const queryClient = new QueryClient();
 
+const FontSizeInit = () => {
+  // Initialize font size from localStorage on app load
+  const stored = localStorage.getItem("eq_font_size");
+  if (stored) document.documentElement.style.fontSize = `${stored}px`;
+  return null;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <TooltipProvider>
+        <FontSizeInit />
         <Toaster />
         <Sonner />
         <BrowserRouter>

@@ -5,8 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Lock, CheckCircle, XCircle } from "lucide-react";
+import { Save, Lock, CheckCircle, XCircle, Type } from "lucide-react";
+import { useFontSize } from "@/hooks/useFontSize";
 
 const ClientAccount = () => {
   const { user } = useAuth();
@@ -59,16 +61,18 @@ const ClientAccount = () => {
     }
   };
 
+  const { fontSize, setFontSize, MIN_SIZE, MAX_SIZE, DEFAULT_SIZE } = useFontSize();
+
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-2xl mx-auto px-1">
       <h1 className="font-heading text-2xl font-bold mb-6">حسابي</h1>
 
       <div className="space-y-6">
         {/* Email & Verification */}
         <Card>
           <CardHeader><CardTitle className="font-heading text-lg">البريد الإلكتروني</CardTitle></CardHeader>
-          <CardContent className="flex items-center justify-between">
-            <span className="font-mono text-sm">{user?.email}</span>
+          <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <span className="font-mono text-sm break-all">{user?.email}</span>
             <Badge variant={emailConfirmed ? "default" : "destructive"} className="gap-1">
               {emailConfirmed ? <><CheckCircle className="w-3 h-3" /> مفعّل</> : <><XCircle className="w-3 h-3" /> غير مفعّل</>}
             </Badge>
@@ -78,12 +82,46 @@ const ClientAccount = () => {
         {/* Name */}
         <Card>
           <CardHeader><CardTitle className="font-heading text-lg">الاسم الكامل</CardTitle></CardHeader>
-          <CardContent className="flex gap-3">
+          <CardContent className="flex flex-col sm:flex-row gap-3">
             <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="الاسم الكامل" className="flex-1" />
             <Button onClick={handleSaveName} disabled={saving}>
               <Save className="w-4 h-4 ml-2" />
               {saving ? "جاري الحفظ..." : "حفظ"}
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Font Size */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-heading text-lg flex items-center gap-2">
+              <Type className="w-5 h-5" /> حجم الخط
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span>صغير</span>
+              <span className="font-bold text-foreground">{fontSize}px</span>
+              <span>كبير</span>
+            </div>
+            <Slider
+              value={[fontSize]}
+              onValueChange={(v) => setFontSize(v[0])}
+              min={MIN_SIZE}
+              max={MAX_SIZE}
+              step={1}
+              className="w-full"
+            />
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                اسحب لتكبير أو تصغير حجم الخط في كل المنصة
+              </p>
+              {fontSize !== DEFAULT_SIZE && (
+                <Button variant="ghost" size="sm" onClick={() => setFontSize(DEFAULT_SIZE)}>
+                  إعادة تعيين
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
 

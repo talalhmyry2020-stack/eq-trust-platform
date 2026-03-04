@@ -135,9 +135,11 @@ const contractCSS = `
     font-size: 15px;
     direction: rtl;
     text-align: right;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
   .contract-page h1 {
-    font-size: 24px;
+    font-size: clamp(18px, 5vw, 24px);
     font-weight: 800;
     text-align: center;
     margin-bottom: 16px;
@@ -145,17 +147,17 @@ const contractCSS = `
     padding-bottom: 12px;
   }
   .contract-page h2 {
-    font-size: 20px;
+    font-size: clamp(16px, 4vw, 20px);
     font-weight: 700;
     margin-top: 24px;
     margin-bottom: 12px;
-    padding: 8px 16px;
+    padding: 8px 12px;
     background: #f5f5f5;
     border-right: 4px solid #000;
     border-radius: 0 4px 4px 0;
   }
   .contract-page h3 {
-    font-size: 17px;
+    font-size: clamp(14px, 3.5vw, 17px);
     font-weight: 700;
     margin-top: 16px;
     margin-bottom: 8px;
@@ -163,31 +165,45 @@ const contractCSS = `
   .contract-page p {
     margin-bottom: 8px;
     text-align: justify;
+    font-size: clamp(13px, 3vw, 15px);
   }
   .contract-page table {
     width: 100%;
     border-collapse: collapse;
     margin: 16px 0;
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
   .contract-page th, .contract-page td {
     border: 1px solid #333;
-    padding: 10px 14px;
+    padding: 8px 10px;
     text-align: right;
-    font-size: 14px;
+    font-size: clamp(12px, 2.5vw, 14px);
+    white-space: nowrap;
   }
   .contract-page th {
     background: #e8e8e8;
     font-weight: 700;
   }
   .contract-page ul, .contract-page ol {
-    padding-right: 24px;
+    padding-right: 20px;
     margin-bottom: 12px;
   }
   .contract-page li {
     margin-bottom: 6px;
+    font-size: clamp(13px, 3vw, 15px);
   }
   .contract-page strong, .contract-page b {
     font-weight: 700;
+  }
+  @media (max-width: 640px) {
+    .contract-page table {
+      font-size: 12px;
+    }
+    .contract-page th, .contract-page td {
+      padding: 6px 8px;
+    }
   }
 `;
 
@@ -336,7 +352,7 @@ const ClientContractPage = () => {
       ? `<div style="margin-top:40px;padding:20px;border:3px solid #000;text-align:center;">
           <h3 style="margin-bottom:10px;font-size:20px;">✅ التوقيع الإلكتروني</h3>
           <p>تم التوقيع إلكترونياً بواسطة: <strong>${contract.client_name}</strong></p>
-          <p>تاريخ التوقيع: <strong>${new Date(contract.signed_at).toLocaleString("ar-SA")}</strong></p>
+          <p>تاريخ التوقيع: <strong>${new Date(contract.signed_at).toLocaleString("ar-SA", { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: "full", timeStyle: "short" })}</strong></p>
           <p>رقم العقد: <strong>${contract.id.slice(0, 8).toUpperCase()}</strong></p>
           <p style="color:#333;font-size:12px;margin-top:8px;">هذا توقيع إلكتروني معتمد من منصة EQ للوساطة التجارية</p>
         </div>`
@@ -402,7 +418,7 @@ const ClientContractPage = () => {
   const grandTotal = productAmount + platformFeeAmount;
 
   return (
-    <div className="space-y-4 max-w-4xl mx-auto">
+    <div className="space-y-4 max-w-4xl mx-auto px-1">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
@@ -518,7 +534,7 @@ const ClientContractPage = () => {
                     value={verifyCode}
                     onChange={(e) => setVerifyCode(e.target.value)}
                     placeholder="أدخل الرمز المكون من 6 أرقام"
-                    className="text-center text-2xl tracking-[0.4em] font-mono h-14 border-2"
+                    className="text-center text-xl md:text-2xl tracking-[0.3em] md:tracking-[0.4em] font-mono h-12 md:h-14 border-2"
                     maxLength={6}
                   />
                 </div>
@@ -586,13 +602,13 @@ const ClientContractPage = () => {
         {/* Content pages */}
         {currentPage < totalPages ? (
           <div
-            className="contract-page p-8 md:p-14 min-h-[700px] bg-white"
+            className="contract-page p-4 md:p-14 min-h-[400px] md:min-h-[700px] bg-white overflow-x-auto"
             dir="rtl"
             dangerouslySetInnerHTML={{ __html: pages[currentPage] }}
           />
         ) : showSignaturePage ? (
           /* Electronic Signature Page */
-          <div className="p-8 md:p-14 min-h-[700px] bg-white" dir="rtl">
+          <div className="p-4 md:p-14 min-h-[400px] md:min-h-[700px] bg-white" dir="rtl">
             <div className="max-w-lg mx-auto space-y-8 text-center">
               <div className="border-b-4 border-double border-black pb-6">
                 <h2 className="text-3xl font-extrabold text-black">التوقيع الإلكتروني</h2>
@@ -606,7 +622,7 @@ const ClientContractPage = () => {
                   <p className="font-extrabold text-2xl text-green-800">تم التوقيع إلكترونياً ✅</p>
                   <div className="text-right space-y-3 text-base text-black">
                     <p><strong>الموقّع:</strong> {contract.client_name}</p>
-                    <p><strong>تاريخ التوقيع:</strong> {new Date(contract.signed_at).toLocaleString("ar-SA")}</p>
+                    <p><strong>تاريخ التوقيع:</strong> {new Date(contract.signed_at).toLocaleString("ar-SA", { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: "full", timeStyle: "short" })}</p>
                     <p><strong>رقم العقد:</strong> {contract.id.slice(0, 8).toUpperCase()}</p>
                   </div>
                 </div>
@@ -633,7 +649,7 @@ const ClientContractPage = () => {
       </div>
 
       {/* Financial summary - 4 cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <Card className="border-2">
           <CardContent className="pt-4 text-center">
             <p className="text-xs text-muted-foreground">مبلغ الصفقة</p>
@@ -682,7 +698,7 @@ const ClientContractPage = () => {
               <CheckCircle className="w-6 h-6" />
               <div>
                 <p className="font-bold text-lg">تم توقيع العقد واعتماده نهائياً</p>
-                <p className="text-sm">تاريخ التوقيع: {new Date(contract.signed_at).toLocaleString("ar-SA")}</p>
+                <p className="text-sm">تاريخ التوقيع: {new Date(contract.signed_at).toLocaleString("ar-SA", { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: "full", timeStyle: "short" })}</p>
               </div>
             </div>
           </CardContent>
