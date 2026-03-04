@@ -457,6 +457,7 @@ const UsersPage = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>الاسم</TableHead>
+                    <TableHead>البريد</TableHead>
                     <TableHead>النوع</TableHead>
                     <TableHead>الحالة</TableHead>
                     <TableHead>آخر دخول</TableHead>
@@ -468,6 +469,7 @@ const UsersPage = () => {
                   {filteredEmployees.map((emp) => (
                     <TableRow key={emp.id}>
                       <TableCell className="font-medium">{emp.full_name || "بدون اسم"}</TableCell>
+                      <TableCell className="text-xs font-mono" dir="ltr">{emp.email || "—"}</TableCell>
                       <TableCell>{employeeTypeBadge(emp.job_title || "", emp.job_code || "")}</TableCell>
                       <TableCell>{statusBadge(emp.status)}</TableCell>
                       <TableCell className="text-xs">{formatDate(emp.last_sign_in_at)}</TableCell>
@@ -495,7 +497,7 @@ const UsersPage = () => {
                   ))}
                   {filteredEmployees.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">لا يوجد موظفين</TableCell>
+                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">لا يوجد موظفين</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
