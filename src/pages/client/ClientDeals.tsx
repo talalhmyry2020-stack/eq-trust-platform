@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Package, AlertTriangle, Handshake } from "lucide-react";
+import SovereigntyTimerWidget from "@/components/client/SovereigntyTimerWidget";
 import { useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import CharterAgreement from "@/components/client/CharterAgreement";
@@ -36,6 +37,26 @@ const phaseMap: Record<string, string> = {
   product_selected: "تم اختيار المنتج",
   negotiating_phase2: "جاري التفاوض النهائي",
   negotiation_phase2_complete: "العرض النهائي جاهز",
+  negotiating_phase3: "جاري موافقة المصنع",
+  negotiation_phase3_complete: "المصنع وافق نهائياً",
+  contract_drafting: "صياغة العقد",
+  contract_client_review: "العقد جاهز لمراجعتك",
+  contract_signing: "العقد جاهز للتوقيع",
+  contract_signed: "تم توقيع العقد",
+  token_a_pending: "بانتظار صرف التوكن A",
+  token_a_released: "بدء الإنتاج",
+  factory_production: "المصنع يعمل",
+  factory_completed: "الإنتاج مكتمل",
+  quality_approved: "الجودة معتمدة",
+  token_b_released: "تم صرف 50%",
+  loading_goods: "تحميل البضاعة",
+  leaving_factory: "غادرت المصنع",
+  at_source_port: "ميناء التصدير",
+  in_transit: "في البحر",
+  at_destination_port: "ميناء الوجهة",
+  sovereignty_timer: "⏱️ العداد السيادي",
+  objection_raised: "⚠️ اعتراض قيد المراجعة",
+  completed: "مكتملة",
 };
 
 const statusVariant = (s: string) => {
@@ -146,7 +167,7 @@ const ClientDeals = () => {
             <Card><CardContent className="text-center text-muted-foreground py-8">لا توجد صفقات نشطة</CardContent></Card>
           )}
           {deals.map((deal) => (
-            <Card key={deal.id} className="cursor-pointer" onClick={() => setSelectedDealDetail(deal)}>
+            <Card key={deal.id} className={`cursor-pointer ${deal.current_phase === "sovereignty_timer" ? "border-destructive/40" : deal.current_phase === "objection_raised" ? "border-yellow-500/40" : ""}`} onClick={() => setSelectedDealDetail(deal)}>
               <CardContent className="p-4 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -158,7 +179,7 @@ const ClientDeals = () => {
                   </Badge>
                 </div>
                 {deal.current_phase && (
-                  <Badge variant="outline" className="text-xs">
+                  <Badge variant={deal.current_phase === "sovereignty_timer" ? "destructive" : "outline"} className="text-xs">
                     {phaseMap[deal.current_phase] || deal.current_phase}
                   </Badge>
                 )}
@@ -166,6 +187,7 @@ const ClientDeals = () => {
                   <span className="text-xs text-muted-foreground">{new Date(deal.updated_at).toLocaleDateString("ar-SA")}</span>
                   {renderDealActions(deal)}
                 </div>
+                <SovereigntyTimerWidget deal={deal} onUpdate={fetchDeals} />
               </CardContent>
             </Card>
           ))}
@@ -187,25 +209,34 @@ const ClientDeals = () => {
               </TableHeader>
               <TableBody>
                 {deals.map((deal) => (
-                  <TableRow key={deal.id} className="cursor-pointer hover:bg-muted/50" onDoubleClick={() => setSelectedDealDetail(deal)}>
-                    <TableCell className="font-mono">{deal.deal_number}</TableCell>
-                    <TableCell className="font-medium">{deal.title}</TableCell>
-                    <TableCell>{getStageName(deal.stage_id)}</TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant(deal.status)}>{statusMap[deal.status] || deal.status}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      {deal.current_phase && (
-                        <Badge variant="outline" className="text-xs">
-                          {phaseMap[deal.current_phase] || deal.current_phase}
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">{new Date(deal.updated_at).toLocaleDateString("ar-SA")}</TableCell>
-                    <TableCell className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                      {renderDealActions(deal)}
-                    </TableCell>
-                  </TableRow>
+                  <>
+                    <TableRow key={deal.id} className={`cursor-pointer hover:bg-muted/50 ${deal.current_phase === "sovereignty_timer" ? "bg-destructive/5" : ""}`} onDoubleClick={() => setSelectedDealDetail(deal)}>
+                      <TableCell className="font-mono">{deal.deal_number}</TableCell>
+                      <TableCell className="font-medium">{deal.title}</TableCell>
+                      <TableCell>{getStageName(deal.stage_id)}</TableCell>
+                      <TableCell>
+                        <Badge variant={statusVariant(deal.status)}>{statusMap[deal.status] || deal.status}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {deal.current_phase && (
+                          <Badge variant={deal.current_phase === "sovereignty_timer" ? "destructive" : "outline"} className="text-xs">
+                            {phaseMap[deal.current_phase] || deal.current_phase}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">{new Date(deal.updated_at).toLocaleDateString("ar-SA")}</TableCell>
+                      <TableCell className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                        {renderDealActions(deal)}
+                      </TableCell>
+                    </TableRow>
+                    {(deal.current_phase === "sovereignty_timer" || deal.current_phase === "objection_raised") && (
+                      <TableRow key={`${deal.id}-timer`}>
+                        <TableCell colSpan={7} className="p-0 px-4 pb-4">
+                          <SovereigntyTimerWidget deal={deal} onUpdate={fetchDeals} />
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </>
                 ))}
                 {deals.length === 0 && (
                   <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">لا توجد صفقات نشطة</TableCell></TableRow>
