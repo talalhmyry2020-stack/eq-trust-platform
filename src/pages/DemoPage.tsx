@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Users, ShieldCheck, Truck, Eye, Star, Copy, LogIn, Rocket } from "lucide-react";
+import { Loader2, Users, ShieldCheck, Truck, Eye, Star, Copy, LogIn, Rocket, Timer } from "lucide-react";
 
 const DEMO_ACCOUNTS = [
   {
@@ -63,6 +63,7 @@ const DEMO_ACCOUNTS = [
 const DemoPage = () => {
   const [seeding, setSeeding] = useState(false);
   const [seeded, setSeeded] = useState(false);
+  const [seedingSovereignty, setSeedingSovereignty] = useState(false);
   const [loggingIn, setLoggingIn] = useState<string | null>(null);
   const navigate = useNavigate();
 
@@ -78,6 +79,20 @@ const DemoPage = () => {
       toast.error("خطأ: " + (err.message || "فشل إنشاء الحسابات"));
     } finally {
       setSeeding(false);
+    }
+  };
+
+  const handleSeedSovereignty = async () => {
+    setSeedingSovereignty(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("seed-sovereignty-deal");
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`✅ تم إنشاء صفقة #${data.deal_number} في مرحلة العداد السيادي!`);
+    } catch (err: any) {
+      toast.error("خطأ: " + (err.message || "فشل إنشاء الصفقة"));
+    } finally {
+      setSeedingSovereignty(false);
     }
   };
 
@@ -144,10 +159,19 @@ const DemoPage = () => {
         )}
 
         {seeded && (
-          <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-xl p-4 mb-8 text-center">
+          <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-xl p-4 mb-8 text-center space-y-3">
             <p className="text-green-700 dark:text-green-400 font-medium">
               ✅ الحسابات جاهزة! شارك بيانات الدخول مع أصدقائك أو ادخل مباشرة من أي حساب
             </p>
+            <Button
+              onClick={handleSeedSovereignty}
+              disabled={seedingSovereignty}
+              variant="outline"
+              className="gap-2 border-red-300 text-red-600 hover:bg-red-50"
+            >
+              {seedingSovereignty ? <Loader2 className="w-4 h-4 animate-spin" /> : <Timer className="w-4 h-4" />}
+              {seedingSovereignty ? "جاري الإنشاء..." : "⏱️ إنشاء صفقة في مرحلة العداد السيادي"}
+            </Button>
           </div>
         )}
 
