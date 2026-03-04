@@ -279,6 +279,108 @@ const QualityMissionPage = () => {
     },
   });
 
+  const [simulating, setSimulating] = useState(false);
+
+  const simulateFullQuality = async () => {
+    if (!user) return;
+    setSimulating(true);
+    try {
+      // ابحث عن صفقة جاهزة لفحص الجودة
+      const { data: eligibleDeals } = await supabase
+        .from("deals")
+        .select("id, deal_number, title, client_full_name, current_phase")
+        .in("current_phase", [
+          "quality_inspection_assigned",
+          "factory_completed",
+          "token_a_released",
+          "factory_production",
+        ])
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (!eligibleDeals || eligibleDeals.length === 0) {
+        toast({ title: "⚠️ لا توجد صفقات", description: "لا توجد صفقات في مرحلة تسمح بفحص الجودة. أنشئ صفقة تجريبية أولاً من صفحة /demo", variant: "destructive" });
+        setSimulating(false);
+        return;
+      }
+
+      const deal = eligibleDeals[0];
+      toast({ title: `🔍 جاري محاكاة فحص الجودة للصفقة #${deal.deal_number}...` });
+
+      // 1) إنشاء مهمة فحص الجودة
+      const { data: mission, error: missionErr } = await supabase
+        .from("deal_inspection_missions")
+        .insert({
+          deal_id: deal.id,
+          inspector_id: user.id,
+          mission_type: "quality",
+          status: "in_progress",
+          factory_address: "مصنع تجريبي — المحاكاة",
+          factory_country: "CN",
+          factory_latitude: 30.01,
+          factory_longitude: 31.19,
+          geofence_radius_meters: 500,
+          max_photos: 5,
+          notes: "مهمة محاكاة تلقائية",
+        })
+        .select()
+        .single();
+
+      if (missionErr) throw missionErr;
+
+      // 2) تحديث مرحلة الصفقة
+      await supabase.from("deals").update({ current_phase: "quality_inspection_in_progress" }).eq("id", deal.id);
+
+      // 3) توليد صور اختبارية
+      for (let i = 0; i < 5; i++) {
+        const lat = 30.01 + (Math.random() - 0.5) * 0.002;
+        const lng = 31.19 + (Math.random() - 0.5) * 0.002;
+        const filePath = `${user.id}/${mission.id}/quality_sim_${Date.now()}_${i}.jpg`;
+        const canvas = document.createElement("canvas");
+        canvas.width = 640; canvas.height = 480;
+        const ctx = canvas.getContext("2d")!;
+        ctx.fillStyle = `hsl(${140 + Math.random() * 40}, 50%, 70%)`;
+        ctx.fillRect(0, 0, 640, 480);
+        ctx.fillStyle = "#000";
+        ctx.font = "bold 24px monospace";
+        ctx.fillText(`🔍 محاكاة جودة — صورة #${i + 1}`, 80, 200);
+        ctx.fillText(`📍 ${lat.toFixed(4)}, ${lng.toFixed(4)}`, 120, 250);
+        const blob = await new Promise<Blob>((r) => canvas.toBlob((b) => r(b!), "image/jpeg", 0.9));
+        await supabase.storage.from("inspection-photos").upload(filePath, blob);
+        const { data: urlData } = supabase.storage.from("inspection-photos").getPublicUrl(filePath);
+        await supabase.from("deal_inspection_photos").insert({
+          mission_id: mission.id, deal_id: deal.id, photo_url: urlData.publicUrl, latitude: lat, longitude: lng,
+        });
+      }
+
+      // 4) إكمال المهمة + تقرير
+      const report = `تقرير محاكاة تلقائي: المنتج مطابق للعينة المرجعية من حيث اللون والأبعاد والجودة. لا توجد عيوب ظاهرة. تمت المطابقة بنجاح — ${new Date().toLocaleString("ar-SA")}`;
+      await supabase.from("deal_inspection_missions").update({
+        status: "completed",
+        completed_at: new Date().toISOString(),
+        quality_report: report,
+        quality_status: "approved",
+      }).eq("id", mission.id);
+
+      // 5) تشغيل ما بعد الفحص (Token B + sovereignty timer)
+      try {
+        await supabase.functions.invoke("process-post-inspection", {
+          body: { deal_id: deal.id, action: "quality_approved" },
+        });
+      } catch (e) {
+        console.error("Post-inspection processing:", e);
+      }
+
+      toast({ title: `✅ تم تمرير الصفقة #${deal.deal_number} عبر فحص الجودة بنجاح!` });
+      refetch();
+    } catch (err: any) {
+      toast({ title: "خطأ", description: err.message, variant: "destructive" });
+    } finally {
+      setSimulating(false);
+    }
+  };
+
   if (missions.length === 0) {
     return (
       <div>
@@ -287,8 +389,17 @@ const QualityMissionPage = () => {
           <h1 className="font-heading text-2xl font-bold">مهام فحص الجودة</h1>
         </div>
         <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            لا توجد مهام فحص جودة مسندة إليك حالياً
+          <CardContent className="py-12 text-center space-y-4">
+            <p className="text-muted-foreground">لا توجد مهام فحص جودة مسندة إليك حالياً</p>
+            <Button
+              onClick={simulateFullQuality}
+              disabled={simulating}
+              className="gap-2 bg-amber-600 hover:bg-amber-700"
+            >
+              <FlaskConical className="w-4 h-4" />
+              {simulating ? "جاري المحاكاة..." : "🧪 محاكاة فحص جودة كامل (تجريبي)"}
+            </Button>
+            <p className="text-xs text-muted-foreground">سيبحث عن صفقة جاهزة وينفذ فحص الجودة تلقائياً لتمريرها</p>
           </CardContent>
         </Card>
       </div>
