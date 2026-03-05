@@ -9,7 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 import {
   Shield, Camera, MapPin, CheckCircle, Lock, Navigation,
-  AlertTriangle, FileText, Eye, CloudUpload, Play, StopCircle
+  AlertTriangle, FileText, Eye, CloudUpload, Play, StopCircle, FlaskConical
 } from "lucide-react";
 
 const InspectorDashboard = () => {
