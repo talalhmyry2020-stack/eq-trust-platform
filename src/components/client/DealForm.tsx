@@ -56,6 +56,8 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
   const productRef = useRef<HTMLInputElement>(null);
 
   const isEgypt = country === "مصر";
+  const actualCountry = country === "أخرى" ? customCountry : country;
+  const actualImportCountry = importCountry === "أخرى" ? customImportCountry : importCountry;
   const descLength = productDescription.length;
 
   // توليد صورة مستند وهمية باستخدام Canvas
@@ -135,7 +137,7 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
 
   const isValid =
     clientFullName.trim() &&
-    country &&
+    (country === "أخرى" ? customCountry.trim() : country) &&
     city.trim() &&
     nationalId.trim() &&
     commercialRegNumber.trim() &&
@@ -147,7 +149,7 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
     productDescription.length <= 100 &&
     estimatedAmount.trim() &&
     Number(estimatedAmount) > 0 &&
-    importCountry &&
+    (importCountry === "أخرى" ? customImportCountry.trim() : importCountry) &&
     agreement;
 
   const uploadFile = async (file: File, folder: string) => {
