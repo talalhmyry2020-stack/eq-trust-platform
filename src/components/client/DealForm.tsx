@@ -466,12 +466,20 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
             </div>
             <div>
               <Label>الدولة المستورد منها <span className="text-destructive">*</span></Label>
-              <Select value={importCountry} onValueChange={setImportCountry}>
+              <Select value={importCountry} onValueChange={(v) => { setImportCountry(v); setCustomImportCountry(""); }}>
                 <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختر دولة الاستيراد" /></SelectTrigger>
                 <SelectContent>
                   {IMPORT_COUNTRIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {importCountry === "أخرى" && (
+                <Input
+                  value={customImportCountry}
+                  onChange={(e) => setCustomImportCountry(e.target.value)}
+                  placeholder="اكتب اسم دولة الاستيراد"
+                  className="mt-2"
+                />
+              )}
             </div>
           </section>
 
