@@ -35,6 +35,7 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
 
   const [clientFullName, setClientFullName] = useState("");
   const [country, setCountry] = useState("");
+  const [customCountry, setCustomCountry] = useState("");
   const [city, setCity] = useState("");
   const [nationalId, setNationalId] = useState("");
   const [commercialRegNumber, setCommercialRegNumber] = useState("");
@@ -42,6 +43,7 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
   const [productType, setProductType] = useState("");
   const [productDescription, setProductDescription] = useState("");
   const [importCountry, setImportCountry] = useState("");
+  const [customImportCountry, setCustomImportCountry] = useState("");
   const [estimatedAmount, setEstimatedAmount] = useState("");
   const [agreement, setAgreement] = useState(false);
 

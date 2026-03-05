@@ -153,13 +153,16 @@ serve(async (req) => {
     const productName = deal.product_type || deal.title || "منتج";
     const companyIntro = `نحن شركة وساطة تجارية دولية متخصصة في الاستيراد. نبحث عن مورد موثوق لمنتج "${productName}" بكميات تجارية. نرجو إرسال عرض سعر رسمي يتضمن: السعر لكل وحدة، الحد الأدنى للطلب، مواصفات المنتج، وصورة حديثة للمنتج.`;
 
+    // توليد صورة واقعية للمنتج بالذكاء الاصطناعي
+    console.log(`[Negotiation Agent] Generating AI product image for: ${productName}`);
+    const aiProductImage = await generateProductImage(productName, supabase);
+
     const negotiations = [];
 
     // محاكاة إرسال الرسائل واستلام الردود
     for (let i = 0; i < selectedFactories.length; i++) {
       const factory = selectedFactories[i];
       const price = factory.price_range[0] + Math.floor(Math.random() * (factory.price_range[1] - factory.price_range[0]));
-      const imageUrl = FAKE_PRODUCT_IMAGES[i % FAKE_PRODUCT_IMAGES.length];
 
       // بعض المصانع ترد سريعاً وبعضها بطيئاً (محاكاة)
       const responded = Math.random() > 0.15; // 85% يردون
@@ -175,7 +178,7 @@ serve(async (req) => {
         factory_response: responded ? factory.response_template : null,
         offered_price: responded ? price : null,
         currency: "USD",
-        product_image_url: responded ? imageUrl : null,
+        product_image_url: responded ? aiProductImage : null,
         specifications: responded ? factory.specs : {},
         status: responded ? "responded" : "pending",
         response_date: responded ? new Date().toISOString() : null,
