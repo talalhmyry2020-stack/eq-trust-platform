@@ -12,8 +12,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, FileText, Image, Loader2, ShieldCheck, Wand2 } from "lucide-react";
 
-const COUNTRIES = ["مصر", "السعودية", "الإمارات", "أخرى"];
-const IMPORT_COUNTRIES = ["مصر", "الصين"];
+const COUNTRIES = ["مصر", "السعودية", "الإمارات", "الكويت", "قطر", "البحرين", "عمان", "العراق", "الأردن", "لبنان", "ليبيا", "تونس", "الجزائر", "المغرب", "السودان", "اليمن", "أخرى"];
+const IMPORT_COUNTRIES = ["الصين", "تركيا", "الهند", "مصر", "أخرى"];
 const EGYPT_CITIES = [
   "القاهرة", "الإسكندرية", "الجيزة", "شبرا الخيمة", "بورسعيد",
   "السويس", "المنصورة", "طنطا", "الأقصر", "أسوان",
