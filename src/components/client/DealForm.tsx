@@ -333,12 +333,20 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
             </div>
             <div>
               <Label>الدولة <span className="text-destructive">*</span></Label>
-              <Select value={country} onValueChange={(v) => { setCountry(v); setCity(""); }}>
+              <Select value={country} onValueChange={(v) => { setCountry(v); setCity(""); setCustomCountry(""); }}>
                 <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختر الدولة" /></SelectTrigger>
                 <SelectContent>
                   {COUNTRIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {country === "أخرى" && (
+                <Input
+                  value={customCountry}
+                  onChange={(e) => setCustomCountry(e.target.value)}
+                  placeholder="اكتب اسم الدولة"
+                  className="mt-2"
+                />
+              )}
             </div>
             <div>
               <Label>المدينة <span className="text-destructive">*</span></Label>
