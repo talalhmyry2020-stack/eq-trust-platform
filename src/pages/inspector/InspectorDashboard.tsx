@@ -9,7 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 import {
   Shield, Camera, MapPin, CheckCircle, Lock, Navigation,
-  AlertTriangle, FileText, Eye, CloudUpload, Play, StopCircle
+  AlertTriangle, FileText, Eye, CloudUpload, Play, StopCircle, FlaskConical
 } from "lucide-react";
 
 const InspectorDashboard = () => {
@@ -577,6 +577,52 @@ const InspectorDashboard = () => {
             <Camera className="w-12 h-12 mx-auto mb-3 opacity-30" />
             <p className="text-lg font-medium">لا توجد مهام فحص مسندة إليك حالياً</p>
             <p className="text-sm mt-1">سيتم إشعارك فور تعيين مهمة جديدة</p>
+            <Button
+              variant="outline"
+              className="mt-4 gap-2 border-yellow-500/50 text-yellow-600 hover:bg-yellow-500/10"
+              onClick={async () => {
+                toast({ title: "🧪 جاري محاكاة مهمة فحص..." });
+                try {
+                  // البحث عن صفقة مؤهلة
+                  const { data: eligibleDeals } = await supabase
+                    .from("deals")
+                    .select("id, deal_number, title, client_full_name")
+                    .in("current_phase", ["token_a_released", "factory_production", "factory_completed", "quality_inspection_assigned", "inspection_assigned"])
+                    .limit(1);
+                  
+                  if (!eligibleDeals?.length) {
+                    toast({ title: "⚠️ لا توجد صفقات مؤهلة", description: "يجب أن تكون هناك صفقة في مرحلة بعد صرف التوكن A", variant: "destructive" });
+                    return;
+                  }
+
+                  const deal = eligibleDeals[0];
+                  
+                  // إنشاء مهمة فحص
+                  await supabase.from("deal_inspection_missions").insert({
+                    deal_id: deal.id,
+                    inspector_id: user!.id,
+                    mission_type: "initial",
+                    factory_address: "المنطقة الصناعية، دمياط، مصر",
+                    factory_country: "مصر",
+                    factory_latitude: 31.4175,
+                    factory_longitude: 31.8144,
+                    status: "assigned",
+                    max_photos: 5,
+                    notes: "مهمة تجريبية — محاكاة تلقائية",
+                  });
+
+                  await supabase.from("deals").update({ current_phase: "inspection_assigned" }).eq("id", deal.id);
+                  
+                  toast({ title: "✅ تم إنشاء مهمة تجريبية", description: `صفقة #${deal.deal_number} — اضغط بدء المهمة` });
+                  queryClient.invalidateQueries({ queryKey: ["my-missions"] });
+                } catch (err: any) {
+                  toast({ title: "خطأ", description: err.message, variant: "destructive" });
+                }
+              }}
+            >
+              <FlaskConical className="w-4 h-4" />
+              🧪 محاكاة مهمة فحص
+            </Button>
           </CardContent>
         </Card>
       )}

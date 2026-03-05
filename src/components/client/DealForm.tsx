@@ -12,8 +12,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, FileText, Image, Loader2, ShieldCheck, Wand2 } from "lucide-react";
 
-const COUNTRIES = ["مصر", "السعودية", "الإمارات", "أخرى"];
-const IMPORT_COUNTRIES = ["مصر", "الصين"];
+const COUNTRIES = ["مصر", "السعودية", "الإمارات", "الكويت", "قطر", "البحرين", "عمان", "العراق", "الأردن", "لبنان", "ليبيا", "تونس", "الجزائر", "المغرب", "السودان", "اليمن", "أخرى"];
+const IMPORT_COUNTRIES = ["الصين", "تركيا", "الهند", "مصر", "أخرى"];
 const EGYPT_CITIES = [
   "القاهرة", "الإسكندرية", "الجيزة", "شبرا الخيمة", "بورسعيد",
   "السويس", "المنصورة", "طنطا", "الأقصر", "أسوان",
@@ -35,6 +35,7 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
 
   const [clientFullName, setClientFullName] = useState("");
   const [country, setCountry] = useState("");
+  const [customCountry, setCustomCountry] = useState("");
   const [city, setCity] = useState("");
   const [nationalId, setNationalId] = useState("");
   const [commercialRegNumber, setCommercialRegNumber] = useState("");
@@ -42,6 +43,7 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
   const [productType, setProductType] = useState("");
   const [productDescription, setProductDescription] = useState("");
   const [importCountry, setImportCountry] = useState("");
+  const [customImportCountry, setCustomImportCountry] = useState("");
   const [estimatedAmount, setEstimatedAmount] = useState("");
   const [agreement, setAgreement] = useState(false);
 
@@ -54,6 +56,8 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
   const productRef = useRef<HTMLInputElement>(null);
 
   const isEgypt = country === "مصر";
+  const actualCountry = country === "أخرى" ? customCountry : country;
+  const actualImportCountry = importCountry === "أخرى" ? customImportCountry : importCountry;
   const descLength = productDescription.length;
 
   // توليد صورة مستند وهمية باستخدام Canvas
@@ -133,7 +137,7 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
 
   const isValid =
     clientFullName.trim() &&
-    country &&
+    (country === "أخرى" ? customCountry.trim() : country) &&
     city.trim() &&
     nationalId.trim() &&
     commercialRegNumber.trim() &&
@@ -145,7 +149,7 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
     productDescription.length <= 100 &&
     estimatedAmount.trim() &&
     Number(estimatedAmount) > 0 &&
-    importCountry &&
+    (importCountry === "أخرى" ? customImportCountry.trim() : importCountry) &&
     agreement;
 
   const uploadFile = async (file: File, folder: string) => {
@@ -174,7 +178,7 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
         client_id: user.id,
         created_by: user.id,
         client_full_name: clientFullName.trim(),
-        country,
+        country: actualCountry,
         city: city.trim(),
         national_id: nationalId.trim(),
         commercial_register_number: commercialRegNumber.trim(),
@@ -184,7 +188,7 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
         product_type: productType.trim(),
         product_description: productDescription.trim(),
         product_image_url: productPath || "",
-        import_country: importCountry,
+        import_country: actualImportCountry,
         estimated_amount: Number(estimatedAmount),
         status: "pending_review" as any,
       }).select("id, deal_number").single();
@@ -195,7 +199,7 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
       const dealSummary = {
         deal_number: dealData?.deal_number,
         client_full_name: clientFullName.trim(),
-        country,
+        country: actualCountry,
         city: city.trim(),
         national_id: nationalId.trim(),
         commercial_register_number: commercialRegNumber.trim(),
@@ -203,7 +207,7 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
         product_type: productType.trim(),
         product_description: productDescription.trim(),
         estimated_amount: Number(estimatedAmount),
-        import_country: importCountry,
+        import_country: actualImportCountry,
         status: "pending_review",
       };
       setSubmittedDeal(dealSummary);
@@ -329,12 +333,20 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
             </div>
             <div>
               <Label>الدولة <span className="text-destructive">*</span></Label>
-              <Select value={country} onValueChange={(v) => { setCountry(v); setCity(""); }}>
+              <Select value={country} onValueChange={(v) => { setCountry(v); setCity(""); setCustomCountry(""); }}>
                 <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختر الدولة" /></SelectTrigger>
                 <SelectContent>
                   {COUNTRIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {country === "أخرى" && (
+                <Input
+                  value={customCountry}
+                  onChange={(e) => setCustomCountry(e.target.value)}
+                  placeholder="اكتب اسم الدولة"
+                  className="mt-2"
+                />
+              )}
             </div>
             <div>
               <Label>المدينة <span className="text-destructive">*</span></Label>
@@ -454,12 +466,20 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
             </div>
             <div>
               <Label>الدولة المستورد منها <span className="text-destructive">*</span></Label>
-              <Select value={importCountry} onValueChange={setImportCountry}>
+              <Select value={importCountry} onValueChange={(v) => { setImportCountry(v); setCustomImportCountry(""); }}>
                 <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختر دولة الاستيراد" /></SelectTrigger>
                 <SelectContent>
                   {IMPORT_COUNTRIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {importCountry === "أخرى" && (
+                <Input
+                  value={customImportCountry}
+                  onChange={(e) => setCustomImportCountry(e.target.value)}
+                  placeholder="اكتب اسم دولة الاستيراد"
+                  className="mt-2"
+                />
+              )}
             </div>
           </section>
 

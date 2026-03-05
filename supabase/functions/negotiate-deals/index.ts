@@ -55,13 +55,69 @@ const FAKE_FACTORY_RESPONSES = [
   },
 ];
 
-const FAKE_PRODUCT_IMAGES = [
-  "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400",
-  "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400",
-  "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=400",
-  "https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=400",
-  "https://images.unsplash.com/photo-1560343090-f0409e92791a?w=400",
-];
+// توليد صورة منتج واقعية بالذكاء الاصطناعي
+async function generateProductImage(productName: string, supabase: any): Promise<string> {
+  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!lovableKey) {
+    console.log("[Negotiation Agent] No LOVABLE_API_KEY, skipping image generation");
+    return "";
+  }
+
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${lovableKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-image",
+        messages: [
+          {
+            role: "user",
+            content: `Generate a professional product photo of "${productName}" on a clean white background, commercial product photography style, high quality, realistic. Ultra high resolution.`,
+          },
+        ],
+        modalities: ["image", "text"],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("[Negotiation Agent] Image generation failed:", response.status);
+      return "";
+    }
+
+    const data = await response.json();
+    const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    if (!imageUrl || !imageUrl.startsWith("data:image")) return "";
+
+    // تحويل base64 إلى blob ورفعها
+    const base64Data = imageUrl.split(",")[1];
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    const filePath = `ai-products/${Date.now()}_${Math.random().toString(36).slice(2)}.png`;
+    const { error } = await supabase.storage.from("deal-documents").upload(filePath, bytes, {
+      contentType: "image/png",
+      upsert: false,
+    });
+
+    if (error) {
+      console.error("[Negotiation Agent] Upload error:", error);
+      return "";
+    }
+
+    const { data: urlData } = supabase.storage.from("deal-documents").getPublicUrl(filePath);
+    console.log("[Negotiation Agent] ✅ AI product image generated");
+    return urlData.publicUrl || "";
+  } catch (err) {
+    console.error("[Negotiation Agent] Image generation error:", err);
+    return "";
+  }
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -97,13 +153,16 @@ serve(async (req) => {
     const productName = deal.product_type || deal.title || "منتج";
     const companyIntro = `نحن شركة وساطة تجارية دولية متخصصة في الاستيراد. نبحث عن مورد موثوق لمنتج "${productName}" بكميات تجارية. نرجو إرسال عرض سعر رسمي يتضمن: السعر لكل وحدة، الحد الأدنى للطلب، مواصفات المنتج، وصورة حديثة للمنتج.`;
 
+    // توليد صورة واقعية للمنتج بالذكاء الاصطناعي
+    console.log(`[Negotiation Agent] Generating AI product image for: ${productName}`);
+    const aiProductImage = await generateProductImage(productName, supabase);
+
     const negotiations = [];
 
     // محاكاة إرسال الرسائل واستلام الردود
     for (let i = 0; i < selectedFactories.length; i++) {
       const factory = selectedFactories[i];
       const price = factory.price_range[0] + Math.floor(Math.random() * (factory.price_range[1] - factory.price_range[0]));
-      const imageUrl = FAKE_PRODUCT_IMAGES[i % FAKE_PRODUCT_IMAGES.length];
 
       // بعض المصانع ترد سريعاً وبعضها بطيئاً (محاكاة)
       const responded = Math.random() > 0.15; // 85% يردون
@@ -119,7 +178,7 @@ serve(async (req) => {
         factory_response: responded ? factory.response_template : null,
         offered_price: responded ? price : null,
         currency: "USD",
-        product_image_url: responded ? imageUrl : null,
+        product_image_url: responded ? aiProductImage : null,
         specifications: responded ? factory.specs : {},
         status: responded ? "responded" : "pending",
         response_date: responded ? new Date().toISOString() : null,
