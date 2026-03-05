@@ -178,7 +178,7 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
         client_id: user.id,
         created_by: user.id,
         client_full_name: clientFullName.trim(),
-        country,
+        country: actualCountry,
         city: city.trim(),
         national_id: nationalId.trim(),
         commercial_register_number: commercialRegNumber.trim(),
@@ -188,7 +188,7 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
         product_type: productType.trim(),
         product_description: productDescription.trim(),
         product_image_url: productPath || "",
-        import_country: importCountry,
+        import_country: actualImportCountry,
         estimated_amount: Number(estimatedAmount),
         status: "pending_review" as any,
       }).select("id, deal_number").single();
@@ -199,7 +199,7 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
       const dealSummary = {
         deal_number: dealData?.deal_number,
         client_full_name: clientFullName.trim(),
-        country,
+        country: actualCountry,
         city: city.trim(),
         national_id: nationalId.trim(),
         commercial_register_number: commercialRegNumber.trim(),
@@ -207,7 +207,7 @@ const DealForm = ({ onSubmit, onCancel }: DealFormProps) => {
         product_type: productType.trim(),
         product_description: productDescription.trim(),
         estimated_amount: Number(estimatedAmount),
-        import_country: importCountry,
+        import_country: actualImportCountry,
         status: "pending_review",
       };
       setSubmittedDeal(dealSummary);
