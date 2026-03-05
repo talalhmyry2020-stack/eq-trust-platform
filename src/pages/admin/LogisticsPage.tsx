@@ -12,9 +12,6 @@ import { Truck, FlaskConical, Shield } from "lucide-react";
 import LogisticsPhaseMap, { SHIPPING_PHASES, DESTINATION_PHASES } from "@/components/admin/logistics/LogisticsPhaseMap";
 import LogisticsStats from "@/components/admin/logistics/LogisticsStats";
 import LogisticsDealCard from "@/components/admin/logistics/LogisticsDealCard";
-import LogisticsPhaseMap, { SHIPPING_PHASES, DESTINATION_PHASES } from "@/components/admin/logistics/LogisticsPhaseMap";
-import LogisticsStats from "@/components/admin/logistics/LogisticsStats";
-import LogisticsDealCard from "@/components/admin/logistics/LogisticsDealCard";
 
 const LogisticsPage = () => {
   const { user } = useAuth();
