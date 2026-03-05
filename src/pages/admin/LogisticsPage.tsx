@@ -1,18 +1,24 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { toast } from "@/hooks/use-toast";
 import { Truck, FlaskConical, Shield } from "lucide-react";
+import LogisticsPhaseMap, { SHIPPING_PHASES, DESTINATION_PHASES } from "@/components/admin/logistics/LogisticsPhaseMap";
+import LogisticsStats from "@/components/admin/logistics/LogisticsStats";
+import LogisticsDealCard from "@/components/admin/logistics/LogisticsDealCard";
 import LogisticsPhaseMap, { SHIPPING_PHASES, DESTINATION_PHASES } from "@/components/admin/logistics/LogisticsPhaseMap";
 import LogisticsStats from "@/components/admin/logistics/LogisticsStats";
 import LogisticsDealCard from "@/components/admin/logistics/LogisticsDealCard";
 
 const LogisticsPage = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [testMode, setTestMode] = useState(true);
 
   const allPhases = [...SHIPPING_PHASES, ...DESTINATION_PHASES];
@@ -148,6 +154,40 @@ const LogisticsPage = () => {
             <Truck className="w-12 h-12 mx-auto mb-3 opacity-30" />
             <p>لا توجد شحنات حالياً</p>
             <p className="text-xs mt-1">ستظهر الشحنات بعد صرف التوكن B واعتماد الجودة</p>
+            <Button
+              variant="outline"
+              className="mt-4 gap-2 border-yellow-500/50 text-yellow-600 hover:bg-yellow-500/10"
+              onClick={async () => {
+                toast({ title: "🧪 جاري محاكاة شحنة..." });
+                try {
+                  const { data: eligibleDeals } = await supabase
+                    .from("deals")
+                    .select("id, deal_number")
+                    .in("current_phase", ["token_b_released", "quality_approved", "shipping_documented"])
+                    .limit(1);
+
+                  if (!eligibleDeals?.length) {
+                    toast({ title: "⚠️ لا توجد صفقات مؤهلة", description: "يجب أن تكون هناك صفقة بعد اعتماد الجودة أو صرف التوكن B", variant: "destructive" });
+                    return;
+                  }
+
+                  const deal = eligibleDeals[0];
+                  await supabase.from("deals").update({
+                    current_phase: "loading_goods",
+                    logistics_employee_id: user!.id,
+                  }).eq("id", deal.id);
+
+                  toast({ title: "✅ تم تعيين شحنة تجريبية", description: `صفقة #${deal.deal_number} — مرحلة التحميل` });
+                  queryClient.invalidateQueries({ queryKey: ["logistics-deals-source"] });
+                  queryClient.invalidateQueries({ queryKey: ["logistics-deals-destination"] });
+                } catch (err: any) {
+                  toast({ title: "خطأ", description: err.message, variant: "destructive" });
+                }
+              }}
+            >
+              <FlaskConical className="w-4 h-4" />
+              🧪 محاكاة شحنة
+            </Button>
           </CardContent>
         </Card>
       )}
