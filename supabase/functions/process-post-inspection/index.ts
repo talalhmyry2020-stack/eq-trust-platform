@@ -971,9 +971,67 @@ serve(async (req) => {
           });
         }
 
+        // 6) الانتقال لمرحلة إنتاج المصنع بعد صرف التوكن
+        await supabase.from("deals").update({ current_phase: "factory_production" }).eq("id", deal_id);
+
+        // 7) محاكاة اكتمال الإنتاج بعد ثانية
+        setTimeout(async () => {
+          try {
+            // إرسال إشارة اكتمال الإنتاج تلقائياً
+            await supabase.from("deals").update({ current_phase: "factory_completed" }).eq("id", deal_id);
+            
+            // البحث عن المهمة الأولى للمفتش
+            const { data: initialMission } = await supabase
+              .from("deal_inspection_missions")
+              .select("*")
+              .eq("deal_id", deal_id)
+              .eq("mission_type", "initial")
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .single();
+
+            if (initialMission) {
+              // البحث عن وكيل الجودة
+              const { data: qualityAgents } = await supabase
+                .from("employee_details")
+                .select("user_id")
+                .eq("job_code", "quality_agent");
+
+              const qAgentId = qualityAgents?.[0]?.user_id || initialMission.inspector_id;
+
+              await supabase.from("deal_inspection_missions").insert({
+                deal_id,
+                inspector_id: qAgentId,
+                mission_type: "quality",
+                factory_latitude: initialMission.factory_latitude,
+                factory_longitude: initialMission.factory_longitude,
+                factory_address: initialMission.factory_address,
+                factory_country: initialMission.factory_country,
+                geofence_radius_meters: initialMission.geofence_radius_meters,
+                max_photos: initialMission.max_photos,
+                assigned_by: initialMission.assigned_by,
+                notes: "🧪 مهمة فحص جودة تجريبية — المطابقة الفنية قبل الشحن",
+              });
+
+              await supabase.from("deals").update({ current_phase: "quality_inspection_assigned" }).eq("id", deal_id);
+
+              await supabase.from("notifications").insert({
+                user_id: qAgentId,
+                title: "🧪 مهمة فحص جودة جديدة",
+                message: `تم تكليفك بمهمة فحص جودة تجريبية للصفقة #${deal.deal_number}.`,
+                type: "inspection",
+                entity_type: "deal",
+                entity_id: deal_id,
+              });
+            }
+          } catch (e) {
+            console.error("[test_auto_token_a] Auto factory_completed error:", e);
+          }
+        }, 1500);
+
         result.token_amount = tokenAAmount;
         result.remaining_balance = escrow ? Number(escrow.balance) - tokenAAmount : null;
-        result.message = `🧪 تجريبي: تم خصم ${tokenAAmount.toFixed(2)} ${currency} وإيداعه للمصنع`;
+        result.message = `🧪 تجريبي: تم خصم ${tokenAAmount.toFixed(2)} ${currency} وإيداعه للمصنع — سيتم تعيين مهمة فحص الجودة تلقائياً`;
         break;
       }
 

@@ -120,14 +120,24 @@ const InspectionMissionPage = () => {
       return;
     }
     try {
+      // التحقق من دعم الكاميرا
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        toast({ title: "⚠️ الكاميرا غير متاحة", description: "جرب تفعيل الوضع التجريبي 🧪 لتوليد صور تلقائية", variant: "destructive" });
+        return;
+      }
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } },
       });
       setStream(mediaStream);
       setCameraActive(true);
       if (videoRef.current) videoRef.current.srcObject = mediaStream;
-    } catch (err) {
-      toast({ title: "خطأ", description: "فشل تشغيل الكاميرا", variant: "destructive" });
+    } catch (err: any) {
+      console.error("Camera error:", err);
+      toast({ 
+        title: "⚠️ فشل تشغيل الكاميرا", 
+        description: "فعّل الوضع التجريبي 🧪 من الأعلى لتوليد صور تلقائية بدلاً من الكاميرا", 
+        variant: "destructive" 
+      });
     }
   };
 
