@@ -501,9 +501,27 @@ const QualityMissionPage = () => {
                   )}
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
-                  <Navigation className="w-5 h-5 animate-pulse text-emerald-600" />
-                  <span>جاري تحديد موقعك...</span>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <Navigation className="w-5 h-5 animate-pulse text-emerald-600" />
+                    <span>جاري تحديد موقعك...</span>
+                  </div>
+                  {testMode && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-fit border-amber-500/50 text-amber-700 hover:bg-amber-500/10"
+                      onClick={() => {
+                        const lat = activeMission?.factory_latitude || 30.01;
+                        const lng = activeMission?.factory_longitude || 31.19;
+                        setCurrentLocation({ lat: lat + 0.0001, lng: lng + 0.0001 });
+                        setIsInRange(true);
+                      }}
+                    >
+                      <FlaskConical className="w-4 h-4 ml-1" />
+                      تخطي — استخدام موقع وهمي 🧪
+                    </Button>
+                  )}
                 </div>
               )}
               {locationError && <p className="text-destructive text-sm mt-1">{locationError}</p>}
