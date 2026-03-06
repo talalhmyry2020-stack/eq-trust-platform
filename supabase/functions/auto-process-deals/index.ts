@@ -63,12 +63,12 @@ serve(async (req) => {
       }
     }
 
-    // التحقق: هل هناك صفقة حالياً في انتظار نتائج البحث أو جاري التفاوض أو صياغة عقد؟
+    // التحقق: هل هناك صفقة حالياً في انتظار نتائج البحث؟
     const { count: searchingCount } = await supabase
       .from("deals")
       .select("id", { count: "exact", head: true })
       .eq("status", "active")
-      .in("current_phase", ["searching_products", "contract_drafting"]);
+      .eq("current_phase", "searching_products");
 
     if ((searchingCount || 0) > 0) {
       return new Response(JSON.stringify({ 
@@ -78,6 +78,23 @@ serve(async (req) => {
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // التحقق: هل هناك صفقة عالقة في contract_drafting لأكثر من 3 دقائق؟ → إعادة تشغيلها
+    const { data: stuckDrafting } = await supabase
+      .from("deals")
+      .select("id, deal_number, updated_at")
+      .eq("status", "active")
+      .eq("current_phase", "contract_drafting");
+
+    if (stuckDrafting && stuckDrafting.length > 0) {
+      for (const sd of stuckDrafting) {
+        const stuckMinutes = (Date.now() - new Date(sd.updated_at).getTime()) / 60000;
+        if (stuckMinutes > 3) {
+          console.log(`[Auto-Process] Deal #${sd.deal_number} stuck in contract_drafting for ${stuckMinutes.toFixed(1)} min, retrying...`);
+          await supabase.from("deals").update({ current_phase: "negotiation_phase3_complete" }).eq("id", sd.id);
+        }
+      }
     }
 
     // التحقق: هل هناك صفقات بحاجة لصياغة العقد؟
