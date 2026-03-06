@@ -98,6 +98,13 @@ const QualityMissionPage = () => {
     );
   }, [activeMission, getDistance, testMode]);
 
+  // Auto-trigger location tracking when mission is in_progress
+  useEffect(() => {
+    if (activeMission?.status === "in_progress") {
+      startLocationTracking();
+    }
+  }, [activeMission?.status, activeMission?.id, startLocationTracking]);
+
   const startMission = useMutation({
     mutationFn: async (missionId: string) => {
       await supabase.from("deal_inspection_missions").update({ status: "in_progress" }).eq("id", missionId);
