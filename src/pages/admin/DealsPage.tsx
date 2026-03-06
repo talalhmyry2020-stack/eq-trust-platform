@@ -126,9 +126,31 @@ const DealsPage = () => {
 
 
   const deleteDeal = async (id: string) => {
-    await supabase.from("deals").delete().eq("id", id);
-    toast.success("تم حذف الصفقة");
-    fetchData();
+    // حذف كل الجداول المرتبطة أولاً
+    await Promise.all([
+      supabase.from("deal_tokens").delete().eq("deal_id", id),
+      supabase.from("deal_inspection_photos").delete().eq("deal_id", id),
+      supabase.from("deal_inspection_missions").delete().eq("deal_id", id),
+      supabase.from("deal_negotiations").delete().eq("deal_id", id),
+      supabase.from("deal_product_results").delete().eq("deal_id", id),
+      supabase.from("deal_deposits").delete().eq("deal_id", id),
+      supabase.from("deal_contracts").delete().eq("deal_id", id),
+      supabase.from("deal_samples").delete().eq("deal_id", id),
+      supabase.from("deal_escrow").delete().eq("deal_id", id),
+      supabase.from("deal_objections").delete().eq("deal_id", id),
+      supabase.from("deal_search_columns").delete().eq("deal_id", id),
+      supabase.from("deal_search_rows").delete().eq("deal_id", id),
+      supabase.from("supplier_messages").delete().eq("deal_id", id),
+      supabase.from("logistics_photos").delete().eq("deal_id", id),
+      supabase.from("logistics_reports").delete().eq("deal_id", id),
+    ]);
+    const { error } = await supabase.from("deals").delete().eq("id", id);
+    if (error) {
+      toast.error("فشل حذف الصفقة: " + error.message);
+    } else {
+      toast.success("تم حذف الصفقة بالكامل");
+      fetchData();
+    }
   };
 
   const restoreDeal = async (id: string) => {
