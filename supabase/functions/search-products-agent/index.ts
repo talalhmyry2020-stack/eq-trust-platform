@@ -289,6 +289,43 @@ ${factories.map((f: any, i: number) => `[${i}] ${f.factory_name} | ${f.country} 
 
     // تحويل المصانع المختارة إلى deal_product_results
     const selectedFactories = selectedIndices.map((idx: number) => factories[idx]).filter(Boolean);
+
+    // توليد صور المنتجات بالذكاء الاصطناعي
+    console.log(`[Search Agent] 🖼️ Generating AI product images...`);
+    let productImageUrl = "";
+    try {
+      const imgResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${lovableKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-pro-image-preview",
+          messages: [{ role: "user", content: `Generate a professional product photo of "${product}" on a clean white background, commercial product photography style, high quality.` }],
+          modalities: ["image", "text"],
+        }),
+      });
+      if (imgResponse.ok) {
+        const imgData = await imgResponse.json();
+        const imgUrl = imgData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+        if (imgUrl && imgUrl.startsWith("data:image")) {
+          const base64Data = imgUrl.split(",")[1];
+          const binaryString = atob(base64Data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+          const filePath = `ai-products/${Date.now()}_${Math.random().toString(36).slice(2)}.png`;
+          const { error: upErr } = await supabase.storage.from("deal-documents").upload(filePath, bytes, { contentType: "image/png" });
+          if (!upErr) {
+            const { data: urlData } = supabase.storage.from("deal-documents").getPublicUrl(filePath);
+            productImageUrl = urlData.publicUrl || "";
+            console.log(`[Search Agent] ✅ AI product image generated`);
+          }
+        }
+      }
+    } catch (imgErr) {
+      console.error("[Search Agent] Image generation error:", imgErr);
+    }
     
     const productInserts = selectedFactories.map((f: any) => ({
       deal_id,
@@ -296,6 +333,7 @@ ${factories.map((f: any, i: number) => `[${i}] ${f.factory_name} | ${f.country} 
       supplier_name: f.factory_name || f.factory_name_ar || "",
       origin_country: f.country || country,
       product_url: f.website || "",
+      product_image_url: productImageUrl || null,
       notes: `📧 ${f.email || "—"} | 📞 ${f.phone || "—"} | الشهادات: ${f.certifications || "—"} | الحد الأدنى: ${f.min_order || "—"}`,
       quality_rating: f.rating || "غير محدد",
       selected: false,
